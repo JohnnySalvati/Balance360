@@ -1,0 +1,30 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+.virtualenv/
+
+# =========================
+# Django
+# =========================
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Migraciones (opcional)
+# Si querés versionarlas, comentá estas líneas
+# */migrations/*
+# !*/migrations/__init__.py
+
+# =========================
+# Var
