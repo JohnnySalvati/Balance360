@@ -1,0 +1,86 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<h1>Dashboard financiero</h1>
+
+<h2>Balance mensual</h2>
+
+<canvas id="monthlyChart"></canvas>
+
+{{ monthly_labels|json_script:"monthly-labels" }}
+{{ monthly_totals|json_script:"monthly-totals" }}
+
+<script>
+  const labels = JSON.parse(
+    document.getElementById("monthly-labels").textContent
+  );
+
+  const totals = JSON.parse(
+    document.getElementById("monthly-totals").textContent
+  );
+
+  new Chart(document.getElementById("monthlyChart"), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Balance",
+        data: totals,
+        tension: 0.3
+      }]
+    }
+  });
+</script>
+
+<h2>Gastos por categoría</h2>
+<canvas id="categoryChart"></canvas>
+
+{{ category_labels|json_script:"category-labels" }}
+{{ category_totals|json_script:"category-totals" }}
+
+<script>
+  const catLabels = JSON.parse(
+    document.getElementById("category-labels").textContent
+  );
+
+  const catTotals = JSON.parse(
+    document.getElementById("category-totals").textContent
+  );
+
+  new Chart(document.getElementById("categoryChart"), {
+    type: "pie",
+    data: {
+      labels: catLabels,
+      datasets: [{
+        data: catTotals
+      }]
+    }
+  });
+</script>
+
+<h2>Distribución por cuenta</h2>
+<canvas id="accountChart"></canvas>
+
+{{ account_labels|json_script:"account-labels" }}
+{{ account_totals|json_script:"account-totals" }}
+
+<script>
+  const accLabels = JSON.parse(
+    document.getElementById("account-labels").textContent
+  );
+
+  const accTotals = JSON.parse(
+    document.getElementById("account-totals").textContent
+  );
+
+  new Chart(document.getElementById("accountChart"), {
+    type: "bar",
+    data: {
+      labels: accLabels,
+      datasets: [{
+        label: "Saldo",
+        data: accTotals
+      }]
+    }
+  });
+</script>
+
