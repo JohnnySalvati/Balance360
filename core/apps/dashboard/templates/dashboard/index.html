@@ -2,6 +2,21 @@
 
 <h1>Dashboard financiero</h1>
 
+<form method="get">
+  <label for="entity">Entidad:</label>
+  <select name="entity" id="entity" onchange="this.form.submit()">
+    {% for e in entities %}
+      <option value="{{ e.id }}" {% if e.id == entity.id %}selected{% endif %}>
+        {{ e.name }}
+      </option>
+    {% endfor %}
+  </select>
+</form>
+
+<hr>
+
+<p><strong>Entidad:</strong> {{ entity.name }}</p>
+
 <h2>Balance mensual</h2>
 
 <canvas id="monthlyChart"></canvas>

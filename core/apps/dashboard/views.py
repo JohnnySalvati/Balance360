@@ -13,7 +13,20 @@ from apps.finance.models import Account, Category
 @login_required
 def dashboard(request):
     entities = get_entities_for_user(request.user)
-    entity = entities.first()
+
+    # --- entidad seleccionada ---
+    entity_id = request.GET.get("entity")
+
+    if entity_id:
+        entity = entities.filter(id=entity_id).first()
+    else:
+        entity = entities.first()
+
+    if not entity:
+        return render(request, "dashboard/index.html", {
+            "entities": entities,
+            "error": "No hay entidades disponibles."
+        })
 
     # --- Balance mensual ---
     monthly = monthly_balance(entity)
@@ -24,21 +37,12 @@ def dashboard(request):
     egresos = Category.objects.get(name="Egresos")
 
     # Subcategorías directas (nivel 2)
-    expense_categories = egresos.children.all()
+    expense_categories = egresos.children.all() # type: ignore[attr-defined]
 
     category_labels = []
     category_totals = []
 
     for cat in expense_categories:
-        total = total_by_category(cat, entity=entity)
-        if total != 0:
-            category_labels.append(cat.name)
-            category_totals.append(float(abs(total)))
-
-    category_labels = []
-    category_totals = []
-
-    for cat in root_categories:
         total = total_by_category(cat, entity=entity)
         if total != 0:
             category_labels.append(cat.name)
@@ -55,6 +59,7 @@ def dashboard(request):
             account_totals.append(float(total))
 
     context = {
+        "entities": entities,
         "entity": entity,
 
         "monthly_labels": monthly_labels,
