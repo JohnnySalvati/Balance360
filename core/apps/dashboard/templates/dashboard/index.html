@@ -1,101 +1,241 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
+{% endblock %}
+
+{% block content %} 
+
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<h1>Dashboard financiero</h1>
-
-<form method="get">
-  <label for="entity">Entidad:</label>
-  <select name="entity" id="entity" onchange="this.form.submit()">
-    {% for e in entities %}
-      <option value="{{ e.id }}" {% if e.id == entity.id %}selected{% endif %}>
-        {{ e.name }}
-      </option>
-    {% endfor %}
-  </select>
-</form>
 
 <hr>
 
-<p><strong>Entidad:</strong> {{ entity.name }}</p>
+<h1>Dashboard financiero</h1>
 
-<h2>Balance mensual</h2>
+<div class="toolbar">
+  <form method="get">
+    <label for="entity">Entidad:</label>
+    <select name="entity" id="entity" onchange="this.form.submit()">
+      {% for e in entities %}
+        <option value="{{ e.id }}" {% if e.id == entity.id %}selected{% endif %}>
+          {{ e.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </form>
 
-<canvas id="monthlyChart"></canvas>
+  <hr>
 
-{{ monthly_labels|json_script:"monthly-labels" }}
-{{ monthly_totals|json_script:"monthly-totals" }}
+  <form method="get">
+    <input type="hidden" name="entity" value="{{ entity.id }}">
 
-<script>
-  const labels = JSON.parse(
-    document.getElementById("monthly-labels").textContent
-  );
+    <label>Mes:</label>
+    <select name="month">
+      {% for m in context_months %}
+        <option value="{{ m }}" {% if m == context_month %}selected{% endif %}>
+          {{ m }}
+        </option>
+      {% endfor %}
+    </select>
 
-  const totals = JSON.parse(
-    document.getElementById("monthly-totals").textContent
-  );
+    <label>Año:</label>
+    <select name="year">
+      {% for y in context_years %}
+        <option value="{{ y }}" {% if y == context_year %}selected{% endif %}>
+          {{ y }}
+        </option>
+      {% endfor %}
+    </select>
 
-  new Chart(document.getElementById("monthlyChart"), {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "Balance",
-        data: totals,
-        tension: 0.3
+    <button type="submit">Aplicar</button>
+  </form>
+</div>
+
+<hr>
+
+<h2>Resultado del período</h2>
+
+<div class="kpi-container">
+  <div class="kpi">
+    <h3>Ingresos</h3>
+    <p class="kpi-value positive">
+      $ {{ period.ingresos|floatformat:2|intcomma }}
+    </p>
+  </div>
+
+  <div class="kpi">
+    <h3>Egresos</h3>
+    <p class="kpi-value negative">
+      $ {{ period.egresos|floatformat:2|intcomma }}
+    </p>
+  </div>
+
+  <div class="kpi kpi-main">
+    <h3>Resultado</h3>
+    <p class="kpi-value {% if period.resultado >= 0 %}positive{% else %}negative{% endif %}">
+      $ {{ period.resultado|floatformat:2|intcomma }}
+    </p>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <div class="card">
+    <h2>Balance mensual</h2>
+    <div class="chart-wrapper">
+      <canvas id="monthlyChart"></canvas>
+    </div>
+  </div>
+
+  {{ monthly_labels|json_script:"monthly-labels" }}
+  {{ monthly_totals|json_script:"monthly-totals" }}
+
+  <script>
+    const labels = JSON.parse(
+      document.getElementById("monthly-labels").textContent
+    );
+
+    const totals = JSON.parse(
+      document.getElementById("monthly-totals").textContent
+    );
+
+    new Chart(document.getElementById("monthlyChart"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Balance",
+          data: totals,
+          borderColor: "#4f46e5",
+          backgroundColor: "rgba(79,70,229,0.1)",
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  </script>
+
+  <div class="card">
+    <h2>Egresos por categoría</h2>
+
+    <div class="toolbar">
+      <form method="get">
+        <input type="hidden" name="entity" value="{{ entity.id }}">
+        <input type="hidden" name="year" value="{{ context_year }}">
+        <input type="hidden" name="month" value="{{ context_month }}">
+
+        <label>Egresos por categoría:</label>
+        <select name="cat_scope" onchange="this.form.submit()">
+          <option value="all" {% if context_cat_scope == "all" %}selected{% endif %}>
+            Histórico
+          </option>
+          <option value="period" {% if context_cat_scope == "period" %}selected{% endif %}>
+            Período seleccionado
+          </option>
+        </select>
+      </form>
+    </div>
+
+    <div class="chart-wrapper">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+
+  {{ category_labels|json_script:"category-labels" }}
+  {{ category_totals|json_script:"category-totals" }}
+
+  <script>
+    const catLabels = JSON.parse(
+      document.getElementById("category-labels").textContent
+    );
+
+    const catTotals = JSON.parse(
+      document.getElementById("category-totals").textContent
+    );
+
+    new Chart(document.getElementById("categoryChart"), {
+      type: "pie",
+      data: {
+        labels: catLabels,
+        datasets: [{
+        data: catTotals,
+        backgroundColor: [
+          "#af4444",
+          "#f97316",
+          "#eab308",
+          "#22c55e",
+          "#3b82f6"
+        ]
       }]
-    }
-  });
-</script>
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  </script>
 
-<h2>Gastos por categoría</h2>
-<canvas id="categoryChart"></canvas>
+  <div class="card">
+    <h2>Distribución por cuenta</h2>
 
-{{ category_labels|json_script:"category-labels" }}
-{{ category_totals|json_script:"category-totals" }}
+    <div class="toolbar">
+      <form method="get">
+        <input type="hidden" name="entity" value="{{ entity.id }}">
+        <input type="hidden" name="year" value="{{ context_year }}">
+        <input type="hidden" name="month" value="{{ context_month }}">
 
-<script>
-  const catLabels = JSON.parse(
-    document.getElementById("category-labels").textContent
-  );
+        <label>Distribución por cuenta:</label>
+        <select name="acc_scope" onchange="this.form.submit()">
+          <option value="all" {% if context_acc_scope == "all" %}selected{% endif %}>
+            Saldo actual
+          </option>
+          <option value="period" {% if context_acc_scope == "period" %}selected{% endif %}>
+            Movimiento del período
+          </option>
+        </select>
+      </form>
+    </div>
 
-  const catTotals = JSON.parse(
-    document.getElementById("category-totals").textContent
-  );
+    <div class="chart-wrapper">
+      <canvas id="accountChart"></canvas>
+    </div>
+  </div>
 
-  new Chart(document.getElementById("categoryChart"), {
-    type: "pie",
-    data: {
-      labels: catLabels,
-      datasets: [{
-        data: catTotals
-      }]
-    }
-  });
-</script>
+  {{ account_labels|json_script:"account-labels" }}
+  {{ account_totals|json_script:"account-totals" }}
 
-<h2>Distribución por cuenta</h2>
-<canvas id="accountChart"></canvas>
+  <script>
+    const accLabels = JSON.parse(
+      document.getElementById("account-labels").textContent
+    );
 
-{{ account_labels|json_script:"account-labels" }}
-{{ account_totals|json_script:"account-totals" }}
+    const accTotals = JSON.parse(
+      document.getElementById("account-totals").textContent
+    );
 
-<script>
-  const accLabels = JSON.parse(
-    document.getElementById("account-labels").textContent
-  );
-
-  const accTotals = JSON.parse(
-    document.getElementById("account-totals").textContent
-  );
-
-  new Chart(document.getElementById("accountChart"), {
-    type: "bar",
-    data: {
-      labels: accLabels,
-      datasets: [{
+    new Chart(document.getElementById("accountChart"), {
+      type: "bar",
+      data: {
+        labels: accLabels,
+        datasets: [{
         label: "Saldo",
-        data: accTotals
+        data: accTotals,
+        backgroundColor: "#3b82f6"
       }]
-    }
-  });
-</script>
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  </script>
+</div>
 
+{% endblock %}

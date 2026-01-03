@@ -1,0 +1,73 @@
+.kpi-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.kpi {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.kpi-main {
+  background: #eef2ff;
+  font-weight: bold;
+}
+
+.kpi-value {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+.positive {
+  color: #2e7d32;
+}
+
+.negative {
+  color: #c62828;
+}
+
+.card {
+  background: white;
+  padding:0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.card h2 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 320px;   
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr;   /* mobile first */
+  gap: 1rem;
+}
+
+/* Tablet / desktop */
+@media (min-width: 768px) {
+  .charts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+
+.toolbar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f1f3f5;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}

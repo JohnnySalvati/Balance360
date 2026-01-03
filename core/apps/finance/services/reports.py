@@ -36,16 +36,16 @@ def period_result(entity, start, end):
         or Decimal("0")
     )
 
-    gastos = (
-        qs.filter(amount__=0)
+    egresos = (
+        qs.filter(amount__lt=0)
         .aggregate(total=Sum("amount"))["total"]
         or Decimal("0")
     )
 
     return {
         "ingresos": ingresos,
-        "gastos": gastos,
-        "resultado": ingresos + gastos,
+        "egresos": egresos,
+        "resultado": ingresos + egresos,
     }
 
 
@@ -75,15 +75,18 @@ def total_by_category(category, entity=None, start=None, end=None):
         total=Sum("amount"))["total"] or Decimal("0")
 
 
-def balance_por_cuenta(account, entity=None):
+def account_balance(account, entity=None, start=None, end=None):
     qs = base_queryset().filter(account=account)
 
     if entity:
         qs = qs.filter(entity=entity)
 
+    if start and end:
+        qs = qs.filter(date__date__gte=start, date__date__lte=end)
+
     return qs.aggregate(
         total=Sum("amount")
-        )["total"] or Decimal("0")
+    )["total"] or Decimal("0")
     
 def consolidated_balance(entities):
     result = {}

@@ -5,10 +5,13 @@ from apps.finance.services.permissions import get_entities_for_user
 from apps.finance.services.reports import (
     monthly_balance,
     total_by_category,
-    balance_por_cuenta,
+    account_balance,
+    period_result
 )
 from apps.finance.models import Account, Category
 
+from datetime import date
+from calendar import monthrange
 
 @login_required
 def dashboard(request):
@@ -27,6 +30,23 @@ def dashboard(request):
             "entities": entities,
             "error": "No hay entidades disponibles."
         })
+    
+    cat_scope = request.GET.get("cat_scope", "all")
+    acc_scope = request.GET.get("acc_scope", "all")
+
+    today = date.today()
+
+    years = range(2010, today.year + 1)
+    months = range(1, 13)
+
+    year = int(request.GET.get("year", today.year))
+    month = int(request.GET.get("month", today.month))
+
+    start = date(year, month, 1)
+    end_day = monthrange(year, month)[1]
+    end = date(year, month, end_day)
+
+    period = period_result(entity, start=start, end=end)
 
     # --- Balance mensual ---
     monthly = monthly_balance(entity)
@@ -43,7 +63,16 @@ def dashboard(request):
     category_totals = []
 
     for cat in expense_categories:
-        total = total_by_category(cat, entity=entity)
+        if cat_scope == "period":
+            total = total_by_category(
+                cat,
+                entity=entity,
+                start=start,
+                end=end,
+            )
+        else:
+            total = total_by_category(cat, entity=entity)
+
         if total != 0:
             category_labels.append(cat.name)
             category_totals.append(float(abs(total)))
@@ -53,14 +82,32 @@ def dashboard(request):
     account_totals = []
 
     for account in Account.objects.all():
-        total = balance_por_cuenta(account, entity=entity)
+        qs_kwargs = {}
+
+        if acc_scope == "period":
+            qs_kwargs["start"] = start
+            qs_kwargs["end"] = end
+
+        total = account_balance(
+            account,
+            entity=entity,
+            **qs_kwargs,
+        )
+
         if total != 0:
             account_labels.append(account.name)
             account_totals.append(float(total))
 
+
     context = {
         "entities": entities,
         "entity": entity,
+
+        "context_cat_scope": cat_scope,
+        "context_acc_scope": acc_scope,
+
+        "context_year": year,
+        "context_month": month,
 
         "monthly_labels": monthly_labels,
         "monthly_totals": monthly_totals,
@@ -70,6 +117,10 @@ def dashboard(request):
 
         "account_labels": account_labels,
         "account_totals": account_totals,
+
+        "period": period,
+        "context_years": years,
+        "context_months": months,
     }
 
     return render(request, "dashboard/index.html", context)
