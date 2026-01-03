@@ -18,8 +18,8 @@ def create_transfer(
     if from_account == to_account:
         raise ValueError("La cuenta origen y destino no pueden ser la misma.")
 
-    if amount <= 0:
-        raise ValueError("El monto debe ser mayor a cero.")
+    if amount == 0:
+        raise ValueError("El monto no puede ser cero.")
 
     transfer_category = Category.objects.get(name="Transferencia interna")
 
@@ -32,8 +32,7 @@ def create_transfer(
             entity=entity,
             account=from_account,
             category=transfer_category,
-            direction=Transaction.OUT,
-            amount=amount,
+            amount=-amount,
             description=description or f"Transferencia a {to_account.name}",
         )
         tx_out.clean()  # respeta cierres
@@ -45,7 +44,6 @@ def create_transfer(
             entity=entity,
             account=to_account,
             category=transfer_category,
-            direction=Transaction.IN,
             amount=amount,
             description=description or f"Transferencia desde {from_account.name}",
         )

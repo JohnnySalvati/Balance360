@@ -9,7 +9,6 @@ class TransactionAdmin(admin.ModelAdmin):
         "entity",
         "account",
         "category",
-        "direction",
         "amount",
     )
 
@@ -17,7 +16,6 @@ class TransactionAdmin(admin.ModelAdmin):
         "account",
         "entity",
         "category",
-        "direction",
         "date",
     )
 
@@ -28,5 +26,5 @@ class TransactionAdmin(admin.ModelAdmin):
     ordering = ("-date",)
 
 def clean(self):
-    if self.amount <= 0:
-        raise ValidationError("El monto debe ser mayor a cero.")
+    if self.amount == 0:
+        raise ValidationError("El monto no puede ser cero.")

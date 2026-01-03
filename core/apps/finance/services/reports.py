@@ -1,10 +1,11 @@
-from django.db.models import Sum, Case, When, F, DecimalField
+from django.db.models import Sum, DecimalField
 from apps.finance.models import Transaction, Category
 from django.db.models.functions import TruncMonth
 
+from decimal import Decimal
 
 def base_queryset():
-    transfer_category = Category.objects.get(name="Transferencia interna")
+    transfer_category = Category.objects.get(name="Transferencias")
 
     return Transaction.objects.exclude(category=transfer_category)
 
@@ -16,14 +17,9 @@ def monthly_balance(entity):
         qs.annotate(month=TruncMonth("date"))
         .values("month")
         .annotate(
-            total=Sum(
-                Case(
-                    When(direction=Transaction.IN, then=F("amount")),
-                    When(direction=Transaction.OUT, then=-F("amount")),
-                    output_field=DecimalField()
-                )
+            total=Sum("amount", output_field=DecimalField())
             )
-        )
+        
         .order_by("month")
     )
 
@@ -34,18 +30,22 @@ def period_result(entity, start, end):
         date__date__lte=end,
     )
 
-    ingresos = qs.filter(direction=Transaction.IN).aggregate(
-        total=Sum("amount")
-    )["total"] or 0
+    ingresos = (
+        qs.filter(amount__gt=0)
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0")
+    )
 
-    gastos = qs.filter(direction=Transaction.OUT).aggregate(
-        total=Sum("amount")
-    )["total"] or 0
+    gastos = (
+        qs.filter(amount__=0)
+        .aggregate(total=Sum("amount"))["total"]
+        or Decimal("0")
+    )
 
     return {
         "ingresos": ingresos,
         "gastos": gastos,
-        "resultado": ingresos - gastos,
+        "resultado": ingresos + gastos,
     }
 
 
@@ -72,14 +72,7 @@ def total_by_category(category, entity=None, start=None, end=None):
         qs = qs.filter(date__date__gte=start, date__date__lte=end)
 
     return qs.aggregate(
-        total=Sum(
-            Case(
-                When(direction=Transaction.IN, then=F("amount")),
-                When(direction=Transaction.OUT, then=-F("amount")),
-                output_field=DecimalField()
-            )
-        )
-    )["total"] or 0
+        total=Sum("amount"))["total"] or Decimal("0")
 
 
 def balance_por_cuenta(account, entity=None):
@@ -89,16 +82,9 @@ def balance_por_cuenta(account, entity=None):
         qs = qs.filter(entity=entity)
 
     return qs.aggregate(
-        total=Sum(
-            Case(
-                When(direction=Transaction.IN, then=F("amount")),
-                When(direction=Transaction.OUT, then=-F("amount")),
-                output_field=DecimalField()
-            )
-        )
-    )["total"] or 0
-
-
+        total=Sum("amount")
+        )["total"] or Decimal("0")
+    
 def consolidated_balance(entities):
     result = {}
 
@@ -107,14 +93,8 @@ def consolidated_balance(entities):
             base_queryset()
             .filter(entity=entity)
             .aggregate(
-                total=Sum(
-                    Case(
-                        When(direction=Transaction.IN, then=F("amount")),
-                        When(direction=Transaction.OUT, then=-F("amount")),
-                        output_field=DecimalField()
-                    )
-                )
-            )["total"] or 0
+                total=Sum("amount")
+            )["total"] or Decimal("0")
         )
 
     result["TOTAL"] = sum(result.values())
