@@ -59,24 +59,54 @@
     <div class="period-status closed">
       🔒 Período cerrado
     </div>
+
   {% elif period_status == "partial" %}
     <div class="period-status partial">
       🟡 Período parcialmente cerrado
+
+      <div class="period-detail">
+        <p><strong>Entidades cerradas:</strong></p>
+        <ul>
+          {% for e in closed_entities %}
+            <li>🔒 {{ e.name }}</li>
+          {% endfor %}
+        </ul>
+
+        <p><strong>Entidades abiertas:</strong></p>
+        <ul>
+          {% for e in open_entities %}
+            <li>🟡 {{ e.name }}</li>
+          {% endfor %}
+        </ul>
+
+        <form method="post" action="{% url 'close_missing_periods' %}">
+          {% csrf_token %}
+          <input type="hidden" name="entity" value="{{ entity.id }}">
+          <input type="hidden" name="year" value="{{ context_year }}">
+          <input type="hidden" name="month" value="{{ context_month }}">
+          <button type="submit" class="btn-action">
+            Cerrar entidades abiertas
+          </button>
+        </form>
+      </div>
     </div>
+
   {% else %}
     <div class="period-status open">
-      🟡 Período abierto
-      <form method="post" action="{% url 'close_period' %}">
+      🟢 Período abierto
+
+      <form method="post" action="{% url 'close_period' %}" class="inline-form">
         {% csrf_token %}
         <input type="hidden" name="entity" value="{{ entity.id }}">
         <input type="hidden" name="year" value="{{ context_year }}">
         <input type="hidden" name="month" value="{{ context_month }}">
-        <button type="submit">Cerrar período</button>
+        <button type="submit" class="btn-action">
+          🔒 Cerrar período
+        </button>
       </form>
     </div>
   {% endif %}
 </div>
-
 
 <div class="kpi-container">
   <div class="kpi">

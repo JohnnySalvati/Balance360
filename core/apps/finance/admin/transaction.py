@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError, PermissionDenied
 
-from apps.finance.services.periods import get_period_status
 from ..models import Transaction
 from apps.finance.services.enums import PeriodStatus
 
@@ -29,15 +28,9 @@ class TransactionAdmin(admin.ModelAdmin):
     ordering = ("-date",)
 
     def save_model(self, request, obj, form, change):
-        year = obj.date.year
-        month = obj.date.month
-        if get_period_status(obj.entity, year, month) == PeriodStatus.CLOSED:
-            raise PermissionDenied("Período cerrado.")
+        obj.full_clean()
         super().save_model(request, obj, form, change)
 
     def delete_model(self, request, obj):
-        year = obj.date.year
-        month = obj.date.month
-        if get_period_status(obj.entity, year, month) == PeriodStatus.CLOSED:
-            raise PermissionDenied("Período cerrado.")
+        obj.full_clean()
         super().delete_model(request, obj)

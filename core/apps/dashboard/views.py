@@ -3,11 +3,11 @@ from django.contrib.auth.decorators import login_required
 
 from apps.finance.models import Account, Category, EconomicEntity
 from apps.finance.services.permissions import get_entities_for_user
-from apps.finance.services.entities import get_consolidated_entities
 from apps.finance.services.periods import (
     close_period,
-    get_period_status,
-    period_result
+    close_open_entities,
+    period_result,
+    get_consolidated_period_detail
 )
 from apps.finance.services.reports import (
     monthly_balance,
@@ -44,21 +44,12 @@ def dashboard(request):
     year = int(request.GET.get("year", today.year))
     month = int(request.GET.get("month", today.month))
 
-    period_status = get_period_status(
-            entity,
-            year,
-            month,
-        ).value
-
     start = date(year, month, 1)
     end_day = monthrange(year, month)[1]
     end = date(year, month, end_day)
 
-    period = period_result(
-        entity,
-        year,
-        month,
-    )
+    period_detail = get_consolidated_period_detail(entity, year, month)
+    period = period_result(entity, year, month)
 
     cat_scope = request.GET.get("cat_scope", "all")
     acc_scope = request.GET.get("acc_scope", "all")
@@ -113,7 +104,6 @@ def dashboard(request):
             account_labels.append(account.name)
             account_totals.append(float(total))
 
-
     context = {
         "entities": entities,
         "entity": entity,
@@ -134,7 +124,9 @@ def dashboard(request):
         "account_totals": account_totals,
 
         "period": period,
-        "period_status": period_status,
+        "period_status": period_detail["status"].value,
+        "closed_entities": period_detail["closed"],
+        "open_entities": period_detail["open"],
         
         "context_years": years,
         "context_months": months,
@@ -151,5 +143,16 @@ def close_period_view(request):
 
     entity = EconomicEntity.objects.get(id=entity_id)
 
-    close_period(entity, year, month)
+    close_period(entity, year, month, request.user)
+    return redirect(request.META.get("HTTP_REFERER", "/"))
+
+@login_required
+def close_missing_periods_view(request):
+    entity_id = request.POST["entity"]
+    year = int(request.POST["year"])
+    month = int(request.POST["month"])
+
+    entity = EconomicEntity.objects.get(id=entity_id)
+
+    close_open_entities(entity, year, month, request.user)
     return redirect(request.META.get("HTTP_REFERER", "/"))

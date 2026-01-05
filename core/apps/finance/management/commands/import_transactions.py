@@ -5,7 +5,6 @@ from apps.finance.models.account import Account
 from apps.finance.models.transaction import Transaction
 from apps.finance.models.category import Category
 from apps.finance.models.entity import EconomicEntity
-from apps.finance.services.periods import is_period_closed
 from apps.finance.exceptions import PeriodClosedError
 
 from decimal import Decimal
@@ -47,12 +46,7 @@ class Command(BaseCommand):
                     self.stderr.write(f"Fila {i}: fecha inválida -> {raw_date}")
                     continue
 
-                if is_period_closed(entity, parsed_date.date()):
-                    raise PeriodClosedError(
-                        f"Período {parsed_date.month}/{parsed_date.year} cerrado para {entity}"
-                    )
-
-                tx = Transaction.objects.create(
+                tx = Transaction(
                     account=account,
                     entity=entity,
                     category=category,
@@ -60,6 +54,9 @@ class Command(BaseCommand):
                     date=pd.to_datetime(row["date"]).date(),
                     description=str(row.get("description", "")),
                 )
+
+                tx.full_clean()
+                tx.save()
 
                 created += 1
 

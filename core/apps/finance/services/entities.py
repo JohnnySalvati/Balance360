@@ -1,7 +1,7 @@
 from apps.finance.models import EconomicEntity
 
 
-def get_consolidated_entities(entity: EconomicEntity):
+def get_consolidated_entities(entity: EconomicEntity) -> list[EconomicEntity]:
 
     children = EconomicEntity.objects.filter(
         parent_links__parent=entity
