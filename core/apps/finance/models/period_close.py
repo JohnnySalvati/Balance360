@@ -1,16 +1,23 @@
 from django.db import models
-from apps.finance.models import EconomicEntity
-
-
 class PeriodClose(models.Model):
-    entity = models.ForeignKey(EconomicEntity, on_delete=models.PROTECT)
+    entity = models.ForeignKey(
+        "finance.EconomicEntity",
+        on_delete=models.CASCADE,
+        related_name="period_closes",
+    )
+
     year = models.PositiveIntegerField()
     month = models.PositiveIntegerField()
 
     closed_at = models.DateTimeField(auto_now_add=True)
 
+    ingresos = models.DecimalField(max_digits=14, decimal_places=2)
+    egresos = models.DecimalField(max_digits=14, decimal_places=2)
+    resultado = models.DecimalField(max_digits=14, decimal_places=2)
+
     class Meta:
         unique_together = ("entity", "year", "month")
+        ordering = ["-year", "-month"]
 
     def __str__(self):
-        return f"{self.entity} {self.month}/{self.year}"
+        return f"{self.entity} {self.year}-{self.month:02d}"

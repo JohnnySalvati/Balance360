@@ -1,17 +1,15 @@
-# apps/finance/management/commands/import_transactions.py
-print(">>> import_transactions module LOADED <<<")
-
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_date
-from decimal import Decimal
-import pandas as pd
 
 from apps.finance.models.account import Account
 from apps.finance.models.transaction import Transaction
 from apps.finance.models.category import Category
 from apps.finance.models.entity import EconomicEntity
+from apps.finance.services.periods import is_period_closed
+from apps.finance.exceptions import PeriodClosedError
 
-
+from decimal import Decimal
+import pandas as pd
 class Command(BaseCommand):
     help = "Importa transacciones desde un archivo Excel"
 
@@ -48,6 +46,11 @@ class Command(BaseCommand):
                 if pd.isna(parsed_date):
                     self.stderr.write(f"Fila {i}: fecha inválida -> {raw_date}")
                     continue
+
+                if is_period_closed(entity, parsed_date.date()):
+                    raise PeriodClosedError(
+                        f"Período {parsed_date.month}/{parsed_date.year} cerrado para {entity}"
+                    )
 
                 tx = Transaction.objects.create(
                     account=account,

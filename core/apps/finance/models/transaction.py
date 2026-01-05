@@ -1,10 +1,10 @@
 from django.db import models
+from django.core.exceptions import ValidationError
+
+from apps.finance.services.enums import PeriodStatus
 from .account import Account
 from .entity import EconomicEntity
 from .category import Category
-from django.core.exceptions import ValidationError
-from apps.finance.models.period_close import PeriodClose
-
 
 class Transaction(models.Model):
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
@@ -21,7 +21,14 @@ class Transaction(models.Model):
     def __str__(self):
         return f"{self.date.date()} {self.amount}"
 
+    def clean(self):
+        if self.amount == 0:
+            raise ValidationError("El monto no puede ser cero.")
+        
+        from apps.finance.services.periods import get_period_status
 
-def clean(self):
-    if self.amount == 0:
-        raise ValidationError("El monto no puede ser cero.")
+        if self.date and self.entity:
+            year = self.date.year
+            month = self.date.month
+            if get_period_status(self.entity, year, month) == PeriodStatus.CLOSED:
+                raise ValidationError("El período está cerrado.")

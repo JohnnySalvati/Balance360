@@ -16,25 +16,21 @@
 
 <h1>Dashboard financiero</h1>
 
-<div class="toolbar">
-  <form method="get">
-    <label for="entity">Entidad:</label>
-    <select name="entity" id="entity" onchange="this.form.submit()">
+<div class="filters">
+
+  <form method="get" class="filters-form">
+
+    <label>Entidad:</label>
+    <select name="entity" onchange="this.form.submit()">
       {% for e in entities %}
         <option value="{{ e.id }}" {% if e.id == entity.id %}selected{% endif %}>
           {{ e.name }}
         </option>
       {% endfor %}
     </select>
-  </form>
-
-  <hr>
-
-  <form method="get">
-    <input type="hidden" name="entity" value="{{ entity.id }}">
 
     <label>Mes:</label>
-    <select name="month">
+    <select name="month" onchange="this.form.submit()">
       {% for m in context_months %}
         <option value="{{ m }}" {% if m == context_month %}selected{% endif %}>
           {{ m }}
@@ -43,7 +39,7 @@
     </select>
 
     <label>Año:</label>
-    <select name="year">
+    <select name="year" onchange="this.form.submit()">
       {% for y in context_years %}
         <option value="{{ y }}" {% if y == context_year %}selected{% endif %}>
           {{ y }}
@@ -51,13 +47,36 @@
       {% endfor %}
     </select>
 
-    <button type="submit">Aplicar</button>
   </form>
 </div>
 
 <hr>
 
-<h2>Resultado del período</h2>
+<div class="period-header">
+  <h2 class="period-title">Resultado del período</h2>
+
+  {% if period_status == "closed" %}
+    <div class="period-status closed">
+      🔒 Período cerrado
+    </div>
+  {% elif period_status == "partial" %}
+    <div class="period-status partial">
+      🟡 Período parcialmente cerrado
+    </div>
+  {% else %}
+    <div class="period-status open">
+      🟡 Período abierto
+      <form method="post" action="{% url 'close_period' %}">
+        {% csrf_token %}
+        <input type="hidden" name="entity" value="{{ entity.id }}">
+        <input type="hidden" name="year" value="{{ context_year }}">
+        <input type="hidden" name="month" value="{{ context_month }}">
+        <button type="submit">Cerrar período</button>
+      </form>
+    </div>
+  {% endif %}
+</div>
+
 
 <div class="kpi-container">
   <div class="kpi">
@@ -66,14 +85,12 @@
       $ {{ period.ingresos|floatformat:2|intcomma }}
     </p>
   </div>
-
   <div class="kpi">
     <h3>Egresos</h3>
     <p class="kpi-value negative">
       $ {{ period.egresos|floatformat:2|intcomma }}
     </p>
   </div>
-
   <div class="kpi kpi-main">
     <h3>Resultado</h3>
     <p class="kpi-value {% if period.resultado >= 0 %}positive{% else %}negative{% endif %}">

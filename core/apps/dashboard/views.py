@@ -1,14 +1,19 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 
+from apps.finance.models import Account, Category, EconomicEntity
 from apps.finance.services.permissions import get_entities_for_user
+from apps.finance.services.entities import get_consolidated_entities
+from apps.finance.services.periods import (
+    close_period,
+    get_period_status,
+    period_result
+)
 from apps.finance.services.reports import (
     monthly_balance,
     total_by_category,
     account_balance,
-    period_result
 )
-from apps.finance.models import Account, Category
 
 from datetime import date
 from calendar import monthrange
@@ -30,10 +35,7 @@ def dashboard(request):
             "entities": entities,
             "error": "No hay entidades disponibles."
         })
-    
-    cat_scope = request.GET.get("cat_scope", "all")
-    acc_scope = request.GET.get("acc_scope", "all")
-
+        
     today = date.today()
 
     years = range(2010, today.year + 1)
@@ -42,11 +44,24 @@ def dashboard(request):
     year = int(request.GET.get("year", today.year))
     month = int(request.GET.get("month", today.month))
 
+    period_status = get_period_status(
+            entity,
+            year,
+            month,
+        ).value
+
     start = date(year, month, 1)
     end_day = monthrange(year, month)[1]
     end = date(year, month, end_day)
 
-    period = period_result(entity, start=start, end=end)
+    period = period_result(
+        entity,
+        year,
+        month,
+    )
+
+    cat_scope = request.GET.get("cat_scope", "all")
+    acc_scope = request.GET.get("acc_scope", "all")
 
     # --- Balance mensual ---
     monthly = monthly_balance(entity)
@@ -119,8 +134,22 @@ def dashboard(request):
         "account_totals": account_totals,
 
         "period": period,
+        "period_status": period_status,
+        
         "context_years": years,
         "context_months": months,
     }
 
     return render(request, "dashboard/index.html", context)
+
+
+@login_required
+def close_period_view(request):
+    entity_id = request.POST["entity"]
+    year = int(request.POST["year"])
+    month = int(request.POST["month"])
+
+    entity = EconomicEntity.objects.get(id=entity_id)
+
+    close_period(entity, year, month)
+    return redirect(request.META.get("HTTP_REFERER", "/"))
