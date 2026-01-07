@@ -1,6 +1,6 @@
 from django.http import JsonResponse
-from .models import Membership
 
+from .models import Membership
 class OrganizationMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response

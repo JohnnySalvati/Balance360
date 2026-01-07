@@ -1,5 +1,4 @@
 from rest_framework.permissions import BasePermission
-
 class HasOrganizationAccess(BasePermission):
     message = "Debe indicar una organización activa."
 
