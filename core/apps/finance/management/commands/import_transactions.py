@@ -4,6 +4,7 @@ from apps.finance.models.account import Account
 from apps.finance.models.transaction import Transaction
 from apps.finance.models.category import Category
 from apps.finance.models.entity import EconomicEntity
+from apps.finance.models.classification_rule import ClassificationRule
 
 from decimal import Decimal, ROUND_HALF_UP
 import pandas as pd
@@ -11,8 +12,23 @@ import re
 class Command(BaseCommand):
     help = "Importa transacciones desde un archivo Excel"
 
-    DEFAULT_ENTITY_NAME = "InSoft"
-    DEFAULT_CATEGORY_NAME = "Ingresos"
+    CATEGORY_RULES = [
+        (["visa"], "Gastos"),
+        (["prosegur"], "Gastos"),
+        (["sircreb"], "Impuestos"),
+        (["ib "], "Impuestos"),
+        (["comision mep"], "Comisiones MEP"),
+        (["comision"], "Comisiones"),
+        (["compra u$s mep", "venta u$s mep"], "Inversiones"),
+        (["a mp", "de mp", "al ciudad", "del ciudad", "deposito", "extraccion"], "Transferencias"),
+    ]
+
+    PROVIDER_CATEGORY_MAP = {
+        "prosegur": "Gastos",
+        "farmacia": "Gastos",
+        "pescaderia": "Gastos",
+        "arreglo auto": "Gastos",
+    }
 
     def add_arguments(self, parser):
         parser.add_argument("file", type=str, help="Ruta al archivo Excel (.xlsx)")
@@ -130,7 +146,48 @@ class Command(BaseCommand):
         return movements
 
     def resolve_entity(self, description):
-        return EconomicEntity.objects.get(name=self.DEFAULT_ENTITY_NAME)
+        text = description.lower()
+
+        rules = (
+            ClassificationRule.objects
+            .filter(is_active=True, entity__isnull=False)
+            .order_by("-confidence", "pattern")
+        )
+
+        for rule in rules:
+            if rule.pattern.lower() in text:
+                return rule.entity
+
+        return None  # explícitamente no resuelta
 
     def resolve_category(self, description):
-        return Category.objects.get(name=self.DEFAULT_CATEGORY_NAME)
+        text = description.lower()
+
+        for keywords, category_name in self.CATEGORY_RULES:
+            for kw in keywords:
+                if kw in text:
+                    return self.get_category(name=category_name)
+
+        for key, category in self.PROVIDER_CATEGORY_MAP.items():
+            if key in text:
+                return self.get_category(name=category)
+            
+        rules = (
+            ClassificationRule.objects
+            .filter(is_active=True)
+            .order_by("-confidence", "pattern")
+        )
+
+        for rule in rules:
+            if rule.pattern.lower() in text:
+                return rule.category
+
+        return None  # explícitamente no resuelta
+
+    def get_category(self, name):
+        if not hasattr(self, "_category_cache"):
+            self._category_cache = {}
+        if name not in self._category_cache:
+            self._category_cache[name] = Category.objects.get(name=name)
+        return self._category_cache[name]
+    

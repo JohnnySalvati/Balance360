@@ -1,9 +1,6 @@
 from django.apps import AppConfig
-
-
 class FinanceConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.finance'
+    name = "apps.finance"
 
     def ready(self):
-        import apps.finance.signals
+        import apps.finance.signals.classification_rule

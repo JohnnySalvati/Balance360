@@ -7,8 +7,14 @@ from .entity import EconomicEntity
 from .category import Category
 class Transaction(models.Model):
     account = models.ForeignKey(Account, on_delete=models.PROTECT)
-    entity = models.ForeignKey(EconomicEntity, on_delete=models.PROTECT)
-    category = models.ForeignKey(Category, on_delete=models.PROTECT)
+    entity = models.ForeignKey(EconomicEntity, 
+                               null=True, 
+                               blank=True,
+                               on_delete=models.PROTECT)
+    category = models.ForeignKey(Category,
+                                null=True,
+                                blank=True,
+                                on_delete=models.PROTECT)
 
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     date = models.DateField()
