@@ -20,7 +20,7 @@ class Command(BaseCommand):
         (["comision mep"], "Comisiones MEP"),
         (["comision"], "Comisiones"),
         (["compra u$s mep", "venta u$s mep"], "Inversiones"),
-        (["a mp", "de mp", "al ciudad", "del ciudad", "deposito", "extraccion"], "Transferencias"),
+        (["a mp", "de mp", "al ciudad", "del ciudad", "deposito", "extraccion", "al frances", "del frances"], "Transferencias"),
     ]
 
     PROVIDER_CATEGORY_MAP = {

@@ -35,13 +35,16 @@ class TransactionAdmin(admin.ModelAdmin):
 
     ordering = ("-date",)
 
-    actions = ["learn_entity", "reclassify"]
+    actions = ["learn_entity"]
 
 
     def get_queryset(self, request):
         return super().get_queryset(request)
 
     def save_model(self, request, obj, form, change):
+        if "entity" in form.changed_data or "category" in form.changed_data:
+            obj.classification_source = "manual"
+
         obj.full_clean()
         super().save_model(request, obj, form, change)
 
@@ -49,7 +52,7 @@ class TransactionAdmin(admin.ModelAdmin):
         obj.full_clean()
         super().delete_model(request, obj)
 
-    @admin.action(description="Aprender entity desde descripción")
+    @admin.action(description="Reglas de aprendizaje de entidad y categoria desde descripción")
     def learn_entity(self, request, queryset):
         print(">>> LEARNING ENTITY FROM DESCRIPTION <<<")
         for tx in queryset:
@@ -79,16 +82,4 @@ class TransactionAdmin(admin.ModelAdmin):
                     f"confidence={rule.confidence}"
                 )
 
-    @admin.action(description="Reclasificar usando reglas")
-    def reclassify(self, request, queryset):
-        updated = 0
-
-        for tx in queryset:
-            if classify_transaction(tx):
-                updated += 1
-
-        self.message_user(
-            request,
-            f"{updated} transacciones reclasificadas"
-        )
     

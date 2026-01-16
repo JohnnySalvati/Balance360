@@ -28,6 +28,16 @@ class Transaction(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    classification_source = models.CharField(
+        max_length=20,
+        choices=[
+            ("manual", "Manual"),
+            ("rule", "Regla"),
+        ],
+        null=True,
+        blank=True,
+    )
+
     def __str__(self):
         return f"{self.date} {self.amount}"
 

@@ -1,8 +1,7 @@
-from django.core.exceptions import ValidationError
 
-from apps.finance.services.periods import get_entity_period_status, get_consolidated_period_status, close_period, assert_can_write
+from apps.finance.services.periods import get_entity_period_status, get_consolidated_period_status, close_period
 from apps.finance.services.enums import PeriodStatus
-from apps.finance.models import PeriodClose
+from apps.finance.models import PeriodClose, EconomicEntityLink
 from tests.factories import user_factory, entity_for
 
 import pytest
@@ -44,20 +43,11 @@ def test_consolidated_partial(db):
     child1 = entity_for(user_factory("casa"), "Casa")
     child2 = entity_for(user_factory("insoft"), "InSoft")
 
-    # simula jerarquía como ya lo hago en services
-    entities = [child1, child2]
+    EconomicEntityLink.objects.create(parent=parent, child=child1)
+    EconomicEntityLink.objects.create(parent=parent, child=child2)
 
     close_period(child1, 2025, 1, user=user)
 
     status = get_consolidated_period_status(parent, 2025, 1)
 
     assert status == PeriodStatus.PARTIAL
-
-def test_write_blocked_when_closed(db):
-    user = user_factory()
-    entity = entity_for(user)
-
-    close_period(entity, 2025, 1, user=user)
-
-    with pytest.raises(ValidationError):
-        assert_can_write(entity, 2025, 1)

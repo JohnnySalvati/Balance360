@@ -1,8 +1,8 @@
 from apps.finance.models.classification_rule import ClassificationRule
+from apps.finance.services.classification_engine import evaluate_rule
+
 
 def classify_transaction(tx):
-    text = tx.description.lower()
-
     rules = (
         ClassificationRule.objects
         .filter(is_active=True)
@@ -10,20 +10,20 @@ def classify_transaction(tx):
     )
 
     for rule in rules:
-        if rule.pattern in text:
-            changed = False
+        delta = evaluate_rule(tx, rule)
+        if not delta:
+            continue
 
-            if tx.entity != rule.entity:
-                tx.entity = rule.entity
-                changed = True
+        tx.entity = delta.entity
+        tx.category = delta.category
+        tx.classification_source = "rule"
 
-            if tx.category != rule.category:
-                tx.category = rule.category
-                changed = True
+        tx.save(update_fields=[
+            "entity",
+            "category",
+            "classification_source",
+        ])
 
-            if changed:
-                tx.save(update_fields=["entity", "category"])
-
-            return True
+        return True
 
     return False
