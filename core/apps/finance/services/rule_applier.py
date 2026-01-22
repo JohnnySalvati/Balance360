@@ -1,10 +1,12 @@
 from django.db.models import Q
 
 from apps.finance.models.transaction import Transaction
-from apps.finance.services.classification_engine import evaluate_rule
+from apps.finance.services.classifier import classify_transaction
 
+def apply_rule(rule) -> int:
+    if not rule.is_active:
+        return 0
 
-def apply_rule(rule):
     qs = (
         Transaction.objects
         .filter(description__icontains=rule.pattern)
@@ -12,24 +14,13 @@ def apply_rule(rule):
             Q(classification_source__isnull=True) |
             Q(classification_source="rule")
         )
-        .distinct()
     )
 
     updated = 0
+    rules = [rule]  # 👈 clave
 
-    for tx in qs.iterator():
-        delta = evaluate_rule(tx, rule)
-        if not delta:
-            continue
-
-        tx.entity = delta.entity
-        tx.category = delta.category
-        tx.classification_source = "rule"
-        tx.save(update_fields=[
-            "entity",
-            "category",
-            "classification_source",
-        ])
-        updated += 1
+    for tx in qs.iterator(chunk_size=500):
+        if classify_transaction(tx, rules=rules):
+            updated += 1
 
     return updated

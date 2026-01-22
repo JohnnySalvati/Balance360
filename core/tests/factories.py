@@ -16,7 +16,7 @@ User = get_user_model()
 def user_factory(username="user"):
     return User.objects.create_user(username=username, password="test")
 
-def entity_for(obj, name=None):
+def entity_for(obj, name=None, parent=None):
     ct = ContentType.objects.get_for_model(obj)
 
     entity, _ = EconomicEntity.objects.get_or_create(

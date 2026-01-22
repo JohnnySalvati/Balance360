@@ -43,6 +43,9 @@ class ClassificationRule(models.Model):
         verbose_name_plural = "Reglas de clasificación"
         ordering = ["-confidence", "pattern"]
         unique_together = ("pattern", "category")
+        indexes = [
+            models.Index(fields=["is_active", "-confidence"]),
+        ]
 
     def __str__(self):
         return f"{self.pattern} → {self.category.name}"

@@ -7,14 +7,9 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 
 from apps.accounts.models import User
-from apps.finance.models import EconomicEntity
-from apps.finance.services.rule_applier import apply_rule
+from apps.finance.models import EconomicEntity, ClassificationRule
+from apps.finance.services.rule_registry import RuleRegistry
 from apps.organizations.models import Organization
-
-# @receiver(post_save, sender=ClassificationRule)
-# def apply_rule_to_existing_transactions(sender, instance, created, **kwargs):
-#     if created and instance.is_active:
-#         apply_rule(instance)
 
 @receiver(post_save, sender=User)
 def create_economic_entity_for_user(sender, instance, created, **kwargs):
@@ -42,3 +37,7 @@ def create_economic_entity_for_organization(sender, instance, created, **kwargs)
         object_id=instance.id,
         name=instance.name,
     )
+
+@receiver(post_save, sender=ClassificationRule)
+def invalidate_rules_cache(sender, **kwargs):
+    RuleRegistry.invalidate()

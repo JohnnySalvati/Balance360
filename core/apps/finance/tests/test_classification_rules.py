@@ -5,6 +5,7 @@ from apps.finance.models.classification_rule import ClassificationRule
 from apps.finance.models.category import Category
 from apps.finance.models.entity import EconomicEntity
 from apps.finance.services.classifier import classify_transaction
+from apps.finance.services.rule_applier import apply_rule
 from apps.accounts.models import User
 
 def user_entity(name="test"):
@@ -145,3 +146,34 @@ def test_inactive_rule_does_not_apply(db):
     assert changed is False
     assert tx.entity is None
     assert tx.category is None
+
+def test_apply_rule_does_not_override_manual(db):
+    account = Account.objects.create(name="Cuenta")
+    entity_manual = user_entity("Casa")
+    category_manual = Category.objects.create(
+        name="Gastos",
+        is_income=False,
+    )
+
+    tx = Transaction.objects.create(
+        account=account,
+        description="Pago VISA",
+        amount=-100,
+        date=date(2025, 1, 1),
+        entity=entity_manual,
+        category=category_manual,
+        classification_source="manual",
+    )
+
+    rule = ClassificationRule.objects.create(
+        pattern="visa",
+        entity=user_entity("Banco"),
+        category=category_manual,
+        is_active=True,
+        confidence=100,
+    )
+
+    apply_rule(rule)
+
+    tx.refresh_from_db()
+    assert tx.entity == entity_manual

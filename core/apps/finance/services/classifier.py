@@ -1,29 +1,43 @@
-from apps.finance.models.classification_rule import ClassificationRule
-from apps.finance.services.classification_engine import evaluate_rule
+from apps.finance.services.rule_registry import RuleRegistry
 
+def classify_transaction(tx, *, rules=None) -> bool:
+    """
+    Aplica reglas a una transacción.
+    Devuelve True si hubo cambios.
+    """
 
-def classify_transaction(tx):
-    rules = (
-        ClassificationRule.objects
-        .filter(is_active=True)
-        .order_by("-confidence")
-    )
+    if tx.classification_source == "manual":
+        return False
+
+    text = tx.description.lower().strip()
+
+    if rules is None:
+        rules = RuleRegistry.get_active_rules()
 
     for rule in rules:
-        delta = evaluate_rule(tx, rule)
-        if not delta:
-            continue
+        if rule.pattern in text:
+            changed = False
 
-        tx.entity = delta.entity
-        tx.category = delta.category
-        tx.classification_source = "rule"
+            if rule.entity and tx.entity != rule.entity:
+                tx.entity = rule.entity
+                changed = True
 
-        tx.save(update_fields=[
-            "entity",
-            "category",
-            "classification_source",
-        ])
+            if rule.category and tx.category != rule.category:
+                tx.category = rule.category
+                changed = True
 
-        return True
+            if changed:
+                tx.classification_source = "rule"
+                tx.applied_rule = rule
+                tx.save(
+                    update_fields=[
+                        "entity",
+                        "category",
+                        "classification_source",
+                        "applied_rule",
+                    ]
+                )
+
+            return changed
 
     return False
