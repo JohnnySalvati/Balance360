@@ -3,7 +3,7 @@
 from django.db import transaction
 
 from apps.finance.models.classification_rule import ClassificationRule
-from apps.finance.services.patterns import normalize_pattern
+from core.apps.finance.services.classification.patterns import normalize_pattern
 
 CONFIDENCE_INC = 10
 CONFIDENCE_DEC = 20

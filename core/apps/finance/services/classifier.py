@@ -1,4 +1,4 @@
-from apps.finance.services.rule_registry import RuleRegistry
+from core.apps.finance.services.classification.registry import RuleRegistry
 
 def classify_transaction(tx, *, rules=None) -> bool:
     """

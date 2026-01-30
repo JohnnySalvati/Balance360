@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 
 from apps.finance.models.classification_rule import ClassificationRule
 from apps.finance.services.rule_applier import apply_rule
-from apps.finance.services.rule_preview import preview_rule_impact
+from core.apps.finance.services.classification.preview import preview_rule_impact
 @admin.register(ClassificationRule)
 class ClassificationRuleAdmin(admin.ModelAdmin):
     list_display = (

@@ -8,7 +8,7 @@ from django.db.models import Q
 
 from apps.accounts.models import User
 from apps.finance.models import EconomicEntity, ClassificationRule
-from apps.finance.services.rule_registry import RuleRegistry
+from core.apps.finance.services.classification.registry import RuleRegistry
 from apps.organizations.models import Organization
 
 @receiver(post_save, sender=User)

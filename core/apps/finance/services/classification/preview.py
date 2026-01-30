@@ -1,7 +1,7 @@
 from django.db.models import Q
 
 from apps.finance.models.transaction import Transaction
-from apps.finance.services.classification_engine import evaluate_rule
+from core.apps.finance.services.classification.engine import evaluate_rule
 
 
 def preview_rule_impact(rule):
