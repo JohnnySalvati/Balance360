@@ -1,0 +1,38 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from balance360.models.transaction import Transaction
+
+import uuid
+import sqlalchemy
+from sqlalchemy import Uuid, String, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from balance360.models.base import Base, TimestampMixin
+from balance360.enums import AccountType
+
+class Account(Base, TimestampMixin):
+    __tablename__ = "accounts"
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(
+        String(30)
+    )
+    type: Mapped[AccountType] = mapped_column(
+        sqlalchemy.Enum(AccountType), default=AccountType.bank
+    )
+    currency_code: Mapped[str] = mapped_column(
+        String(5), default="ARS"
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True
+    )
+    transactions_to: Mapped[list["Transaction"]] = relationship(
+        back_populates="to_account",
+        primaryjoin="Transaction.to_account_id == Account.id"
+    )
+    transactions_from:Mapped[list["Transaction"]] = relationship(
+        back_populates="from_account",
+        primaryjoin="Transaction.from_account_id == Account.id"
+    )
