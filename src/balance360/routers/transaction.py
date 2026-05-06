@@ -1,6 +1,8 @@
 import uuid
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from balance360.enums import TransactionType
 from balance360.models.transaction import Transaction
 from balance360.schemas.transaction import TransactionRead, TransactionCreate, TransactionUpdate
 from balance360.crud.transaction import get_all, get_by_id, create, delete, update
@@ -15,8 +17,22 @@ def get_transaction_or_404(transaction_id: uuid.UUID, db: Session = Depends(get_
     return transaction
 
 @router.get("/", response_model=list[TransactionRead])
-def list_transactions(db: Session = Depends(get_db)):
-    return get_all(db)
+def list_transactions(
+    date_from: date|None = None,
+    date_to: date|None = None,
+    entity_id: uuid.UUID|None = None,
+    account_id: uuid.UUID|None = None,
+    transaction_type: TransactionType|None = None,
+    category_id: uuid.UUID|None = None,
+    db: Session = Depends(get_db)):
+    return get_all(
+        date_from=date_from,
+        date_to=date_to,
+        entity_id=entity_id,
+        account_id=account_id,
+        transaction_type=transaction_type,
+        category_id=category_id,
+        db=db)
 
 @router.get("/{transaction_id}", response_model=TransactionRead)
 def get_transaction(transaction: Transaction = Depends(get_transaction_or_404)):

@@ -32,4 +32,4 @@ def delete_user(user: User = Depends(get_user_or_404), db: Session = Depends(get
 
 @router.patch("/{user_id}", response_model=UserRead)
 def update_user(data: UserUpdate, user: User = Depends(get_user_or_404), db: Session = Depends(get_db)):
-    update(db, user, data)
+    return update(db, user, data)

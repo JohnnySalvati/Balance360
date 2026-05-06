@@ -31,6 +31,6 @@ def create_contact(data: ContactCreate, db: Session =Depends(get_db)):
 def delete_contact(contact: Contact = Depends(get_contact_or_404), db: Session = Depends(get_db)):
     delete(db, contact)
 
-@router.patch("/{contact_id}", response_model=Contact)
+@router.patch("/{contact_id}", response_model=ContactRead)
 def update_contact(data: ContactUpdate, contact: Contact = Depends(get_contact_or_404), db: Session = Depends(get_db)):
-    update(db, contact, data)
+    return update(db, contact, data)

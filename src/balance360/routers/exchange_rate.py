@@ -8,13 +8,13 @@ from balance360.crud.exchange_rate import get_all, get_by_id, create, delete, up
 
 router = APIRouter(prefix="/exchange_rates", tags=["exchange_rates"])
 
-def get_exchange_rate_or_404(echange_rate_id: uuid.UUID, db: Session = Depends(get_db)) -> ExchangeRate:
-    exchange_rate = get_by_id(db, echange_rate_id)
+def get_exchange_rate_or_404(exchange_rate_id: uuid.UUID, db: Session = Depends(get_db)) -> ExchangeRate:
+    exchange_rate = get_by_id(db, exchange_rate_id)
     if exchange_rate is None:
         raise HTTPException(status_code=404, detail="Exchange rate not found")
     return exchange_rate
 
-@router.get("/", response_model=ExchangeRateRead)
+@router.get("/", response_model=list[ExchangeRateRead])
 def list_exchange_rates(db: Session = Depends(get_db)):
     return get_all(db)
 
@@ -22,7 +22,7 @@ def list_exchange_rates(db: Session = Depends(get_db)):
 def get_exchange_rate(exchange_rate: ExchangeRate = Depends(get_exchange_rate_or_404)):
     return exchange_rate
 
-@router.put("/", response_model=ExchangeRateRead)
+@router.post("/", response_model=ExchangeRateRead)
 def create_exchange_rate(data: ExchangeRateCreate, db: Session = Depends(get_db)):
     return create(db, data)
 

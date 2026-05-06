@@ -1,11 +1,28 @@
 import uuid
+from datetime import date
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, or_
+from balance360.enums import TransactionType
 from balance360.models.transaction import Transaction
 from balance360.schemas.transaction import TransactionCreate, TransactionUpdate
 
-def get_all(db: Session) -> list[Transaction]:
-    transactions = db.execute(select(Transaction)).scalars().all()
+def get_all(
+        db: Session,
+        date_from: date|None = None,
+        date_to: date|None = None,
+        entity_id: uuid.UUID|None = None,
+        account_id: uuid.UUID|None = None,
+        transaction_type: TransactionType|None = None,
+        category_id: uuid.UUID|None = None
+        ) -> list[Transaction]:
+    stmt = select(Transaction)
+    if date_from: stmt = stmt.where(Transaction.date >= date_from)
+    if date_to: stmt = stmt.where(Transaction.date <= date_to)
+    if entity_id: stmt = stmt.where(Transaction.entity_id == entity_id)
+    if account_id: stmt = stmt.where(or_(Transaction.to_account_id == account_id, Transaction.from_account_id == account_id))
+    if transaction_type: stmt = stmt.where(Transaction.type == transaction_type)
+    if category_id: stmt = stmt.where(Transaction.category_id == category_id)
+    transactions = db.execute(stmt).scalars().all()
     return list(transactions)
 
 def get_by_id(db: Session, transaction_id: uuid.UUID) -> Transaction | None:

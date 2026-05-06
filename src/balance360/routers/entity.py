@@ -32,4 +32,4 @@ def delete_entity(entity: Entity = Depends(get_entity_or_404), db: Session = Dep
 
 @router.patch("/{entity_id}", response_model=EntityRead)
 def update_entity(data: EntityUpdate, entity: Entity = Depends(get_entity_or_404), db: Session = Depends(get_db)):
-    update(db, entity, data)
+    return update(db, entity, data)
