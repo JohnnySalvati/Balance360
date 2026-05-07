@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% set type_labels = {"income": "Ingreso", "expense": "Egreso", "transfer": "Transferencia"} %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Transacciones</h1>
+</div>
+
+<form hx-get="/transactions/rows" 
+      hx-target="#tbody" 
+      hx-trigger="change"
+      class="bg-white rounded shadow p-4 mb-6 flex gap-4 items-end">
+
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500">Desde</label>
+        <input type="date" name="date_from" class="border rounded px-3 py-2 text-sm">
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500">Hasta</label>
+        <input type="date" name="date_to" class="border rounded px-3 py-2 text-sm">
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500">Tipo</label>
+        <select name="transaction_type" class="border rounded px-3 py-2 text-sm">
+            <option value="">Todos</option>
+            <option value="income">Ingreso</option>
+            <option value="expense">Egreso</option>
+            <option value="transfer">Transferencia</option>
+        </select>
+    </div>
+
+</form>
+
+<div class="bg-white rounded shadow overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Fecha</th>
+                <th class="px-4 py-3">Descripción</th>
+                <th class="px-4 py-3">Tipo</th>
+                <th class="px-4 py-3 text-right">Monto</th>
+                <th class="px-4 py-3">Cuenta</th>
+                <th class="px-4 py-3">Entidad</th>
+                <th class="px-4 py-3">Contact</th>
+                <th class="px-4 py-3">Categoría</th>
+            </tr>
+        </thead>
+        <tbody id="tbody" class="divide-y divide-gray-100">
+            {% for t in transactions %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">{{ t.date }}</td>
+                <td class="px-4 py-3">{{ t.description }}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded text-xs font-semibold
+                        {% if t.type.value == 'income' %}bg-green-100 text-green-700
+                        {% elif t.type.value == 'expense' %}bg-red-100 text-red-700
+                        {% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {{ type_labels[t.type.value] }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-right">{{ t.amount | amount }}</td>
+                <td class="px-4 py-3">
+                    {% if t.from_account %}{{ t.from_account.name }}{% endif %}
+                    {% if t.to_account %}{{ t.to_account.name }}{% endif %}
+                </td>
+                <td class="px-4 py-3">{{ t.entity.name if t.entity else '-' }}</td>
+                <td class="px-4 py-3">{{ t.contact.name if t.contact else '-' }}</td>
+                <td class="px-4 py-3">{{ t.category.name if t.category else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
