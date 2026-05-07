@@ -30,9 +30,9 @@ class Account(Base, TimestampMixin):
     )
     transactions_to: Mapped[list["Transaction"]] = relationship(
         back_populates="to_account",
-        primaryjoin="Transaction.to_account_id == Account.id"
+        foreign_keys="[Transaction.to_account_id]"
     )
-    transactions_from:Mapped[list["Transaction"]] = relationship(
+    transactions_from: Mapped[list["Transaction"]] = relationship(
         back_populates="from_account",
-        primaryjoin="Transaction.from_account_id == Account.id"
+        foreign_keys="[Transaction.from_account_id]"
     )

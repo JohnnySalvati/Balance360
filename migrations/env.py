@@ -17,7 +17,7 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 from balance360.models.base import Base
-from balance360.models import user, entity, account, currency, contact, category, transaction, attachment  # noqa: F401
+from balance360.models import user, entity, account, currency, contact, category, transaction, import_rule, attachment  # noqa: F401
 
 target_metadata = Base.metadata
 

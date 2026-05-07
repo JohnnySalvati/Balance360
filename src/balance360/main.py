@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from balance360.models import user, entity, account, currency, contact, category, transaction, attachment  # noqa: F401
+from balance360.models import user, entity, account, currency, contact, category, transaction, import_rule, attachment  # noqa: F401
 from balance360.routers import category, currency, contact, account, entity, user, transaction, exchange_rate
 
 app = FastAPI(title="Balance360")

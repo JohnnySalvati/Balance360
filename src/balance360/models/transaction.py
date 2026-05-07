@@ -52,6 +52,10 @@ class Transaction(Base, TimestampMixin):
     category_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("categories.id")
     )
+    is_manual: Mapped[bool] = mapped_column(
+        default=False, nullable=False
+    )
+
     attachments: Mapped[list[Attachment]] = relationship(
         back_populates="transaction"
     )
