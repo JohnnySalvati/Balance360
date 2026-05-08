@@ -28,11 +28,7 @@ class Account(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True
     )
-    transactions_to: Mapped[list["Transaction"]] = relationship(
-        back_populates="to_account",
-        foreign_keys="[Transaction.to_account_id]"
-    )
-    transactions_from: Mapped[list["Transaction"]] = relationship(
-        back_populates="from_account",
-        foreign_keys="[Transaction.from_account_id]"
+    transactions: Mapped[list["Transaction"]] = relationship(
+        back_populates="account",
+        foreign_keys="[Transaction.account_id]"
     )

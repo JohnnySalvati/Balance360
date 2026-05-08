@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from balance360.enums import TransactionType
 from balance360.models.transaction import Transaction
 from balance360.schemas.transaction import TransactionCreate, TransactionUpdate
@@ -19,7 +19,7 @@ def get_all(
     if date_from: stmt = stmt.where(Transaction.date >= date_from)
     if date_to: stmt = stmt.where(Transaction.date <= date_to)
     if entity_id: stmt = stmt.where(Transaction.entity_id == entity_id)
-    if account_id: stmt = stmt.where(or_(Transaction.to_account_id == account_id, Transaction.from_account_id == account_id))
+    if account_id: stmt = stmt.where(Transaction.account_id == account_id)
     if transaction_type: stmt = stmt.where(Transaction.type == transaction_type)
     if category_id: stmt = stmt.where(Transaction.category_id == category_id)
     transactions = db.execute(stmt).scalars().all()

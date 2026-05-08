@@ -69,13 +69,13 @@ def import_sheet(db: Session, rows: list[dict], account: Account, currency: Curr
             'description': row['description'],
             'amount': Decimal(str(row['amount'])),
             'type': row['transaction_type'],
-            'from_account_id': None if row['transaction_type'] == TransactionType.income else account.id,
-            'to_account_id': None if row['transaction_type'] == TransactionType.expense else account.id,
+            'account_id': account.id,
             'entity_id': import_rule.entity_id if import_rule else None,
             'currency_id': currency.id,
             'contact_id': import_rule.contact_id if import_rule else None,
             'category_id': import_rule.category_id if import_rule else None,
-            'is_manual': False
+            'is_manual': False,
+            'is_transfer': import_rule.is_transfer if import_rule else False
         }
         transaction = Transaction(**transaction_dict)
         db.add(transaction)

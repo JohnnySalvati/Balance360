@@ -61,7 +61,12 @@ def transaction_rows(
     return templates.TemplateResponse(
         request=request,
         name="transactions/rows.html",
-        context={"transactions": transactions}
+        context={
+            "transactions": transactions,
+            "entities": entity_crud.get_all(db),
+            "contacts": contact_crud.get_all(db),
+            "categories": category_crud.get_all(db)
+        }
     )
 
 @router.patch("/transactions/{transaction_id}/classify")
@@ -72,7 +77,8 @@ def classify_transaction(
     entity_id:  UUID | None = Form(default=None),
     contact_id: UUID | None = Form(default=None),
     category_id: UUID | None = Form(default=None),
-    create_rule: bool = Form(default=True)
+    create_rule: bool = Form(default=True),
+    is_transfer: bool = Form(default=False)
     ):
 
     transaction = transaction_crud.get_by_id(db, transaction_id)
@@ -85,7 +91,8 @@ def classify_transaction(
         entity_id = entity_id, 
         contact_id = contact_id,
         category_id = category_id,
-        is_manual = True
+        is_manual = True,
+        is_transfer = is_transfer
     )
     transaction = transaction_crud.update(db=db, transaction=transaction, data=transaction_data)
     import_rule_data = None
@@ -97,18 +104,24 @@ def classify_transaction(
                 entity_id = entity_id, 
                 contact_id = contact_id,
                 category_id = category_id,
-                transaction_type = transaction.type
+                transaction_type = transaction.type,
+                is_transfer = is_transfer
             )
-            import_rule_crud.update(db, data=import_rule_data, import_rule=rule)
+            import_rule = import_rule_crud.update(db, data=import_rule_data, import_rule=rule)
         else:
             import_rule_data = ImportRuleCreate(
                 pattern = transaction.description.lower(),
                 entity_id = entity_id, 
                 contact_id = contact_id,
                 category_id = category_id,
-                transaction_type = transaction.type
+                transaction_type = transaction.type,
+                is_transfer = is_transfer
             )
-            import_rule_crud.create(db, data=import_rule_data)
+            import_rule = import_rule_crud.create(db, data=import_rule_data)
+        transaction_data = TransactionUpdate(
+            applied_rule_id=import_rule.id
+        )
+        transaction = transaction_crud.update(db=db, transaction=transaction, data=transaction_data)
 
     return templates.TemplateResponse(
         request=request,
@@ -137,6 +150,8 @@ def apply_rules(
                 entity_id = import_rule.entity_id, 
                 contact_id = import_rule.contact_id,
                 category_id = import_rule.category_id,
+                is_transfer = import_rule.is_transfer,
+                applied_rule_id = import_rule.id
             )
             for field, value in transaction_data.model_dump(exclude_unset=True).items():
                 setattr(transaction, field, value)
@@ -145,7 +160,12 @@ def apply_rules(
     return templates.TemplateResponse(
         request=request,
         name="transactions/rows.html",
-        context={"transactions": transaction_crud.get_all(db)}
+        context={
+            "transactions": transaction_crud.get_all(db),
+            "entities": entity_crud.get_all(db),
+            "contacts": contact_crud.get_all(db),
+            "categories": category_crud.get_all(db)
+        }
     )
 
     

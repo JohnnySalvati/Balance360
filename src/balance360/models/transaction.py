@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from balance360.models.entity import Entity
     from balance360.models.account import Account
     from balance360.models.attachment import Attachment
+    from balance360.models.import_rule import ImportRule
 
 import uuid
 import datetime
@@ -34,11 +35,8 @@ class Transaction(Base, TimestampMixin):
     type: Mapped[TransactionType] = mapped_column(
         Enum(TransactionType)
     )
-    from_account_id: Mapped[uuid.UUID|None] = mapped_column(
-        ForeignKey("accounts.id")
-    )
-    to_account_id: Mapped[uuid.UUID|None] = mapped_column(
-        ForeignKey("accounts.id")
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("accounts.id"), nullable=False
     )
     entity_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("entities.id")
@@ -55,7 +53,15 @@ class Transaction(Base, TimestampMixin):
     is_manual: Mapped[bool] = mapped_column(
         default=False, nullable=False
     )
-
+    is_transfer: Mapped[bool] = mapped_column(
+        default=False, nullable=False
+    )
+    applied_rule_id: Mapped[uuid.UUID|None] = mapped_column(
+        ForeignKey("import_rules.id")
+    )
+    applied_rule: Mapped["ImportRule|None"] = relationship(
+        back_populates="transactions"
+    )
     attachments: Mapped[list[Attachment]] = relationship(
         back_populates="transaction"
     )
@@ -71,11 +77,7 @@ class Transaction(Base, TimestampMixin):
     entity: Mapped["Entity|None"] = relationship(
         back_populates="transactions"
     )
-    to_account: Mapped["Account|None"] = relationship(
-        back_populates="transactions_to",
-        foreign_keys=[to_account_id]
+    account: Mapped["Account"] = relationship(
+        back_populates="transactions"
     )
-    from_account: Mapped["Account|None"] = relationship(
-        back_populates="transactions_from",
-        foreign_keys=[from_account_id]
-    )
+
