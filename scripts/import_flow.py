@@ -8,6 +8,7 @@ from balance360 import models
 from balance360.models import Account, Currency, ImportRule, Transaction
 from balance360.enums import TransactionType
 from balance360.database import SessionLocal
+from balance360.matching import find_best_rule
 
 def parse_sheet(wb: Workbook, ws_name: str) -> tuple[list[dict], list[dict]]:
     ws = wb[ws_name]
@@ -43,10 +44,11 @@ def parse_sheet(wb: Workbook, ws_name: str) -> tuple[list[dict], list[dict]]:
     return (valid_rows, skipped_rows)
 
 def apply_rules(description: str, rules: list[ImportRule]) -> tuple[uuid.UUID|None, uuid.UUID|None, uuid.UUID|None]:
-    for rule in rules:
-        if rule.pattern.lower() in description.lower():
-            return (rule.entity_id, rule.contact_id, rule.category_id)
-    return (None, None, None)
+    import_rule = find_best_rule(description.lower(), rules)
+    if import_rule:
+        return (import_rule.entity_id, import_rule.contact_id, import_rule.category_id)
+    else:
+        return (None, None, None)
 
 def load_rules(db: Session) -> list[ImportRule]:
     rules = db.execute(select(ImportRule)).scalars().all()

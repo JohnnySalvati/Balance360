@@ -2,13 +2,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from balance360.models.import_rule import ImportRule
 from balance360.schemas.import_rule import ImportRuleCreate, ImportRuleUpdate
+from balance360.matching import find_best_rule
 
 def get_all(db: Session) -> list[ImportRule]:
     import_rules = db.execute(select(ImportRule)).scalars().all()
     return list(import_rules)
 
 def get_by_pattern(db: Session, pattern: str) -> ImportRule|None:
-    import_rule = db.execute(select(ImportRule).where(ImportRule.pattern == pattern.lower())).scalars().first()
+    import_rules = get_all(db)
+    import_rule = find_best_rule(pattern, import_rules)
     return import_rule
 
 def create(db: Session, data: ImportRuleCreate) -> ImportRule:
