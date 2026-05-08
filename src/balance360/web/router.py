@@ -1,10 +1,13 @@
+from uuid import UUID
 from pathlib import Path
-from fastapi import APIRouter, Request, Depends, Query
+from fastapi import APIRouter, Request, Depends, Query, Form, HTTPException
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.crud import transaction as transaction_crud
-
+from balance360.crud import entity as entity_crud
+from balance360.crud import contact as contact_crud
+from balance360.crud import category as category_crud
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / 'templates')
@@ -16,10 +19,19 @@ templates.env.filters["amount"] = format_amount
 @router.get("/transactions")
 def transaction_list(request: Request, db: Session = Depends(get_db)):
     transactions = transaction_crud.get_all(db)
+    entities = entity_crud.get_all(db)
+    contacts = contact_crud.get_all(db)
+    categories = category_crud.get_all(db)
+
     return templates.TemplateResponse(
         request=request,
         name="transactions/list.html",
-        context={"transactions": transactions}
+        context={
+            "transactions": transactions,
+            "entities": entities,
+            "contacts": contacts,
+            "categories": categories
+            }
     )
 
 @router.get("/transactions/rows")
@@ -48,3 +60,64 @@ def transaction_rows(
         name="transactions/rows.html",
         context={"transactions": transactions}
     )
+
+@router.patch("/transactions/{transaction_id}/classify")
+def classify_transaction(
+    request: Request,
+    transaction_id: UUID,
+    db: Session = Depends(get_db),
+    entity_id:  UUID | None = Form(default=None),
+    contact_id: UUID | None = Form(default=None),
+    category_id: UUID | None = Form(default=None),
+    create_rule: bool = Form(default=True)
+    ):
+
+    from balance360.schemas.transaction import TransactionUpdate
+    from balance360.crud import import_rule as import_rule_crud
+    from balance360.schemas.import_rule import ImportRuleUpdate, ImportRuleCreate
+
+    transaction = transaction_crud.get_by_id(db, transaction_id)
+    if not transaction: raise HTTPException(status_code=404, detail="Transaction not found")
+    entities = entity_crud.get_all(db)
+    contacts = contact_crud.get_all(db)
+    categories = category_crud.get_all(db)
+
+    transaction_data = TransactionUpdate(
+        entity_id = entity_id, 
+        contact_id = contact_id,
+        category_id = category_id,
+        is_manual = True
+    )
+    transaction = transaction_crud.update(db=db, transaction=transaction, data=transaction_data)
+    imported_rule = None
+
+    if create_rule:
+        rule = import_rule_crud.get_by_pattern(db, transaction.description)
+        if rule:
+            import_rule_data = ImportRuleUpdate(
+                entity_id = entity_id, 
+                contact_id = contact_id,
+                category_id = category_id,
+            )
+            import_rule_crud.update(db, data=import_rule_data, import_rule=rule)
+        else:
+            import_rule_data = ImportRuleCreate(
+                pattern = transaction.description.lower(),
+                entity_id = entity_id, 
+                contact_id = contact_id,
+                category_id = category_id
+            )
+            import_rule_crud.create(db, data=import_rule_data)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="transactions/row.html",
+        context={
+            "t": transaction, 
+            "entities": entities,
+            "contacts": contacts,
+            "categories": categories
+        }
+    )
+
+

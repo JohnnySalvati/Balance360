@@ -19,6 +19,7 @@ class TransactionCreate(BaseModel):
     currency_id: uuid.UUID
     contact_id: uuid.UUID|None=None
     category_id: uuid.UUID|None=None
+    is_manual: bool=False
 
     @model_validator(mode='after')
     def check_type(self) -> 'TransactionCreate':
@@ -44,6 +45,7 @@ class TransactionRead(BaseModel):
     category: CategoryShort|None=None
     created_at: datetime.datetime
     updated_at: datetime.datetime
+    is_manual: bool
 class TransactionUpdate(BaseModel):
     date: datetime.date|None = None
     description: str|None = None
@@ -55,3 +57,4 @@ class TransactionUpdate(BaseModel):
     currency_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
+    is_manual: bool|None = None
