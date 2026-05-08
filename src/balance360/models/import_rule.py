@@ -1,8 +1,8 @@
 import uuid
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Uuid, ForeignKey, String, Integer
+from sqlalchemy import Uuid, ForeignKey, String, Integer, Enum
 from balance360.models.base import Base, TimestampMixin
-
+from balance360.enums import TransactionType
 class ImportRule(Base, TimestampMixin):
     __tablename__ = "import_rules"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -16,6 +16,9 @@ class ImportRule(Base, TimestampMixin):
     )
     category_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("categories.id")
+    )
+    transaction_type: Mapped[TransactionType] = mapped_column(
+        Enum(TransactionType), nullable=False
     )
     pattern: Mapped[str] = mapped_column(
         String(200), unique=True

@@ -4,10 +4,13 @@ from fastapi import APIRouter, Request, Depends, Query, Form, HTTPException
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
+from balance360.crud import import_rule as import_rule_crud
 from balance360.crud import transaction as transaction_crud
 from balance360.crud import entity as entity_crud
 from balance360.crud import contact as contact_crud
 from balance360.crud import category as category_crud
+from balance360.schemas.transaction import TransactionUpdate
+from balance360.schemas.import_rule import ImportRuleUpdate, ImportRuleCreate
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / 'templates')
@@ -72,10 +75,6 @@ def classify_transaction(
     create_rule: bool = Form(default=True)
     ):
 
-    from balance360.schemas.transaction import TransactionUpdate
-    from balance360.crud import import_rule as import_rule_crud
-    from balance360.schemas.import_rule import ImportRuleUpdate, ImportRuleCreate
-
     transaction = transaction_crud.get_by_id(db, transaction_id)
     if not transaction: raise HTTPException(status_code=404, detail="Transaction not found")
     entities = entity_crud.get_all(db)
@@ -89,15 +88,16 @@ def classify_transaction(
         is_manual = True
     )
     transaction = transaction_crud.update(db=db, transaction=transaction, data=transaction_data)
-    imported_rule = None
+    import_rule_data = None
 
     if create_rule:
-        rule = import_rule_crud.get_by_pattern(db, transaction.description)
+        rule = import_rule_crud.get_by_pattern(db, transaction.description, transaction.type)
         if rule:
             import_rule_data = ImportRuleUpdate(
                 entity_id = entity_id, 
                 contact_id = contact_id,
                 category_id = category_id,
+                transaction_type = transaction.type
             )
             import_rule_crud.update(db, data=import_rule_data, import_rule=rule)
         else:
@@ -105,7 +105,8 @@ def classify_transaction(
                 pattern = transaction.description.lower(),
                 entity_id = entity_id, 
                 contact_id = contact_id,
-                category_id = category_id
+                category_id = category_id,
+                transaction_type = transaction.type
             )
             import_rule_crud.create(db, data=import_rule_data)
 
@@ -120,4 +121,32 @@ def classify_transaction(
         }
     )
 
+@router.post("/transactions/apply-rules")
+def apply_rules(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    from balance360.matching import find_best_rule
+
+    transactions = [transaction for transaction in transaction_crud.get_all(db) if not transaction.is_manual]
+    import_rules = import_rule_crud.get_all(db)
+    for transaction in transactions:
+        import_rule = find_best_rule(transaction.description, transaction.type, import_rules)
+        if import_rule:
+            transaction_data = TransactionUpdate(
+                entity_id = import_rule.entity_id, 
+                contact_id = import_rule.contact_id,
+                category_id = import_rule.category_id,
+            )
+            for field, value in transaction_data.model_dump(exclude_unset=True).items():
+                setattr(transaction, field, value)
+    db.commit()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="transactions/rows.html",
+        context={"transactions": transaction_crud.get_all(db)}
+    )
+
+    
 

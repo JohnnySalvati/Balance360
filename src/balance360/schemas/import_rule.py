@@ -1,5 +1,6 @@
 import uuid
 from pydantic import BaseModel, model_validator, ConfigDict
+from balance360.enums import TransactionType
 
 class ImportRuleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -8,6 +9,7 @@ class ImportRuleRead(BaseModel):
     entity_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
+    transaction_type: TransactionType
     applied: int
 
 class ImportRuleCreate(BaseModel):
@@ -15,6 +17,7 @@ class ImportRuleCreate(BaseModel):
     entity_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
+    transaction_type: TransactionType
     applied: int = 1
 
     @model_validator(mode='after')
@@ -27,5 +30,6 @@ class ImportRuleUpdate(BaseModel):
     entity_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
+    transaction_type: TransactionType|None = None
     applied: int|None = None
 

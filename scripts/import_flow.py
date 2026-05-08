@@ -43,13 +43,6 @@ def parse_sheet(wb: Workbook, ws_name: str) -> tuple[list[dict], list[dict]]:
                 })
     return (valid_rows, skipped_rows)
 
-def apply_rules(description: str, rules: list[ImportRule]) -> tuple[uuid.UUID|None, uuid.UUID|None, uuid.UUID|None]:
-    import_rule = find_best_rule(description.lower(), rules)
-    if import_rule:
-        return (import_rule.entity_id, import_rule.contact_id, import_rule.category_id)
-    else:
-        return (None, None, None)
-
 def load_rules(db: Session) -> list[ImportRule]:
     rules = db.execute(select(ImportRule)).scalars().all()
     return list(rules)
@@ -70,7 +63,7 @@ def load_currency(db: Session) -> dict:
 
 def import_sheet(db: Session, rows: list[dict], account: Account, currency: Currency, rules: list[ImportRule]):
     for row in rows:
-        entity_id, contact_id, category_id = apply_rules(row['description'], rules)
+        import_rule = find_best_rule(row['description'], row['transaction_type'], rules)
         transaction_dict = {
             'date': row['date'],
             'description': row['description'],
@@ -78,10 +71,10 @@ def import_sheet(db: Session, rows: list[dict], account: Account, currency: Curr
             'type': row['transaction_type'],
             'from_account_id': None if row['transaction_type'] == TransactionType.income else account.id,
             'to_account_id': None if row['transaction_type'] == TransactionType.expense else account.id,
-            'entity_id': entity_id,
+            'entity_id': import_rule.entity_id if import_rule else None,
             'currency_id': currency.id,
-            'contact_id': contact_id,
-            'category_id': category_id,
+            'contact_id': import_rule.contact_id if import_rule else None,
+            'category_id': import_rule.category_id if import_rule else None,
             'is_manual': False
         }
         transaction = Transaction(**transaction_dict)

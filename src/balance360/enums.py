@@ -14,4 +14,3 @@ class ContactType(enum.Enum):
 class TransactionType(enum.Enum):
     income = "income"
     expense = "expense"
-    transfer = "transfer"
