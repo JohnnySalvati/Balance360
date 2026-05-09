@@ -13,13 +13,16 @@ if TYPE_CHECKING:
 import uuid
 import datetime
 import decimal
-from sqlalchemy import Uuid, Date, String, Numeric, Enum, ForeignKey
+from sqlalchemy import Uuid, Date, String, Numeric, Enum, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
 from balance360.enums import TransactionType
 
 class Transaction(Base, TimestampMixin):
     __tablename__ = "transactions"
+    __table_args__ = (
+        UniqueConstraint("account_id", "date", "description", "amount", "type", name="uq_transaction"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )

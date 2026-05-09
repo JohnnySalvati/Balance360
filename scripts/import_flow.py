@@ -3,6 +3,7 @@ from decimal import Decimal
 from openpyxl import load_workbook, Workbook
 from datetime import datetime
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from balance360 import models
 from balance360.models import Account, Currency, ImportRule, Transaction
@@ -62,6 +63,7 @@ def import_sheet(db: Session, rows: list[dict], account: Account, currency: Curr
     for row in rows:
         import_rule = find_best_rule(row['description'], row['transaction_type'], rules)
         transaction_dict = {
+            'id': uuid.uuid4(),
             'date': row['date'],
             'description': row['description'],
             'amount': Decimal(str(row['amount'])),
@@ -74,8 +76,11 @@ def import_sheet(db: Session, rows: list[dict], account: Account, currency: Curr
             'is_manual': False,
             'is_transfer': import_rule.is_transfer if import_rule else False
         }
-        transaction = Transaction(**transaction_dict)
-        db.add(transaction)
+
+        stmt = pg_insert(Transaction).values(**transaction_dict).on_conflict_do_nothing(
+            constraint="uq_transaction"
+        )
+        db.execute(stmt)
     db.commit()
    
 wb = load_workbook('Planilla de Flujo 2026-01.xlsx', data_only=True)
@@ -83,8 +88,11 @@ wb = load_workbook('Planilla de Flujo 2026-01.xlsx', data_only=True)
 with SessionLocal() as db:
     rules = load_rules(db)
     accounts = load_accounts(db)
-    currencies = load_currency(db)
     
     for account in accounts:
+        if account.name not in wb.sheetnames:
+            print(f"Solapa {account.name} no encontrada, saltando...")
+            continue
         valid_rows, skipped_rows = parse_sheet(wb, account.name)
+        print(f"Solapa {account.name}: {len(valid_rows)} filas validas, {len(skipped_rows)} filas saltadas...")
         import_sheet(db, valid_rows, account, account.currency, rules)
