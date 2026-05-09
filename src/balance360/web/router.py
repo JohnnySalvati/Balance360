@@ -157,7 +157,8 @@ def apply_rules(
     date_to: str = Form(default=""),
     transaction_type: str = Form(default=""),
     account_id: str = Form(default=""),
-    unclassified: str = Form(default="")
+    unclassified: str = Form(default=""),
+    description: str = Form(default="")
 ):
     from datetime import date
     from balance360.enums import TransactionType
@@ -191,7 +192,8 @@ def apply_rules(
         date_to=date_to_parsed,
         transaction_type=type_parsed,
         account_id=account_id_parsed,
-        unclassified=unclassified_parsed
+        unclassified=unclassified_parsed,
+        description=description
     )
     return templates.TemplateResponse(
         request=request,
