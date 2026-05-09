@@ -50,6 +50,16 @@
         <label for="unclassified" class="text-sm text-gray-600">Sin clasificar</label>
     </div>
 
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500">Descripción</label>
+        <input type="text" name="description" 
+            class="border rounded px-3 py-2 text-sm"
+            hx-get="/transactions/rows"
+            hx-target="#tbody"
+            hx-trigger="keyup changed delay:400ms"
+            hx-include="form">
+    </div>
+
 </form>
 
 <div id="tx-counter" class="text-xs text-gray-400 mb-2">

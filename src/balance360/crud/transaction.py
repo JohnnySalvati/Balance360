@@ -14,7 +14,8 @@ def get_all(
         account_id: uuid.UUID|None = None,
         transaction_type: TransactionType|None = None,
         category_id: uuid.UUID|None = None,
-        unclassified: bool = False
+        unclassified: bool = False,
+        description: str = ""
         ) -> list[Transaction]:
     stmt = select(Transaction)
     if date_from: stmt = stmt.where(Transaction.date >= date_from)
@@ -28,6 +29,7 @@ def get_all(
             Transaction.is_manual == False,
             Transaction.applied_rule_id == None
         )
+    if description: stmt = stmt.where(Transaction.description.ilike(f"%{description}%"))
     transactions = db.execute(stmt).scalars().all()
     return list(transactions)
 

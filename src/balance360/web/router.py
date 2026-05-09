@@ -49,7 +49,8 @@ def transaction_rows(
     date_to: str = Query(default=""),
     transaction_type: str = Query(default=""),
     account_id: str = Query(default=""),
-    unclassified: str = Query(default="")
+    unclassified: str = Query(default=""),
+    description: str = Query(default="")
 ):
     from datetime import date
     from balance360.enums import TransactionType
@@ -59,14 +60,15 @@ def transaction_rows(
     type_parsed = TransactionType(transaction_type) if transaction_type else None
     account_id_parsed = UUID(account_id) if account_id else None
     unclassified_parsed = unclassified == "true"
-
+    
     transactions = transaction_crud.get_all(
         db,
         date_from=date_from_parsed,
         date_to=date_to_parsed,
         transaction_type=type_parsed,
         account_id=account_id_parsed,
-        unclassified=unclassified_parsed
+        unclassified=unclassified_parsed,
+        description=description
     )
     total_count = len(transaction_crud.get_all(db))
     return templates.TemplateResponse(

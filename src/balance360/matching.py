@@ -7,7 +7,7 @@ def find_best_rule(description: str, transaction_type: TransactionType, rules: l
     if not filtered_rules:
         return None
     patterns = [rule.pattern for rule in filtered_rules]
-    result = process.extractOne(description.lower(), patterns, score_cutoff=70)
+    result = process.extractOne(description.lower(), patterns, score_cutoff=80)
     if result is None:
         return None
     _, _, index = result

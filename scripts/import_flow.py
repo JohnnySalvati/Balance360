@@ -47,12 +47,9 @@ def load_rules(db: Session) -> list[ImportRule]:
     rules = db.execute(select(ImportRule)).scalars().all()
     return list(rules)
 
-def load_accounts(db: Session) -> dict:
-    accounts_dict = {}
+def load_accounts(db: Session) -> list[Account]:
     accounts = db.execute(select(Account)).scalars().all()
-    for account in accounts:
-        accounts_dict[account.name] = account
-    return accounts_dict
+    return list(accounts)
 
 def load_currency(db: Session) -> dict:
     currencies_dict = {}
@@ -87,12 +84,7 @@ with SessionLocal() as db:
     rules = load_rules(db)
     accounts = load_accounts(db)
     currencies = load_currency(db)
-
-    account = accounts["Ciudad"]
-    currency = currencies["ARS"]
-    valid_rows, skipped_rows = parse_sheet(wb, account.name)
-
-    for row in valid_rows:
-        print(row)
-
-    import_sheet(db, valid_rows, account, currency, rules)
+    
+    for account in accounts:
+        valid_rows, skipped_rows = parse_sheet(wb, account.name)
+        import_sheet(db, valid_rows, account, account.currency, rules)
