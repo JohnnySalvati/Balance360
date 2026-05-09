@@ -13,7 +13,8 @@ def get_all(
         entity_id: uuid.UUID|None = None,
         account_id: uuid.UUID|None = None,
         transaction_type: TransactionType|None = None,
-        category_id: uuid.UUID|None = None
+        category_id: uuid.UUID|None = None,
+        unclassified: bool = False
         ) -> list[Transaction]:
     stmt = select(Transaction)
     if date_from: stmt = stmt.where(Transaction.date >= date_from)
@@ -22,6 +23,11 @@ def get_all(
     if account_id: stmt = stmt.where(Transaction.account_id == account_id)
     if transaction_type: stmt = stmt.where(Transaction.type == transaction_type)
     if category_id: stmt = stmt.where(Transaction.category_id == category_id)
+    if unclassified:
+        stmt = stmt.where(
+            Transaction.is_manual == False,
+            Transaction.applied_rule_id == None
+        )
     transactions = db.execute(stmt).scalars().all()
     return list(transactions)
 

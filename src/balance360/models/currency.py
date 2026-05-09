@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
+    from balance360.models.account import Account
 
 import uuid
 import datetime
@@ -26,7 +27,10 @@ class Currency(Base, TimestampMixin):
         Boolean, default=False
     )
     transactions: Mapped[list["Transaction"]] = relationship(
-            back_populates="currency"
+        back_populates="currency"
+    )
+    accounts: Mapped[list["Account"]] = relationship(
+        back_populates="currency"
     )
 
 class ExchangeRate(Base, TimestampMixin):

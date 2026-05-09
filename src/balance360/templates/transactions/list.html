@@ -6,6 +6,7 @@
     <button hx-post="/transactions/apply-rules"
             hx-target="#tbody"
             hx-swap="innerHTML"
+            hx-include="form"
             class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
         Reaplicar reglas
     </button>
@@ -34,7 +35,35 @@
         </select>
     </div>
 
+    <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500">Cuenta</label>
+        <select name="account_id" class="border rounded px-3 py-2 text-sm">
+            <option value="">Todas</option>
+            {% for a in accounts %}
+            <option value="{{ a.id }}">{{ a.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="flex items-center gap-2 pb-2">
+        <input type="checkbox" name="unclassified" value="true" id="unclassified">
+        <label for="unclassified" class="text-sm text-gray-600">Sin clasificar</label>
+    </div>
+
 </form>
+
+<div id="tx-counter" class="text-xs text-gray-400 mb-2">
+    {{ transactions|length }} / {{ total_count }} transacciones
+</div>
+
+<script>
+document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target.id === 'tbody') {
+        const count = document.querySelectorAll('#tbody tr').length;
+        document.getElementById('tx-counter').textContent = count + ' / {{ total_count }} transacciones';
+    }
+});
+</script>
 
 <div class="bg-white rounded shadow overflow-x-auto">
     <table class="w-full text-sm">

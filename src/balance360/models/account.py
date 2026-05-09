@@ -3,10 +3,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
+    from balance360.models.currency import Currency
 
 import uuid
 import sqlalchemy
-from sqlalchemy import Uuid, String, Boolean
+from sqlalchemy import Uuid, String, Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
 from balance360.enums import AccountType
@@ -22,13 +23,15 @@ class Account(Base, TimestampMixin):
     type: Mapped[AccountType] = mapped_column(
         sqlalchemy.Enum(AccountType), default=AccountType.bank
     )
-    currency_code: Mapped[str] = mapped_column(
-        String(5), default="ARS"
+    currency_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("currencies.id")
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True
     )
     transactions: Mapped[list["Transaction"]] = relationship(
-        back_populates="account",
-        foreign_keys="[Transaction.account_id]"
+        back_populates="account"
+    )
+    currency: Mapped["Currency"] = relationship(
+        back_populates="accounts"
     )

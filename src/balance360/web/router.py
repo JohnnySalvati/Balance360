@@ -9,6 +9,7 @@ from balance360.crud import transaction as transaction_crud
 from balance360.crud import entity as entity_crud
 from balance360.crud import contact as contact_crud
 from balance360.crud import category as category_crud
+from balance360.crud import account as account_crud
 from balance360.schemas.transaction import TransactionUpdate
 from balance360.schemas.import_rule import ImportRuleUpdate, ImportRuleCreate
 
@@ -25,15 +26,18 @@ def transaction_list(request: Request, db: Session = Depends(get_db)):
     entities = entity_crud.get_all(db)
     contacts = contact_crud.get_all(db)
     categories = category_crud.get_all(db)
+    accounts = account_crud.get_all(db)
 
     return templates.TemplateResponse(
         request=request,
         name="transactions/list.html",
         context={
             "transactions": transactions,
+            "total_count": len(transactions),
             "entities": entities,
             "contacts": contacts,
-            "categories": categories
+            "categories": categories,
+            "accounts": accounts
             }
     )
 
@@ -43,7 +47,9 @@ def transaction_rows(
     db: Session = Depends(get_db),
     date_from: str = Query(default=""),
     date_to: str = Query(default=""),
-    transaction_type: str = Query(default="")
+    transaction_type: str = Query(default=""),
+    account_id: str = Query(default=""),
+    unclassified: str = Query(default="")
 ):
     from datetime import date
     from balance360.enums import TransactionType
@@ -51,21 +57,28 @@ def transaction_rows(
     date_from_parsed = date.fromisoformat(date_from) if date_from else None
     date_to_parsed = date.fromisoformat(date_to) if date_to else None
     type_parsed = TransactionType(transaction_type) if transaction_type else None
+    account_id_parsed = UUID(account_id) if account_id else None
+    unclassified_parsed = unclassified == "true"
 
     transactions = transaction_crud.get_all(
         db,
         date_from=date_from_parsed,
         date_to=date_to_parsed,
-        transaction_type=type_parsed
+        transaction_type=type_parsed,
+        account_id=account_id_parsed,
+        unclassified=unclassified_parsed
     )
+    total_count = len(transaction_crud.get_all(db))
     return templates.TemplateResponse(
         request=request,
         name="transactions/rows.html",
         context={
             "transactions": transactions,
+            "total_count": total_count,
             "entities": entity_crud.get_all(db),
             "contacts": contact_crud.get_all(db),
-            "categories": category_crud.get_all(db)
+            "categories": category_crud.get_all(db),
+            "accounts": account_crud.get_all(db)
         }
     )
 
@@ -137,17 +150,24 @@ def classify_transaction(
 @router.post("/transactions/apply-rules")
 def apply_rules(
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    date_from: str = Form(default=""),
+    date_to: str = Form(default=""),
+    transaction_type: str = Form(default=""),
+    account_id: str = Form(default=""),
+    unclassified: str = Form(default="")
 ):
+    from datetime import date
+    from balance360.enums import TransactionType
     from balance360.matching import find_best_rule
 
-    transactions = [transaction for transaction in transaction_crud.get_all(db) if not transaction.is_manual]
+    all_transactions = [t for t in transaction_crud.get_all(db) if not t.is_manual]
     import_rules = import_rule_crud.get_all(db)
-    for transaction in transactions:
+    for transaction in all_transactions:
         import_rule = find_best_rule(transaction.description, transaction.type, import_rules)
         if import_rule:
             transaction_data = TransactionUpdate(
-                entity_id = import_rule.entity_id, 
+                entity_id = import_rule.entity_id,
                 contact_id = import_rule.contact_id,
                 category_id = import_rule.category_id,
                 is_transfer = import_rule.is_transfer,
@@ -157,14 +177,30 @@ def apply_rules(
                 setattr(transaction, field, value)
     db.commit()
 
+    date_from_parsed = date.fromisoformat(date_from) if date_from else None
+    date_to_parsed = date.fromisoformat(date_to) if date_to else None
+    type_parsed = TransactionType(transaction_type) if transaction_type else None
+    account_id_parsed = UUID(account_id) if account_id else None
+    unclassified_parsed = unclassified == "true"
+
+    filtered = transaction_crud.get_all(
+        db,
+        date_from=date_from_parsed,
+        date_to=date_to_parsed,
+        transaction_type=type_parsed,
+        account_id=account_id_parsed,
+        unclassified=unclassified_parsed
+    )
     return templates.TemplateResponse(
         request=request,
         name="transactions/rows.html",
         context={
-            "transactions": transaction_crud.get_all(db),
+            "transactions": filtered,
+            "total_count": len(transaction_crud.get_all(db)),
             "entities": entity_crud.get_all(db),
             "contacts": contact_crud.get_all(db),
-            "categories": category_crud.get_all(db)
+            "categories": category_crud.get_all(db),
+            "accounts": account_crud.get_all(db)
         }
     )
 

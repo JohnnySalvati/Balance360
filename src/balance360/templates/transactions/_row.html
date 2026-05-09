@@ -1,5 +1,6 @@
 {% set type_labels = {"income": "Ingreso", "expense": "Egreso"} %}
-<tr class="hover:bg-gray-50"
+{% set unclassified = not t.is_manual and not t.applied_rule %}
+<tr class="{{ 'bg-yellow-50 hover:bg-yellow-100' if unclassified else 'hover:bg-gray-50' }}"
     id="row-{{ t.id }}"
     hx-patch="/transactions/{{ t.id }}/classify"
     hx-target="#row-{{ t.id }}"

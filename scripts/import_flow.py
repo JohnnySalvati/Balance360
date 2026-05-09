@@ -88,7 +88,7 @@ with SessionLocal() as db:
     accounts = load_accounts(db)
     currencies = load_currency(db)
 
-    account = accounts["Frances"]
+    account = accounts["Ciudad"]
     currency = currencies["ARS"]
     valid_rows, skipped_rows = parse_sheet(wb, account.name)
 
