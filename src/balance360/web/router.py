@@ -2,6 +2,7 @@ from uuid import UUID
 from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Query, Form, HTTPException
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.crud import import_rule as import_rule_crud
@@ -12,6 +13,7 @@ from balance360.crud import category as category_crud
 from balance360.crud import account as account_crud
 from balance360.schemas.transaction import TransactionUpdate
 from balance360.schemas.import_rule import ImportRuleUpdate, ImportRuleCreate
+from balance360.models.transaction import Transaction
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / 'templates')
@@ -50,7 +52,9 @@ def transaction_rows(
     transaction_type: str = Query(default=""),
     account_id: str = Query(default=""),
     unclassified: str = Query(default=""),
-    description: str = Query(default="")
+    description: str = Query(default=""),
+    entity_id: str = Query(default=""),
+    category_id: str = Query(default="")
 ):
     from datetime import date
     from balance360.enums import TransactionType
@@ -60,6 +64,8 @@ def transaction_rows(
     type_parsed = TransactionType(transaction_type) if transaction_type else None
     account_id_parsed = UUID(account_id) if account_id else None
     unclassified_parsed = unclassified == "true"
+    entity_id_parsed = UUID(entity_id) if entity_id else None
+    category_id_parsed = UUID(category_id) if category_id else None
     
     transactions = transaction_crud.get_all(
         db,
@@ -68,9 +74,12 @@ def transaction_rows(
         transaction_type=type_parsed,
         account_id=account_id_parsed,
         unclassified=unclassified_parsed,
-        description=description
+        description=description,
+        entity_id=entity_id_parsed,
+        category_id=category_id_parsed
     )
-    total_count = len(transaction_crud.get_all(db))
+
+    total_count = db.scalar(select(func.count()).select_from(Transaction))
     return templates.TemplateResponse(
         request=request,
         name="transactions/rows.html",
@@ -113,7 +122,7 @@ def classify_transaction(
     import_rule_data = None
 
     if create_rule:
-        rule = import_rule_crud.get_by_pattern(db, transaction.description, transaction.type)
+        rule = import_rule_crud.get_by_exact_pattern(db, transaction.description, transaction.type)
         if rule:
             import_rule_data = ImportRuleUpdate(
                 entity_id = entity_id, 
@@ -158,7 +167,9 @@ def apply_rules(
     transaction_type: str = Form(default=""),
     account_id: str = Form(default=""),
     unclassified: str = Form(default=""),
-    description: str = Form(default="")
+    description: str = Form(default=""),
+    entity_id: str = Form(default=""),
+    category_id: str = Form(default="")
 ):
     from datetime import date
     from balance360.enums import TransactionType
@@ -185,6 +196,8 @@ def apply_rules(
     type_parsed = TransactionType(transaction_type) if transaction_type else None
     account_id_parsed = UUID(account_id) if account_id else None
     unclassified_parsed = unclassified == "true"
+    entity_id_parsed = UUID(entity_id) if entity_id else None
+    category_id_parsed = UUID(category_id) if category_id else None
 
     filtered = transaction_crud.get_all(
         db,
@@ -193,7 +206,9 @@ def apply_rules(
         transaction_type=type_parsed,
         account_id=account_id_parsed,
         unclassified=unclassified_parsed,
-        description=description
+        description=description,
+        entity_id=entity_id_parsed,
+        category_id=category_id_parsed
     )
     return templates.TemplateResponse(
         request=request,

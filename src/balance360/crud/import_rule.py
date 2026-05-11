@@ -27,3 +27,11 @@ def update(db: Session, data: ImportRuleUpdate, import_rule: ImportRule) -> Impo
     db.commit()
     db.refresh(import_rule)
     return import_rule
+
+def get_by_exact_pattern(db: Session, description: str, transaction_type: TransactionType) -> ImportRule | None:
+    pattern = description.lower()
+    stmt = select(ImportRule).where(
+        ImportRule.pattern == pattern,
+        ImportRule.transaction_type == transaction_type
+    )
+    return db.execute(stmt).scalars().first()

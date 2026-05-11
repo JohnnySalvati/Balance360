@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Reportes</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+    <a href="/reports/balance"
+       class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold mb-1">Balance por cuenta</h2>
+        <p class="text-sm text-gray-500">Ingresos, egresos y saldo neto por cuenta bancaria.</p>
+    </a>
+
+    <a href="/reports/pl"
+       class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold mb-1">P&amp;L por período</h2>
+        <p class="text-sm text-gray-500">Ingresos y egresos mensuales agrupados por año.</p>
+    </a>
+
+    <a href="/reports/pl/category"
+       class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold mb-1">P&amp;L por categoría</h2>
+        <p class="text-sm text-gray-500">Ingresos y egresos agrupados por categoría.</p>
+    </a>
+
+    <div class="bg-white rounded shadow p-6 opacity-50 cursor-not-allowed">
+        <h2 class="text-lg font-semibold mb-1">Patrimonio neto</h2>
+        <p class="text-sm text-gray-500">Próximamente</p>
+    </div>
+
+</div>
+{% endblock %}

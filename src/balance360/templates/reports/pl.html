@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">P&amp;L por período</h1>
+    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+</div>
+
+<div class="shrink-0 mb-4">
+    {% include "reports/_period_filters.html" %}
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Mes</th>
+                <th class="px-4 py-3 text-right">Ingresos</th>
+                <th class="px-4 py-3 text-right">Egresos</th>
+                <th class="px-4 py-3 text-right">Resultado</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% set total_income = namespace(value=0) %}
+            {% set total_expense = namespace(value=0) %}
+            {% for row in months %}
+            {% set total_income.value = total_income.value + row.total_income %}
+            {% set total_expense.value = total_expense.value + row.total_expense %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium">{{ row.month_name }}</td>
+                <td class="px-4 py-3 text-right text-green-700">{{ row.total_income | amount }}</td>
+                <td class="px-4 py-3 text-right text-red-700">{{ row.total_expense | amount }}</td>
+                <td class="px-4 py-3 text-right font-semibold
+                    {% if row.net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ row.net | amount }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot class="bg-gray-50 font-semibold text-xs uppercase text-gray-500 border-t-2 border-gray-200">
+            <tr>
+                <td class="px-4 py-3">Total</td>
+                <td class="px-4 py-3 text-right text-green-700">{{ total_income.value | amount }}</td>
+                <td class="px-4 py-3 text-right text-red-700">{{ total_expense.value | amount }}</td>
+                {% set net_total = total_income.value - total_expense.value %}
+                <td class="px-4 py-3 text-right
+                    {% if net_total >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ net_total | amount }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %}

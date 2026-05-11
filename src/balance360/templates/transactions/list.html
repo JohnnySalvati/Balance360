@@ -1,69 +1,92 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Transacciones</h1>
-    <button hx-post="/transactions/apply-rules"
-            hx-target="#tbody"
-            hx-swap="innerHTML"
-            hx-include="form"
-            class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-        Reaplicar reglas
-    </button>
-</div>
-<form hx-get="/transactions/rows" 
-      hx-target="#tbody" 
-      hx-trigger="change"
-      class="bg-white rounded shadow p-4 mb-6 flex gap-4 items-end">
-
-    <div class="flex flex-col gap-1">
-        <label class="text-xs text-gray-500">Desde</label>
-        <input type="date" name="date_from" class="border rounded px-3 py-2 text-sm">
+<div class="shrink-0">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold">Transacciones</h1>
+        <button hx-post="/transactions/apply-rules"
+                hx-target="#tbody"
+                hx-swap="innerHTML"
+                hx-include="form"
+                class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+            Reaplicar reglas
+        </button>
     </div>
 
-    <div class="flex flex-col gap-1">
-        <label class="text-xs text-gray-500">Hasta</label>
-        <input type="date" name="date_to" class="border rounded px-3 py-2 text-sm">
+    <form hx-get="/transactions/rows"
+          hx-target="#tbody"
+          hx-trigger="change"
+          class="bg-white rounded shadow p-4 mb-3 flex gap-4 items-end">
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Desde</label>
+            <input type="date" name="date_from" class="border rounded px-3 py-2 text-sm">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Hasta</label>
+            <input type="date" name="date_to" class="border rounded px-3 py-2 text-sm">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Tipo</label>
+            <select name="transaction_type" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                <option value="income">Ingreso</option>
+                <option value="expense">Egreso</option>
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Cuenta</label>
+            <select name="account_id" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todas</option>
+                {% for a in accounts %}
+                <option value="{{ a.id }}">{{ a.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex items-center gap-2 pb-2">
+            <input type="checkbox" name="unclassified" value="true" id="unclassified">
+            <label for="unclassified" class="text-sm text-gray-600">Sin clasificar</label>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Descripción</label>
+            <input type="text" name="description"
+                class="border rounded px-3 py-2 text-sm"
+                hx-get="/transactions/rows"
+                hx-target="#tbody"
+                hx-trigger="keyup changed delay:400ms"
+                hx-include="form">
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Categoría</label>
+            <select name="category_id" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todas</option>
+                {% for c in categories %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Entidad</label>
+            <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todas</option>
+                {% for e in entities %}
+                <option value="{{ e.id }}">{{ e.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+    </form>
+
+    <div id="tx-counter" class="text-xs text-gray-400 mb-2">
+        {{ transactions|length }} / {{ total_count }} transacciones
     </div>
-
-    <div class="flex flex-col gap-1">
-        <label class="text-xs text-gray-500">Tipo</label>
-        <select name="transaction_type" class="border rounded px-3 py-2 text-sm">
-            <option value="">Todos</option>
-            <option value="income">Ingreso</option>
-            <option value="expense">Egreso</option>
-        </select>
-    </div>
-
-    <div class="flex flex-col gap-1">
-        <label class="text-xs text-gray-500">Cuenta</label>
-        <select name="account_id" class="border rounded px-3 py-2 text-sm">
-            <option value="">Todas</option>
-            {% for a in accounts %}
-            <option value="{{ a.id }}">{{ a.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <div class="flex items-center gap-2 pb-2">
-        <input type="checkbox" name="unclassified" value="true" id="unclassified">
-        <label for="unclassified" class="text-sm text-gray-600">Sin clasificar</label>
-    </div>
-
-    <div class="flex flex-col gap-1">
-        <label class="text-xs text-gray-500">Descripción</label>
-        <input type="text" name="description" 
-            class="border rounded px-3 py-2 text-sm"
-            hx-get="/transactions/rows"
-            hx-target="#tbody"
-            hx-trigger="keyup changed delay:400ms"
-            hx-include="form">
-    </div>
-
-</form>
-
-<div id="tx-counter" class="text-xs text-gray-400 mb-2">
-    {{ transactions|length }} / {{ total_count }} transacciones
 </div>
 
 <script>
@@ -75,9 +98,9 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
 });
 </script>
 
-<div class="bg-white rounded shadow overflow-x-auto">
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3">Fecha</th>
                 <th class="px-4 py-3">Descripción</th>

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">P&amp;L por categoría</h1>
+    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+</div>
+
+<div class="shrink-0 mb-4">
+    <form method="get" class="bg-white rounded shadow p-4 flex gap-4 items-end">
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Entidad</label>
+            <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todas</option>
+                {% for e in entities %}
+                <option value="{{ e.id }}" {% if e.id|string == selected_entity_id %}selected{% endif %}>{{ e.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Año</label>
+            <select name="year" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                {% for y in available_years %}
+                <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Mes</label>
+            <select name="month" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                {% for num, name in month_names.items() %}
+                <option value="{{ num }}" {% if num == selected_month %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Desde</label>
+            <input type="date" name="date_from" value="{{ date_from }}" class="border rounded px-3 py-2 text-sm">
+        </div>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Hasta</label>
+            <input type="date" name="date_to" value="{{ date_to }}" class="border rounded px-3 py-2 text-sm">
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+            Filtrar
+        </button>
+    </form>
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Categoría</th>
+                <th class="px-4 py-3 text-right">Ingresos</th>
+                <th class="px-4 py-3 text-right">Egresos</th>
+                <th class="px-4 py-3 text-right">Resultado</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% set grand_income = namespace(value=0) %}
+            {% set grand_expense = namespace(value=0) %}
+            {% for group in groups %}
+            {% set grand_income.value = grand_income.value + group.subtotal_income %}
+            {% set grand_expense.value = grand_expense.value + group.subtotal_expense %}
+
+            {# Fila del padre — solo si tiene transacciones directas #}
+            {% if group.parent_data %}
+            <tr class="bg-gray-50 hover:bg-gray-100">
+                <td class="px-4 py-2 font-semibold text-gray-700">{{ group.parent.name }}</td>
+                <td class="px-4 py-2 text-right text-green-700">{{ group.parent_data.total_income | amount }}</td>
+                <td class="px-4 py-2 text-right text-red-700">{{ group.parent_data.total_expense | amount }}</td>
+                <td class="px-4 py-2 text-right font-semibold
+                    {% if group.parent_data.net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ group.parent_data.net | amount }}
+                </td>
+            </tr>
+            {% else %}
+            <tr class="bg-gray-50">
+                <td class="px-4 py-2 font-semibold text-gray-700" colspan="4">{{ group.parent.name }}</td>
+            </tr>
+            {% endif %}
+
+            {# Filas de hijos #}
+            {% for child in group.children %}
+            <tr class="hover:bg-gray-50">
+                <td class="pl-10 pr-4 py-2 text-gray-600">{{ child.Category.name }}</td>
+                <td class="px-4 py-2 text-right text-green-700">{{ child.total_income | amount }}</td>
+                <td class="px-4 py-2 text-right text-red-700">{{ child.total_expense | amount }}</td>
+                {% set child_net = child.total_income - child.total_expense %}
+                <td class="px-4 py-2 text-right
+                    {% if child_net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ child_net | amount }}
+                </td>
+            </tr>
+            {% endfor %}
+
+            {# Fila de subtotal — solo si hay hijos #}
+            {% if group.children %}
+            <tr class="border-t border-gray-200 bg-gray-50 text-xs uppercase text-gray-400">
+                <td class="px-4 py-2 pl-10">Subtotal {{ group.parent.name }}</td>
+                <td class="px-4 py-2 text-right text-green-700 font-semibold">{{ group.subtotal_income | amount }}</td>
+                <td class="px-4 py-2 text-right text-red-700 font-semibold">{{ group.subtotal_expense | amount }}</td>
+                <td class="px-4 py-2 text-right font-semibold
+                    {% if group.subtotal_net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ group.subtotal_net | amount }}
+                </td>
+            </tr>
+            {% endif %}
+
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">
+                <td class="px-4 py-3 uppercase text-gray-600 text-xs">Total</td>
+                <td class="px-4 py-3 text-right text-green-700">{{ grand_income.value | amount }}</td>
+                <td class="px-4 py-3 text-right text-red-700">{{ grand_expense.value | amount }}</td>
+                {% set grand_net = grand_income.value - grand_expense.value %}
+                <td class="px-4 py-3 text-right {% if grand_net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ grand_net | amount }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %}
