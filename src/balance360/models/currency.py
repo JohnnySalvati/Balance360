@@ -32,6 +32,9 @@ class Currency(Base, TimestampMixin):
     accounts: Mapped[list["Account"]] = relationship(
         back_populates="currency"
     )
+    exchange_rates: Mapped[list["ExchangeRate"]] = relationship(
+        back_populates="currency"
+    )
 
 class ExchangeRate(Base, TimestampMixin):
     __tablename__ = "exchange_rates"
@@ -47,4 +50,6 @@ class ExchangeRate(Base, TimestampMixin):
     rate: Mapped[Decimal] = mapped_column(
         Numeric(precision=18, scale=6)
     )
-    
+    currency: Mapped["Currency"] = relationship(
+        back_populates="exchange_rates"
+    )

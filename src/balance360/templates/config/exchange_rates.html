@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Tipos de cambio</h1>
+    <a href="/config" class="text-sm text-blue-600 hover:underline">← Configuración</a>
+</div>
+
+<div class="shrink-0 mb-4">
+    <form
+        hx-post="/config/exchange-rates"
+        hx-target="#rates-container"
+        hx-swap="innerHTML"
+        hx-on::after-request="this.reset()"
+        class="bg-white rounded shadow p-4 flex gap-4 items-end">
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Moneda / Bono</label>
+            <select name="currency_id" class="border rounded px-3 py-2 text-sm" required>
+                <option value="">Seleccionar...</option>
+                {% for c in currencies %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.code }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Fecha</label>
+            <input type="date" name="date" value="{{ today }}" class="border rounded px-3 py-2 text-sm" required>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Tipo de cambio (ARS por unidad)</label>
+            <input type="number" name="rate" step="0.000001" min="0" placeholder="ej: 1050.50"
+                class="border rounded px-3 py-2 text-sm w-48" required>
+        </div>
+
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+            Agregar
+        </button>
+    </form>
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <div id="rates-container">
+        {% include "config/_rates_table.html" %}
+    </div>
+</div>
+{% endblock %}

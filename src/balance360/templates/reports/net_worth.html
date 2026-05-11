@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Patrimonio neto</h1>
+    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Cuenta</th>
+                <th class="px-4 py-3">Moneda</th>
+                <th class="px-4 py-3 text-right">Saldo</th>
+                <th class="px-4 py-3 text-right">Tipo de cambio</th>
+                <th class="px-4 py-3 text-right">Equivalente ARS</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for row in accounts %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 font-medium">{{ row.account.name }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ row.account.currency.code }}</td>
+                <td class="px-4 py-3 text-right font-mono
+                    {% if row.balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ row.balance | amount }}
+                </td>
+                <td class="px-4 py-3 text-right text-gray-400 font-mono">
+                    {% if row.account.currency.code == "ARS" %}
+                        —
+                    {% else %}
+                        {{ row.exchange_rate | amount }}
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-right font-semibold font-mono
+                    {% if row.ars_balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ row.ars_balance | amount }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">
+                <td class="px-4 py-3 uppercase text-gray-600 text-xs" colspan="4">Total ARS</td>
+                <td class="px-4 py-3 text-right font-mono
+                    {% if total_ars >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {{ total_ars | amount }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %}

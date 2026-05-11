@@ -7,7 +7,7 @@ from balance360.dependencies import get_db
 from balance360.models.transaction import Transaction
 from balance360.models.account import Account
 from balance360.models.category import Category
-from balance360.models.entity import Entity
+from balance360.models.currency import Currency, ExchangeRate
 from balance360.enums import TransactionType
 from balance360.reports import group_by_parent
 from balance360.crud import entity as entity_crud
@@ -218,4 +218,64 @@ def report_pl_category(
             "entities": entities,
             "selected_entity_id": entity_id,
         },
+    )
+
+
+@router.get("/net-worth")
+def report_net_worth(
+    request: Request,
+    db: Session = Depends(get_db),
+
+):
+    latest_rate = (
+        select(ExchangeRate.rate)
+        .where(ExchangeRate.currency_id == Account.currency_id)
+        .order_by(ExchangeRate.date.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    stmt = (
+        select(
+            Account,
+            latest_rate.label("exchange_rate"),
+            func.coalesce(
+                func.sum(Transaction.amount).filter(
+                    Transaction.type == TransactionType.income,
+                    Transaction.is_transfer == False
+                ), 0
+            ).label("total_income"),
+            func.coalesce(
+                func.sum(Transaction.amount).filter(
+                    Transaction.type == TransactionType.expense,
+                    Transaction.is_transfer == False
+                ), 0
+            ).label("total_expense"),
+        )
+        .outerjoin(Transaction, Transaction.account_id == Account.id)
+        .group_by(Account.id)
+        .order_by(Account.name)
+    )
+    rows = db.execute(stmt).all()
+
+    rows_data = []
+    for row in rows:
+        balance = row.total_income - row.total_expense
+        rate = row.exchange_rate or 1
+        ars_balance = balance * rate if row.Account.currency.code != "ARS" else balance
+        
+        rows_data.append({
+            "account": row.Account,
+            "balance": balance,
+            "ars_balance": ars_balance,
+            "exchange_rate": row.exchange_rate,
+        })
+
+    total_ars = sum(r["ars_balance"] for r in rows_data)
+    return templates.TemplateResponse(
+        request=request,
+        name="reports/net_worth.html",
+        context={
+            "accounts": rows_data,
+            "total_ars": total_ars
+        }
     )
