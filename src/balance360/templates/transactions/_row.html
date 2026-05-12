@@ -45,8 +45,23 @@
             {% endfor %}
         </select>
     </td>
-    <td class="px-4 py-3 flex gap-3 items-center">
-        <input type="checkbox" name="is_transfer" value="true" {% if t.is_transfer %}checked{% endif %} title="Es transferencia">
-        <input type="checkbox" name="create_rule" value="true" checked title="Crear regla">
+    <td class="px-4 py-3">
+        <div class="flex items-center gap-3">
+            <input type="checkbox" name="is_transfer" value="true" {% if t.is_transfer %}checked{% endif %} title="Es transferencia">
+            <input type="checkbox" name="create_rule" value="true" checked title="Crear regla">
+            <button type="button"
+                    hx-get="/transactions/{{ t.id }}/edit-form"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-blue-500 hover:text-blue-700 text-xs"
+                    title="Editar">✎</button>
+            <button type="button"
+                    hx-delete="/transactions/{{ t.id }}"
+                    hx-target="#row-{{ t.id }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="¿Eliminar esta transacción?"
+                    class="text-red-400 hover:text-red-600 text-xs"
+                    title="Eliminar">✕</button>
+        </div>
     </td>
 </tr>

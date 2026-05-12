@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from balance360 import models
-from balance360.models import Account, Currency, ImportRule, Transaction
+from balance360.models import Account, ImportRule, Transaction
 from balance360.enums import TransactionType
 from balance360.database import SessionLocal
 from balance360.matching import find_best_rule, extract_amount
@@ -94,14 +94,7 @@ def load_accounts(db: Session) -> list[Account]:
     accounts = db.execute(select(Account)).scalars().all()
     return list(accounts)
 
-def load_currency(db: Session) -> dict:
-    currencies_dict = {}
-    currencies = db.execute(select(Currency)).scalars().all()
-    for currency in currencies:
-        currencies_dict[currency.code] = currency
-    return currencies_dict
-
-def import_sheet(db: Session, rows: list[dict], account: Account, currency: Currency, rules: list[ImportRule]):
+def import_sheet(db: Session, rows: list[dict], account: Account, rules: list[ImportRule]):
     for row in rows:
         import_rule = find_best_rule(row['description'], row['transaction_type'], rules)
         transaction_dict = {
@@ -112,7 +105,6 @@ def import_sheet(db: Session, rows: list[dict], account: Account, currency: Curr
             'type': row['transaction_type'],
             'account_id': account.id,
             'entity_id': import_rule.entity_id if import_rule else None,
-            'currency_id': currency.id,
             'contact_id': import_rule.contact_id if import_rule else None,
             'category_id': import_rule.category_id if import_rule else None,
             'is_manual': False,
@@ -145,9 +137,9 @@ if __name__ == "__main__":
             if cash_rows: export_rows(wb, cash_rows, 'Efectivo')
             
             print(f"Solapa {account.name}: {len(valid_rows)} filas validas, {len(skipped_rows)} filas saltadas, {len(cash_rows)} filas de efectivo creadas")
-            import_sheet(db, valid_rows, account, account.currency, rules)
+            import_sheet(db, valid_rows, account, rules)
             if visa_rows:
-                import_sheet(db, visa_rows, visa_account, visa_account.currency, rules)
+                import_sheet(db, visa_rows, visa_account, rules)
         wb.save(wb_name)
 
         

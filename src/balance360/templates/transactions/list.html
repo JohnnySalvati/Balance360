@@ -4,6 +4,13 @@
 <div class="shrink-0">
     <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-bold">Transacciones</h1>
+        <div class="flex gap-2">
+        <button hx-get="/transactions/new-form"
+                hx-target="#modal"
+                hx-swap="outerHTML"
+                class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+            + Nueva
+        </button>
         <button hx-post="/transactions/apply-rules"
                 hx-target="#tbody"
                 hx-swap="innerHTML"
@@ -11,11 +18,12 @@
                 class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
             Reaplicar reglas
         </button>
+        </div>
     </div>
 
     <form hx-get="/transactions/rows"
           hx-target="#tbody"
-          hx-trigger="change"
+          hx-trigger="change, refreshRows from:body"
           class="bg-white rounded shadow p-4 mb-3 flex gap-4 items-end">
 
         <div class="flex flex-col gap-1">
@@ -110,6 +118,7 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
                 <th class="px-4 py-3">Entidad</th>
                 <th class="px-4 py-3">Contacto</th>
                 <th class="px-4 py-3">Categoría</th>
+                <th class="px-4 py-3"></th>
             </tr>
         </thead>
         <tbody id="tbody" class="divide-y divide-gray-100">
@@ -119,4 +128,5 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
         </tbody>
     </table>
 </div>
+<div id="modal"></div>
 {% endblock %}

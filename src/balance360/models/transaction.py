@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from balance360.models.category import Category
     from balance360.models.contact import Contact
-    from balance360.models.currency import Currency
     from balance360.models.entity import Entity
     from balance360.models.account import Account
     from balance360.models.attachment import Attachment
@@ -44,9 +43,6 @@ class Transaction(Base, TimestampMixin):
     entity_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("entities.id")
     )
-    currency_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("currencies.id")
-    )
     contact_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("contacts.id")
     )
@@ -74,13 +70,9 @@ class Transaction(Base, TimestampMixin):
     contact: Mapped["Contact|None"] = relationship(
         back_populates="transactions"
     )
-    currency: Mapped["Currency"] = relationship(
-        back_populates="transactions"
-    )
     entity: Mapped["Entity|None"] = relationship(
         back_populates="transactions"
     )
     account: Mapped["Account"] = relationship(
         back_populates="transactions"
     )
-

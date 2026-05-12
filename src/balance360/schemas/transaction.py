@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict
 from balance360.enums import TransactionType   
 from balance360.schemas.account import AccountShort
 from balance360.schemas.entity import EntityShort
-from balance360.schemas.currency import CurrencyShort
 from balance360.schemas.contact import ContactShort
 from balance360.schemas.category import CategoryShort
 from balance360.schemas.import_rule import ImportRuleShort
@@ -16,7 +15,6 @@ class TransactionCreate(BaseModel):
     type: TransactionType
     account_id: uuid.UUID
     entity_id: uuid.UUID|None=None
-    currency_id: uuid.UUID
     contact_id: uuid.UUID|None=None
     category_id: uuid.UUID|None=None
     is_manual: bool=False
@@ -31,7 +29,6 @@ class TransactionRead(BaseModel):
     type: TransactionType
     account: AccountShort
     entity: EntityShort|None=None
-    currency: CurrencyShort
     contact: ContactShort|None=None
     category: CategoryShort|None=None
     created_at: datetime.datetime
@@ -46,7 +43,6 @@ class TransactionUpdate(BaseModel):
     type: TransactionType|None = None
     account_id: uuid.UUID|None = None
     entity_id: uuid.UUID|None = None
-    currency_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
     is_manual: bool|None = None

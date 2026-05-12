@@ -1,0 +1,113 @@
+{% set is_edit = transaction is defined and transaction %}
+{% set action_url = "/transactions/" ~ transaction.id ~ "/update" if is_edit else "/transactions/create" %}
+{% set title = "Editar transacción" if is_edit else "Nueva transacción" %}
+
+<div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">{{ title }}</h2>
+            <button hx-get="/transactions/close-modal"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+        </div>
+
+        <form {% if is_edit %}hx-patch="{{ action_url }}"{% else %}hx-post="{{ action_url }}"{% endif %}
+              hx-target="#modal"
+              hx-swap="outerHTML"
+              class="flex flex-col gap-3">
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Fecha</label>
+                    <input type="date" name="transaction_date" required
+                           value="{{ transaction.date if is_edit else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Tipo</label>
+                    <select name="transaction_type" required class="border rounded px-3 py-2 text-sm">
+                        <option value="income" {% if is_edit and transaction.type.value == 'income' %}selected{% endif %}>Ingreso</option>
+                        <option value="expense" {% if is_edit and transaction.type.value == 'expense' %}selected{% endif %}>Egreso</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Descripción</label>
+                <input type="text" name="description" required maxlength="200"
+                       value="{{ transaction.description if is_edit else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Monto</label>
+                    <input type="number" name="amount" step="0.01" min="0" required
+                           value="{{ transaction.amount if is_edit else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Cuenta</label>
+                    <select name="account_id" required class="border rounded px-3 py-2 text-sm">
+                        <option value="">Seleccionar...</option>
+                        {% for a in accounts %}
+                        <option value="{{ a.id }}" {% if is_edit and transaction.account_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Entidad</label>
+                    <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+                        <option value="">—</option>
+                        {% for e in entities %}
+                        <option value="{{ e.id }}" {% if is_edit and transaction.entity_id == e.id %}selected{% endif %}>{{ e.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Contacto</label>
+                    <select name="contact_id" class="border rounded px-3 py-2 text-sm">
+                        <option value="">—</option>
+                        {% for c in contacts %}
+                        <option value="{{ c.id }}" {% if is_edit and transaction.contact_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Categoría</label>
+                <select name="category_id" class="border rounded px-3 py-2 text-sm">
+                    <option value="">—</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}" {% if is_edit and transaction.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="is_transfer" value="true" id="is_transfer"
+                       {% if is_edit and transaction.is_transfer %}checked{% endif %}>
+                <label for="is_transfer" class="text-sm text-gray-600">Es transferencia</label>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-2">
+                <button type="button"
+                        hx-get="/transactions/close-modal"
+                        hx-target="#modal"
+                        hx-swap="outerHTML"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
