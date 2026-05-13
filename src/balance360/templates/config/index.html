@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Configuración</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+    <a href="/config/exchange-rates/"
+       class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold mb-1">Tipos de cambio</h2>
+        <p class="text-sm text-gray-500">Administrá los tipos de cambio de monedas y bonos.</p>
+    </a>
+
+    <a href="/config/categories/"
+       class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
+        <h2 class="text-lg font-semibold mb-1">Categorías</h2>
+        <p class="text-sm text-gray-500">Creá y organizá las categorías de tus transacciones.</p>
+    </a>
+
+    <a href="/config/accounts/"
+       class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow opacity-50 cursor-not-allowed pointer-events-none">
+        <h2 class="text-lg font-semibold mb-1">Cuentas</h2>
+        <p class="text-sm text-gray-500">Próximamente</p>
+    </a>
+
+    <a href="/config/entities/"
+       class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow opacity-50 cursor-not-allowed pointer-events-none">
+        <h2 class="text-lg font-semibold mb-1">Entidades</h2>
+        <p class="text-sm text-gray-500">Próximamente</p>
+    </a>
+
+</div>
+{% endblock %}

@@ -35,3 +35,13 @@ class Category(Base, TimestampMixin):
     children: Mapped[list["Category"]] = relationship(
         "Category", back_populates="parent"
     )
+
+    @property
+    def depth(self) -> int:
+        level = 0
+        node = self
+        while node.parent_id:
+            level += 1
+            assert node.parent is not None
+            node = node.parent
+        return level

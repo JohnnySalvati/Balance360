@@ -5,8 +5,21 @@ from balance360.models.category import Category
 from balance360.schemas.category import CategoryCreate, CategoryUpdate
 
 def get_all(db: Session) -> list[Category]:
-    categories = db.execute(select(Category)).scalars().all()
-    return list(categories)
+    def flatten(node: Category, all_categories: list[Category]):
+        result = [node]
+        children = [c for c in all_categories if c.parent_id == node.id]
+        for child in children:
+            result.extend(flatten(child, all_categories))
+        return result
+    
+    categories = db.execute(select(Category)
+                            .order_by(Category.name)
+                            ).scalars().all()
+    root_categories = [cat for cat in categories if not cat.parent_id]
+    result = []
+    for root_category in root_categories:
+        result.extend(flatten(root_category, list(categories)))
+    return result
     
 def get_by_id(db: Session, category_id: uuid.UUID) -> Category | None:
     category = db.execute(select(Category).where(Category.id == category_id)).scalars().first()
@@ -31,7 +44,10 @@ def update(db: Session, category: Category, data: CategoryUpdate) -> Category:
     return category
     
 def get_children(db: Session, category_id: uuid.UUID) -> list[Category]:
-    categories = db.execute(select(Category).where(Category.parent_id == category_id)).scalars().all()
+    categories = db.execute(select(Category)
+                            .where(Category.parent_id == category_id)
+                            .order_by(Category.name)
+                            ).scalars().all()
     return list(categories)
 
 

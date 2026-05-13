@@ -1,4 +1,6 @@
 import uuid
+from decimal import Decimal
+import datetime
 from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse
@@ -10,21 +12,19 @@ from balance360.crud import currency as currency_crud
 from balance360.crud import exchange_rate as exchange_rate_crud
 from balance360.schemas.exchange_rate import ExchangeRateCreate
 from balance360.models.currency import ExchangeRate
-from decimal import Decimal
-import datetime
 
-router = APIRouter(prefix="/config")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
+router = APIRouter(prefix="/exchange-rates")
+templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 
 def format_amount(value):
     return f"{value:,.2f}"
 
+
 templates.env.filters["amount"] = format_amount
 
 
 def _get_rates_by_currency(db: Session) -> list[dict]:
-    """Return exchange rates grouped by currency, sorted by currency name and date desc."""
     currencies = currency_crud.get_all(db)
     groups = []
     for currency in sorted(currencies, key=lambda c: c.name):
@@ -37,7 +37,7 @@ def _get_rates_by_currency(db: Session) -> list[dict]:
     return groups
 
 
-@router.get("/exchange-rates", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 def exchange_rates_page(request: Request, db: Session = Depends(get_db)):
     groups = _get_rates_by_currency(db)
     currencies = currency_crud.get_all(db)
@@ -48,7 +48,7 @@ def exchange_rates_page(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/exchange-rates", response_class=HTMLResponse)
+@router.post("/", response_class=HTMLResponse)
 def create_exchange_rate(
     request: Request,
     db: Session = Depends(get_db),
@@ -70,7 +70,7 @@ def create_exchange_rate(
     )
 
 
-@router.delete("/exchange-rates/{exchange_rate_id}", response_class=HTMLResponse)
+@router.delete("/{exchange_rate_id}", response_class=HTMLResponse)
 def delete_exchange_rate(
     request: Request,
     exchange_rate_id: uuid.UUID,
