@@ -2,14 +2,14 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from balance360.web.config import exchange_rates, categories
+from balance360.web.config import exchange_rates, categories, accounts
 
 router = APIRouter(prefix="/config")
 templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 router.include_router(exchange_rates.router)
 router.include_router(categories.router)
-
+router.include_router(accounts.router)
 
 @router.get("/", response_class=HTMLResponse)
 def config_index(request: Request):

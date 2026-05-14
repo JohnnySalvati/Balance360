@@ -43,7 +43,7 @@ def exchange_rates_page(request: Request, db: Session = Depends(get_db)):
     currencies = currency_crud.get_all(db)
     return templates.TemplateResponse(
         request=request,
-        name="config/exchange_rates.html",
+        name="config/exchange_rates/exchange_rates.html",
         context={"groups": groups, "currencies": currencies, "today": datetime.date.today()},
     )
 
@@ -65,7 +65,7 @@ def create_exchange_rate(
     groups = _get_rates_by_currency(db)
     return templates.TemplateResponse(
         request=request,
-        name="config/_rates_table.html",
+        name="config/exchange_rates/_rates_table.html",
         context={"groups": groups},
     )
 
@@ -82,6 +82,6 @@ def delete_exchange_rate(
     groups = _get_rates_by_currency(db)
     return templates.TemplateResponse(
         request=request,
-        name="config/_rates_table.html",
+        name="config/exchange_rates/_rates_table.html",
         context={"groups": groups},
     )

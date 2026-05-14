@@ -26,9 +26,6 @@ class Account(Base, TimestampMixin):
     currency_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("currencies.id")
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True
-    )
     transactions: Mapped[list["Transaction"]] = relationship(
         back_populates="account"
     )

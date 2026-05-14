@@ -1,12 +1,13 @@
-{% set is_edit = category is defined and category %}
-{% set action_url = "/config/categories/" ~ category.id if is_edit else "/config/categories/" %}
-{% set title = "Editar categoría" if is_edit else "Nueva categoría" %}
+{% set is_edit = account is defined and account %}
+{% set action_url = "/config/accounts/" ~ account.id if is_edit else "/config/accounts/" %}
+{% set title = "Editar cuenta" if is_edit else "Nueva cuenta" %}
+{% set type_labels = {"bank": "Banco", "cash": "Efectivo", "wallet": "Billetera"} %}
 
 <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold">{{ title }}</h2>
-            <button hx-get="/config/categories/close-modal"
+            <button hx-get="/config/accounts/close-modal"
                     hx-target="#modal"
                     hx-swap="outerHTML"
                     class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
@@ -20,34 +21,35 @@
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Nombre</label>
                 <input type="text" name="name" required maxlength="30"
-                       value="{{ category.name if is_edit else '' }}"
+                       value="{{ account.name if is_edit else '' }}"
                        class="border rounded px-3 py-2 text-sm">
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Categoría padre</label>
-                <select name="parent_id" class="border rounded px-3 py-2 text-sm">
-                    <option value="">— Ninguna (raíz) —</option>
-                    {% for c in categories %}
-                    {% if not is_edit or c.id != category.id %}
-                    <option value="{{ c.id }}" {% if is_edit and category.parent_id == c.id %}selected{% endif %}>
-                        {{ '   ' * c.depth }}{{ c.name }}
+                <label class="text-xs text-gray-500">Tipo</label>
+                <select name="account_type" class="border rounded px-3 py-2 text-sm">
+                    {% for t in account_type %}
+                    <option value="{{ t.value }}" {% if is_edit and account.type == t %}selected{% endif %}>
+                        {{ type_labels[t.value] }}
                     </option>
-                    {% endif %}
                     {% endfor %}
                 </select>
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Descripción</label>
-                <input type="text" name="description" maxlength="60"
-                       value="{{ category.description if is_edit and category.description else '' }}"
-                       class="border rounded px-3 py-2 text-sm">
+                <label class="text-xs text-gray-500">Moneda</label>
+                <select name="currency_id" class="border rounded px-3 py-2 text-sm">
+                    {% for c in currencies %}
+                    <option value="{{ c.id }}" {% if is_edit and account.currency_id == c.id %}selected{% endif %}>
+                        {{ c.code }} — {{ c.name }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
 
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"
-                        hx-get="/config/categories/close-modal"
+                        hx-get="/config/accounts/close-modal"
                         hx-target="#modal"
                         hx-swap="outerHTML"
                         class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">

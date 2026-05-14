@@ -17,15 +17,13 @@ def categories_page(request: Request, db: Session = Depends(get_db)):
     categories = category_crud.get_all(db)
     return templates.TemplateResponse(
         request=request,
-        name="config/categories.html",
+        name="config/categories/list.html",
         context={"categories": categories}
     )
-
 
 @router.get("/close-modal")
 def close_modal():
     return HTMLResponse('<div id="modal"></div>')
-
 
 @router.get("/rows")
 def categories_rows(request: Request, db: Session = Depends(get_db)):
@@ -36,7 +34,6 @@ def categories_rows(request: Request, db: Session = Depends(get_db)):
         context={"categories": categories}
     )
 
-
 @router.get("/new-form")
 def new_category_form(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
@@ -44,7 +41,6 @@ def new_category_form(request: Request, db: Session = Depends(get_db)):
         name="config/categories/_form_modal.html",
         context={"categories": category_crud.get_all(db)}
     )
-
 
 @router.post("/", response_class=HTMLResponse)
 def create_category(

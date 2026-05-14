@@ -7,7 +7,6 @@ class AccountBase(BaseModel):
     name: str
     type: AccountType
     currency_id: uuid.UUID
-    is_active: bool
 class AccountCreate(AccountBase):
     pass
 class AccountRead(AccountBase):
@@ -20,7 +19,6 @@ class AccountUpdate(BaseModel):
     name: str|None = None
     type: AccountType|None = None
     currency_id: uuid.UUID|None = None
-    is_active: bool|None = None
 class AccountShort(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

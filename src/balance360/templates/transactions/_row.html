@@ -41,7 +41,7 @@
         <select name="category_id" class="border rounded px-2 py-1 text-sm w-full">
             <option value="">-</option>
             {% for c in categories %}
-            <option value="{{ c.id }}" {% if t.category and t.category.id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            <option value="{{ c.id }}" {% if t.category and t.category.id == c.id %}selected{% endif %}>{{ '   ' * c.depth }}{{ c.name }}</option>
             {% endfor %}
         </select>
     </td>
