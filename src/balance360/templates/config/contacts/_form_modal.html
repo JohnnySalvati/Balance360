@@ -1,0 +1,61 @@
+{% set is_edit = contact is defined and contact %}
+{% set action_url = "/config/contacts/" ~ contact.id if is_edit else "/config/contacts/" %}
+{% set title = "Editar contacto" if is_edit else "Nuevo contacto" %}
+{% set type_labels = {"customer": "Cliente", "supplier": "Proveedor", "both": "Ambos"} %}
+
+<div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">{{ title }}</h2>
+            <button hx-get="/config/contacts/close-modal"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+        </div>
+
+        <form {% if is_edit %}hx-patch="{{ action_url }}"{% else %}hx-post="{{ action_url }}"{% endif %}
+              hx-target="#modal"
+              hx-swap="outerHTML"
+              class="flex flex-col gap-3">
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Nombre</label>
+                <input type="text" name="name" required maxlength="30"
+                       value="{{ contact.name if is_edit else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Tipo</label>
+                <select name="contact_type" class="border rounded px-3 py-2 text-sm">
+                    {% for t in contact_type %}
+                    <option value="{{ t.value }}" {% if is_edit and contact.contact_type == t %}selected{% endif %}>
+                        {{ type_labels[t.value] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">CUIT / ID fiscal</label>
+                <input type="text" name="tax_id" maxlength="13"
+                       value="{{ contact.tax_id if is_edit and contact.tax_id else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex justify-end gap-2 mt-2">
+                <button type="button"
+                        hx-get="/config/contacts/close-modal"
+                        hx-target="#modal"
+                        hx-swap="outerHTML"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Entidades</h1>
+    <div class="flex gap-2">
+        <button hx-get="/config/entities/new-form"
+                hx-target="#modal"
+                hx-swap="outerHTML"
+                class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+            + Nueva
+        </button>
+        <a href="/config" class="text-sm text-blue-600 hover:underline self-center">← Configuración</a>
+    </div>
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Nombre</th>
+                <th class="px-4 py-3"></th>
+            </tr>
+        </thead>
+        <tbody id="tbody" class="divide-y divide-gray-100"
+               hx-trigger="refreshRows from:body"
+               hx-get="/config/entities/rows"
+               hx-target="#tbody"
+               hx-swap="innerHTML">
+            {% for e in entities %}
+            {% include "config/entities/_row.html" %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="modal"></div>
+{% endblock %}
