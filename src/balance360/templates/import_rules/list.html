@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Reglas de clasificación</h1>
+    <button hx-get="/import-rules/new-form"
+            hx-target="#modal"
+            hx-swap="outerHTML"
+            class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+        + Nueva
+    </button>
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Patrón</th>
+                <th class="px-4 py-3">Tipo</th>
+                <th class="px-4 py-3">Categoría</th>
+                <th class="px-4 py-3">Entidad</th>
+                <th class="px-4 py-3">Contacto</th>
+                <th class="px-4 py-3">Transf.</th>
+                <th class="px-4 py-3"></th>
+            </tr>
+        </thead>
+        <tbody id="tbody" class="divide-y divide-gray-100"
+               hx-trigger="refreshRows from:body"
+               hx-get="/import-rules/rows"
+               hx-target="#tbody"
+               hx-swap="innerHTML">
+            {% for r in import_rules %}
+            {% include "import_rules/_row.html" %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="modal"></div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% set is_edit = import_rule is defined and import_rule %}
+{% set action_url = "/import-rules/" ~ import_rule.id if is_edit else "/import-rules/" %}
+{% set title = "Editar regla" if is_edit else "Nueva regla" %}
+{% set type_labels = {"income": "Ingreso", "expense": "Egreso"} %}
+
+<div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">{{ title }}</h2>
+            <button hx-get="/import-rules/close-modal"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+        </div>
+
+        <form {% if is_edit %}hx-patch="{{ action_url }}"{% else %}hx-post="{{ action_url }}"{% endif %}
+              hx-target="#modal"
+              hx-swap="outerHTML"
+              class="flex flex-col gap-3">
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Patrón</label>
+                <input type="text" name="pattern" required maxlength="200"
+                       value="{{ import_rule.pattern if is_edit else '' }}"
+                       class="border rounded px-3 py-2 text-sm font-mono">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Tipo</label>
+                    <select name="transaction_type" class="border rounded px-3 py-2 text-sm">
+                        {% for t in transaction_types %}
+                        <option value="{{ t.value }}" {% if is_edit and import_rule.transaction_type == t %}selected{% endif %}>
+                            {{ type_labels[t.value] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1 justify-center">
+                    <label class="text-xs text-gray-500">&nbsp;</label>
+                    <div class="flex items-center gap-2 px-3 py-2">
+                        <input type="checkbox" name="is_transfer" value="true" id="is_transfer"
+                               {% if is_edit and import_rule.is_transfer %}checked{% endif %}>
+                        <label for="is_transfer" class="text-sm text-gray-600">Es transferencia</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Categoría</label>
+                <select name="category_id" class="border rounded px-3 py-2 text-sm">
+                    <option value="">—</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}" {% if is_edit and import_rule.category_id == c.id %}selected{% endif %}>
+                        {{ '   ' * c.depth }}{{ c.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Entidad</label>
+                <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+                    <option value="">—</option>
+                    {% for e in entities %}
+                    <option value="{{ e.id }}" {% if is_edit and import_rule.entity_id == e.id %}selected{% endif %}>
+                        {{ e.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Contacto</label>
+                <select name="contact_id" class="border rounded px-3 py-2 text-sm">
+                    <option value="">—</option>
+                    {% for c in contacts %}
+                    <option value="{{ c.id }}" {% if is_edit and import_rule.contact_id == c.id %}selected{% endif %}>
+                        {{ c.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-2">
+                <button type="button"
+                        hx-get="/import-rules/close-modal"
+                        hx-target="#modal"
+                        hx-swap="outerHTML"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

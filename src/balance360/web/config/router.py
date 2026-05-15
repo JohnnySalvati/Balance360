@@ -1,4 +1,5 @@
 from pathlib import Path
+from balance360.web import import_rules
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -14,4 +15,5 @@ router.include_router(entities.router)
 router.include_router(contacts.router)
 
 @router.get("/", response_class=HTMLResponse)
-def config_index(request: Reque
+def config_index(request: Request):
+    return templates.TemplateResponse(request=request, name="config/index.html", context={})

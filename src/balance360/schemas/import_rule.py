@@ -24,6 +24,7 @@ class ImportRuleCreate(BaseModel):
             raise ValueError('One attribute is required')
         return self
 class ImportRuleUpdate(BaseModel):
+    pattern: str|None = None
     entity_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None

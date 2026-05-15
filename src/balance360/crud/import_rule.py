@@ -1,3 +1,4 @@
+from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from balance360.models.import_rule import ImportRule
@@ -6,8 +7,11 @@ from balance360.matching import find_best_rule
 from balance360.enums import TransactionType
 
 def get_all(db: Session) -> list[ImportRule]:
-    import_rules = db.execute(select(ImportRule)).scalars().all()
+    import_rules = db.execute(select(ImportRule).order_by(ImportRule.pattern)).scalars().all()
     return list(import_rules)
+
+def get_by_id(db: Session, import_rule_id:UUID) ->ImportRule|None:
+    return db.execute(select(ImportRule).where(ImportRule.id == import_rule_id)).scalars().first()
 
 def get_by_pattern(db: Session, pattern: str, transaction_type: TransactionType) -> ImportRule|None:
     import_rules = get_all(db)
@@ -35,3 +39,7 @@ def get_by_exact_pattern(db: Session, description: str, transaction_type: Transa
         ImportRule.transaction_type == transaction_type
     )
     return db.execute(stmt).scalars().first()
+
+def delete(db: Session, import_rule: ImportRule):
+    db.delete(import_rule)
+    db.commit()
