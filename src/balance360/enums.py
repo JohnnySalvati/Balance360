@@ -14,3 +14,20 @@ class ContactType(enum.Enum):
 class TransactionType(enum.Enum):
     income = "income"
     expense = "expense"
+
+class InvoiceType(enum.Enum):
+    purchase = "purchase"
+    sale = "sale"
+
+
+class VoucherType(enum.Enum):
+    A = "A"
+    B = "B"
+    C = "C"
+    NC = "NC"
+    ND = "ND"
+
+class SerialStatus(enum.Enum):
+    available = "available"
+    sold = "sold"
+    reserved = "reserved"

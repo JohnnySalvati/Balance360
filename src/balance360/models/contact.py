@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
+    from balance360.models.invoice import Invoice
 
 import uuid
 from sqlalchemy import Uuid, String, Boolean, Enum
@@ -25,5 +26,8 @@ class Contact(Base, TimestampMixin):
         Enum(ContactType)
     )
     transactions: Mapped[list["Transaction"]] = relationship(
+        back_populates="contact"
+    )
+    invoices: Mapped[list["Invoice"]] = relationship(
         back_populates="contact"
     )

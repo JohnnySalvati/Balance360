@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
+    from balance360.models.invoice import Invoice
 
 import uuid 
 from sqlalchemy import Uuid, String, ForeignKey
@@ -19,6 +20,9 @@ class Entity(Base, TimestampMixin):
         String(30), unique=True
     )
     transactions: Mapped[list[Transaction]] = relationship(
+        back_populates="entity"
+    )
+    invoices: Mapped[list['Invoice']] = relationship(
         back_populates="entity"
     )
 
