@@ -1,0 +1,17 @@
+<tr id="prod-row-{{ p.id }}" class="hover:bg-gray-50">
+    <td class="px-4 py-3 font-medium text-gray-800">{{ p.name }}</td>
+    <td class="px-4 py-3 text-gray-500">{{ p.margin }}%</td>
+    <td class="px-4 py-3 text-right">
+        <div class="flex justify-end gap-3">
+            <button hx-get="/config/products/{{ p.id }}/edit-form"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
+            <button hx-delete="/config/products/{{ p.id }}"
+                    hx-target="#prod-row-{{ p.id }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="¿Eliminar '{{ p.name }}'?"
+                    class="text-red-400 hover:text-red-600 text-xs">✕</button>
+        </div>
+    </td>
+</tr>
