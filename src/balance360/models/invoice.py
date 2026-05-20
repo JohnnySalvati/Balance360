@@ -49,9 +49,6 @@ class Invoice(Base, TimestampMixin):
     number: Mapped[int|None] = mapped_column(
         Integer, nullable=True
     )
-    cuit: Mapped[str|None] = mapped_column(
-        String(13), nullable=True
-    )
     status: Mapped[VoucherStatus]= mapped_column(
         Enum(VoucherStatus), default=VoucherStatus.pending
     )

@@ -1,0 +1,70 @@
+<div class="border-b px-4 py-4 bg-gray-50">
+    <form hx-post="/invoices/{{ invoice.id }}/lines"
+          hx-target="body"
+          hx-swap="outerHTML"
+          class="flex flex-col gap-3">
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Producto (opcional)</label>
+                <select name="product_id"
+                        onchange="toggleDescription(this.value)"
+                        class="border rounded px-3 py-2 text-sm">
+                    <option value="">— Sin producto —</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1" id="description-field">
+                <label class="text-xs text-gray-500">Descripción</label>
+                <input type="text" name="description" maxlength="200"
+                       class="border rounded px-3 py-2 text-sm"
+                       placeholder="Requerida si no hay producto">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Cantidad</label>
+                <input type="number" name="quantity" min="1" required
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Precio unitario</label>
+                <input type="number" name="unit_price" step="0.01" min="0" required
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2">
+            <button type="button"
+                    hx-get="/invoices/{{ invoice.id }}/lines/close-form"
+                    hx-target="#line-form-area"
+                    hx-swap="innerHTML"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancelar
+            </button>
+            <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                Agregar ítem
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function toggleDescription(productId) {
+    const field = document.getElementById('description-field');
+    const input = field.querySelector('input');
+    if (productId) {
+        field.style.opacity = '0.4';
+        input.required = false;
+    } else {
+        field.style.opacity = '1';
+        input.required = true;
+    }
+}
+</script>

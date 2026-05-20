@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Editar comprobante</h1>
+    <a href="/invoices/{{ invoice.id }}" class="text-sm text-blue-600 hover:underline">← Volver</a>
+</div>
+
+<div class="flex-1 overflow-y-auto">
+    <div class="bg-white rounded shadow p-6 max-w-2xl">
+        <form hx-patch="/invoices/{{ invoice.id }}"
+              hx-target="body"
+              hx-swap="outerHTML"
+              class="flex flex-col gap-4">
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Tipo de comprobante</label>
+                    <select name="invoice_type" id="invoice-type" required
+                            onchange="filterContacts(this.value)"
+                            class="border rounded px-3 py-2 text-sm">
+                        {% for t in invoice_type %}
+                        <option value="{{ t.value }}"
+                                {{ "selected" if t == invoice.invoice_type else "" }}>
+                            {{ "Compra" if t.value == "purchase" else "Venta" }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Fecha</label>
+                    <input type="date" name="date" required
+                           value="{{ invoice.date }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Entidad</label>
+                    <select name="entity_id" required class="border rounded px-3 py-2 text-sm">
+                        {% for e in entities %}
+                        <option value="{{ e.id }}"
+                                {{ "selected" if e.id == invoice.entity_id else "" }}>
+                            {{ e.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Contacto</label>
+                    <select name="contact_id" id="contact-select" required class="border rounded px-3 py-2 text-sm">
+                        {% for c in contacts %}
+                        <option value="{{ c.id }}"
+                                data-type="{{ c.contact_type.value }}"
+                                {{ "selected" if c.id == invoice.contact_id else "" }}>
+                            {{ c.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Categoría (opcional)</label>
+                <select name="category_id" class="border rounded px-3 py-2 text-sm">
+                    <option value="">— Sin categoría —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}"
+                            style="padding-left: {{ 1 + cat.depth * 1.5 }}rem"
+                            {{ "selected" if cat.id == invoice.category_id else "" }}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex gap-6">
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" name="formal" id="formal-check" value="true"
+                           onchange="toggleFormal(this.checked)"
+                           {{ "checked" if invoice.formal else "" }}>
+                    Comprobante formal
+                </label>
+                <label class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" name="tax_only" value="true"
+                           {{ "checked" if invoice.tax_only else "" }}>
+                    Solo impositivo
+                </label>
+            </div>
+
+            <div id="formal-fields" class="flex flex-col gap-4 border-t pt-4"
+                 style="{{ '' if invoice.formal else 'display:none' }}">
+                <div class="flex gap-4 items-end">
+                    <div class="flex flex-col gap-1 w-20">
+                        <label class="text-xs text-gray-500">Tipo</label>
+                        <select name="voucher_type" class="border rounded px-2 py-2 text-sm">
+                            <option value="">—</option>
+                            {% for vt in voucher_type %}
+                            <option value="{{ vt.value }}"
+                                    {{ "selected" if vt == invoice.voucher_type else "" }}>
+                                {{ vt.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col gap-1 w-28">
+                        <label class="text-xs text-gray-500">Pto. de venta</label>
+                        <input type="text" inputmode="numeric" name="pos" maxlength="4"
+                               value="{{ invoice.pos if invoice.pos else '' }}"
+                               class="border rounded px-3 py-2 text-sm">
+                    </div>
+
+                    <div class="flex flex-col gap-1 w-40">
+                        <label class="text-xs text-gray-500">Número</label>
+                        <input type="text" inputmode="numeric" name="number" maxlength="8"
+                               value="{{ invoice.number if invoice.number else '' }}"
+                               class="border rounded px-3 py-2 text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-2">
+                <a href="/invoices/{{ invoice.id }}"
+                   class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    Guardar cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleFormal(checked) {
+    document.getElementById('formal-fields').style.display = checked ? 'flex' : 'none';
+}
+
+function filterContacts(invoiceType) {
+    const select = document.getElementById('contact-select');
+    const options = select.querySelectorAll('option');
+    const allowed = invoiceType === 'purchase' ? ['supplier', 'both'] : ['customer', 'both'];
+    options.forEach(opt => {
+        const type = opt.dataset.type;
+        opt.hidden = type && !allowed.includes(type);
+    });
+}
+
+filterContacts(document.getElementById('invoice-type').value);
+</script>
+{% endblock %}

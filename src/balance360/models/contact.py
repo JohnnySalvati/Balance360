@@ -25,6 +25,9 @@ class Contact(Base, TimestampMixin):
     contact_type: Mapped[ContactType] = mapped_column(
         Enum(ContactType)
     )
+    email: Mapped[str|None] = mapped_column(
+        String(254)
+    )
     transactions: Mapped[list["Transaction"]] = relationship(
         back_populates="contact"
     )

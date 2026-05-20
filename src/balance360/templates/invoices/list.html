@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Comprobantes</h1>
+    <a href="/invoices/new"
+       class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+        + Nuevo
+    </a>
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Fecha</th>
+                <th class="px-4 py-3">Tipo</th>
+                <th class="px-4 py-3">Comprobante</th>
+                <th class="px-4 py-3">Contacto</th>
+                <th class="px-4 py-3">Categoría</th>
+                <th class="px-4 py-3 text-right">Total</th>
+                <th class="px-4 py-3">Estado</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for inv in invoices %}
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='/invoices/{{ inv.id }}'">
+                <td class="px-4 py-3 text-gray-700">{{ inv.date }}</td>
+                <td class="px-4 py-3 text-gray-500">
+                    {{ "Compra" if inv.invoice_type.value == "purchase" else "Venta" }}
+                </td>
+                <td class="px-4 py-3 text-gray-500">
+                    {% if inv.formal %}
+                        {{ inv.voucher_type.value }} {{ inv.pos }}-{{ inv.number }}
+                    {% else %}
+                        Informal
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-800">{{ inv.contact.name }}</td>
+                <td class="px-4 py-3 text-gray-500">{{ inv.category.name if inv.category else "—" }}</td>
+                <td class="px-4 py-3 text-right font-medium">{{ inv.total | currency }}</td>
+                <td class="px-4 py-3">
+                    {% if inv.status.value == "draft" %}
+                        <span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Borrador</span>
+                    {% elif inv.status.value == "pending" %}
+                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pendiente</span>
+                    {% elif inv.status.value == "paid" %}
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Pagado</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="px-4 py-6 text-center text-gray-400">No hay comprobantes cargados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

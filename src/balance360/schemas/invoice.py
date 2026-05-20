@@ -15,12 +15,11 @@ class InvoiceCreate(BaseModel):
     voucher_type: VoucherType|None=None
     pos: int|None=None
     number: int|None=None
-    cuit: str|None=None
     
     @model_validator(mode='after')
     def check_formal(self) -> 'InvoiceCreate':
         if self.formal:
-            if not (self.voucher_type and self.pos and self.number and self.cuit):
+            if not (self.voucher_type and self.pos and self.number):
                 raise ValueError('Todos los atributos son requeridos')
         return self
     
@@ -35,7 +34,6 @@ class InvoiceUpdate(BaseModel):
     voucher_type: VoucherType|None=None
     pos: int|None=None
     number: int|None=None
-    cuit: str|None=None
     
 class InvoiceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -50,7 +48,6 @@ class InvoiceRead(BaseModel):
     voucher_type: VoucherType|None=None
     pos: int|None=None
     number: int|None=None
-    cuit: str|None=None
     status: VoucherStatus
     created_at: datetime.datetime
     updated_at: datetime.datetime

@@ -23,7 +23,7 @@ def update(db: Session, data: InvoiceUpdate, invoice: Invoice) -> Invoice:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(invoice, field, value)
     if invoice.formal:
-        if not(invoice.voucher_type and invoice.pos and invoice.number and invoice.cuit):
+        if not(invoice.voucher_type and invoice.pos and invoice.number):
             raise ValueError("Todos los atributos son requeridos") 
     db.commit()
     db.refresh(invoice)
