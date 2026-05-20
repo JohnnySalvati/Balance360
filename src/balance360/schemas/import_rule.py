@@ -1,6 +1,7 @@
 import uuid
 from pydantic import BaseModel, model_validator, ConfigDict
 from balance360.enums import TransactionType
+from datetime import datetime
 class ImportRuleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -10,6 +11,9 @@ class ImportRuleRead(BaseModel):
     category_id: uuid.UUID|None = None
     transaction_type: TransactionType
     is_transfer: bool
+    created_at: datetime
+    updated_at: datetime
+
 class ImportRuleCreate(BaseModel):
     pattern: str
     entity_id: uuid.UUID|None = None

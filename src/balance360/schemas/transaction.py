@@ -17,6 +17,7 @@ class TransactionCreate(BaseModel):
     entity_id: uuid.UUID|None=None
     contact_id: uuid.UUID|None=None
     category_id: uuid.UUID|None=None
+    invoice_id: uuid.UUID|None=None
     is_manual: bool=False
     is_transfer: bool=False
     applied_rule_id: uuid.UUID|None=None
@@ -31,11 +32,13 @@ class TransactionRead(BaseModel):
     entity: EntityShort|None=None
     contact: ContactShort|None=None
     category: CategoryShort|None=None
-    created_at: datetime.datetime
-    updated_at: datetime.datetime
+    invoice_id: uuid.UUID|None=None
     is_manual: bool
     is_transfer: bool
     applied_rule: ImportRuleShort|None=None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    
 class TransactionUpdate(BaseModel):
     date: datetime.date|None = None
     description: str|None = None
@@ -45,6 +48,7 @@ class TransactionUpdate(BaseModel):
     entity_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
+    invoice_id: uuid.UUID|None=None
     is_manual: bool|None = None
     is_transfer: bool|None = None
     applied_rule_id: uuid.UUID|None=None

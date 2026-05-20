@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from balance360.models.account import Account
     from balance360.models.attachment import Attachment
     from balance360.models.import_rule import ImportRule
+    from balance360.models.invoice import Invoice
 
 import uuid
 import datetime
@@ -49,6 +50,9 @@ class Transaction(Base, TimestampMixin):
     category_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("categories.id")
     )
+    invoice_id: Mapped[uuid.UUID|None] = mapped_column(
+        ForeignKey("invoices.id")
+    )
     is_manual: Mapped[bool] = mapped_column(
         default=False, nullable=False
     )
@@ -62,6 +66,9 @@ class Transaction(Base, TimestampMixin):
         back_populates="transactions"
     )
     attachments: Mapped[list[Attachment]] = relationship(
+        back_populates="transaction"
+    )
+    invoice: Mapped["Invoice|None"] = relationship(
         back_populates="transaction"
     )
     category: Mapped["Category | None"] = relationship(

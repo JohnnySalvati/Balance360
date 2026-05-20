@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 import uuid
 from decimal import Decimal
+from datetime import datetime
 
 class ProductCreate(BaseModel):
     name: str
@@ -15,6 +16,8 @@ class ProductRead(BaseModel):
     id: uuid.UUID
     name: str
     margin: Decimal
+    created_at: datetime
+    updated_at: datetime
 
 
 

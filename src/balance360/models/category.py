@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
+    from balance360.models.invoice import Invoice
     
 import uuid
 from sqlalchemy import Uuid, String, ForeignKey, UniqueConstraint
@@ -34,6 +35,9 @@ class Category(Base, TimestampMixin):
     )
     children: Mapped[list["Category"]] = relationship(
         "Category", back_populates="parent"
+    )
+    invoices: Mapped[list[Invoice]] = relationship(
+        back_populates="category"
     )
 
     @property

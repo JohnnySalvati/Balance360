@@ -31,3 +31,8 @@ class SerialStatus(enum.Enum):
     available = "available"
     sold = "sold"
     reserved = "reserved"
+
+class VoucherStatus(enum.Enum):
+    draft = "draft"
+    pending = "pending"
+    paid = "paid"
