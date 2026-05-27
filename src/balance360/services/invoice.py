@@ -34,7 +34,7 @@ def confirm_invoice(db: Session, invoice: Invoice, account: Account|None = None,
             contact_id=invoice.contact_id,
             category_id=invoice.category_id,
             invoice_id=invoice.id,
-            is_manual=False,
+            is_manual=True,
             is_transfer=False
         )
         transaction_crud.create(db, data)

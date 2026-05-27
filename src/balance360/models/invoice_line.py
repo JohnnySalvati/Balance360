@@ -5,9 +5,10 @@ if TYPE_CHECKING:
     from balance360.models.invoice import Invoice
     from balance360.models.product import Product
     from balance360.models.serial_number import SerialNumber
-from sqlalchemy import Uuid, ForeignKey, String, Integer, Numeric
+from sqlalchemy import Uuid, ForeignKey, String, Integer, Numeric, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
+from balance360.enums import IvaAliquot
 
 class InvoiceLine(Base, TimestampMixin):
     __tablename__ = "invoice_lines"
@@ -29,7 +30,11 @@ class InvoiceLine(Base, TimestampMixin):
     unit_price: Mapped[Decimal] = mapped_column(
         Numeric(precision=18, scale=2)
     )
+    iva_aliquot: Mapped[IvaAliquot] = mapped_column(
+        Enum(IvaAliquot, values_callable = lambda obj: [e.name for e in obj])
+    )
     invoice: Mapped['Invoice'] = relationship(
+        foreign_keys="InvoiceLine.invoice_id",
         back_populates="invoice_lines"
     )
     product: Mapped['Product'] = relationship(
@@ -44,3 +49,6 @@ class InvoiceLine(Base, TimestampMixin):
         back_populates="sale_line"
     )
 
+    @property
+    def net_amount(self) -> Decimal:
+        return self.quantity * self.unit_price

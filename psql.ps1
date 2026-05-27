@@ -1,0 +1,1 @@
+docker exec -it balance360-db-1 psql -U postgres -d balance360

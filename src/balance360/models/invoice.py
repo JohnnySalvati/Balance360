@@ -4,7 +4,7 @@ import datetime
 from decimal import Decimal
 from sqlalchemy import Uuid, Enum, Date, ForeignKey, Boolean, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from balance360.enums import InvoiceType, VoucherType, VoucherStatus
+from balance360.enums import InvoiceType, VoucherType, VoucherStatus, IvaAliquot
 from balance360.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from balance360.models.invoice_line import InvoiceLine
     from balance360.models.category import Category
     from balance360.models.transaction import Transaction
+    from balance360.models.invoice_tribute import InvoiceTribute
 
 class Invoice(Base, TimestampMixin):
     __tablename__ = "invoices"
@@ -29,10 +30,10 @@ class Invoice(Base, TimestampMixin):
         ForeignKey("contacts.id")
     )
     category_id: Mapped[uuid.UUID|None] = mapped_column(
-        ForeignKey("categories.id"), nullable=True
+        ForeignKey("categories.id")
     )
     date: Mapped[datetime.date] = mapped_column(
-        Date, nullable=False
+        Date
     )
     formal: Mapped[bool] = mapped_column(
         Boolean, default=True
@@ -41,16 +42,22 @@ class Invoice(Base, TimestampMixin):
         Boolean, default=False
     )
     voucher_type: Mapped[VoucherType|None] = mapped_column(
-        Enum(VoucherType), nullable=True
+        Enum(VoucherType)
     )
     pos: Mapped[int|None] = mapped_column(
-        Integer, nullable=True
+        Integer
     )
     number: Mapped[int|None] = mapped_column(
-        Integer, nullable=True
+        Integer
     )
     status: Mapped[VoucherStatus]= mapped_column(
         Enum(VoucherStatus), default=VoucherStatus.pending
+    )
+    cae: Mapped[str|None] = mapped_column(
+        String(14)
+    )
+    cae_expiry: Mapped[datetime.date|None] = mapped_column(
+        Date
     )
     entity: Mapped['Entity'] = relationship(
         back_populates="invoices"
@@ -64,10 +71,26 @@ class Invoice(Base, TimestampMixin):
     invoice_lines: Mapped[list['InvoiceLine']] = relationship(
         back_populates="invoice"
     )
+    invoice_tributes: Mapped[list['InvoiceTribute']] = relationship(
+        back_populates='invoice'
+    )
     transaction: Mapped['Transaction|None'] = relationship(
         back_populates="invoice"
     )
 
     @property
+    def iva_breakdown(self) -> dict[IvaAliquot, Decimal]:
+        iva_aliquots = {}
+        for line in self.invoice_lines:
+            iva_aliquots[line.iva_aliquot] = (
+                iva_aliquots.get(line.iva_aliquot, Decimal(0)) + 
+                line.iva_aliquot.rate * line.quantity * line.unit_price / 100
+            )
+        return iva_aliquots
+
+    @property
     def total(self) -> Decimal:
-        return sum((line.quantity * line.unit_price for line in self.invoice_lines), Decimal(0))
+        net_amount = sum((line.net_amount for line in self.invoice_lines), Decimal(0))
+        iva = sum((iva_item_value for __, iva_item_value in self.iva_breakdown.items()), Decimal(0))
+        tributes = sum((tribute.amount for tribute in self.invoice_tributes), Decimal(0))
+        return  net_amount + iva + tributes

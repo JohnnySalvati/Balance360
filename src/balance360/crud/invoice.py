@@ -3,10 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from balance360.models.invoice import Invoice
 from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
-from balance360.enums import VoucherStatus
+from balance360.enums import VoucherStatus, InvoiceType
 
-def get_all(db: Session) -> list[Invoice]:
-    invoices = db.execute(select(Invoice)).scalars().all()
+def get_all(db: Session, invoice_type: InvoiceType|None=None) -> list[Invoice]:
+    q = select(Invoice)
+    if invoice_type:
+        q = q.where(Invoice.invoice_type == invoice_type)
+    invoices = db.execute(q).scalars().all()
     return list(invoices)
 
 def get_by_id(db: Session, invoice_id: uuid.UUID) -> Invoice|None:

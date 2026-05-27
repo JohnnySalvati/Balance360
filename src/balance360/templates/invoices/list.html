@@ -1,11 +1,25 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="shrink-0 flex justify-between items-center mb-6">
+<div class="shrink-0 flex justify-between items-center mb-4">
     <h1 class="text-2xl font-bold">Comprobantes</h1>
     <a href="/invoices/new"
        class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
         + Nuevo
+    </a>
+</div>
+
+{# Tabs #}
+<div class="shrink-0 flex gap-1 mb-4 border-b border-gray-200">
+    <a href="/invoices/?invoice_type=purchase"
+       class="px-4 py-2 text-sm font-medium rounded-t
+              {% if current_type == 'purchase' %}bg-white border border-b-white border-gray-200 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+        Compras
+    </a>
+    <a href="/invoices/?invoice_type=sale"
+       class="px-4 py-2 text-sm font-medium rounded-t
+              {% if current_type == 'sale' %}bg-white border border-b-white border-gray-200 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+        Ventas
     </a>
 </div>
 
@@ -14,7 +28,6 @@
         <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3">Fecha</th>
-                <th class="px-4 py-3">Tipo</th>
                 <th class="px-4 py-3">Comprobante</th>
                 <th class="px-4 py-3">Contacto</th>
                 <th class="px-4 py-3">Categoría</th>
@@ -26,9 +39,6 @@
             {% for inv in invoices %}
             <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='/invoices/{{ inv.id }}'">
                 <td class="px-4 py-3 text-gray-700">{{ inv.date }}</td>
-                <td class="px-4 py-3 text-gray-500">
-                    {{ "Compra" if inv.invoice_type.value == "purchase" else "Venta" }}
-                </td>
                 <td class="px-4 py-3 text-gray-500">
                     {% if inv.formal %}
                         {{ inv.voucher_type.value }} {{ inv.pos }}-{{ inv.number }}
@@ -51,7 +61,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="px-4 py-6 text-center text-gray-400">No hay comprobantes cargados.</td>
+                <td colspan="6" class="px-4 py-6 text-center text-gray-400">No hay comprobantes cargados.</td>
             </tr>
             {% endfor %}
         </tbody>

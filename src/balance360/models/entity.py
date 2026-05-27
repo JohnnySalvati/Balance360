@@ -19,6 +19,9 @@ class Entity(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(
         String(30), unique=True
     )
+    tax_id: Mapped[str|None] = mapped_column(
+        String(13)
+    )
     transactions: Mapped[list[Transaction]] = relationship(
         back_populates="entity"
     )

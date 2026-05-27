@@ -25,12 +25,13 @@ templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates"
 templates.env.filters["currency"] = lambda v: f"${v:,.2f}"
 
 @router.get("/", response_class=HTMLResponse)
-def invoice_page(request: Request, db: Session = Depends(get_db)):
+def invoice_page(request: Request, db: Session = Depends(get_db), invoice_type: InvoiceType|None = None):
     return templates.TemplateResponse(
         request=request,
         name="invoices/list.html",
         context={
-            "invoices": invoice_crud.get_all(db)
+            "invoices": invoice_crud.get_all(db, invoice_type),
+            "current_type": invoice_type.value if invoice_type else None,
         }
     )
 
