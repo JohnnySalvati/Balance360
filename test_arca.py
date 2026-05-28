@@ -8,19 +8,10 @@ from balance360.dtos.auth import Auth
 ticket = get_access_ticket("wsfe")
 token = ticket["token"]
 sign = ticket["sign"]
-response = get_last_voucher_number(
-    cuit="20182810674",
-    pos= 4,
-    voucher_type=VoucherType.A,
-    token=token,
-    sign=sign
-)
-
-print(response)
 
 auth = Auth(cuit="20182810674", token=token, sign=sign)
 
-voucher_info = VoucherInfo(pos=4, voucher_type=VoucherType.A,number=response)
+voucher_info = VoucherInfo(pos=4, voucher_type=VoucherType.A)
 
 iva_detail = [IvaDetail(id=IvaAliquot.standard.arca_code, base_imp=Decimal(10000), amount=Decimal(2100))]
 tributes = [Tribute(id=TributeType.iibb.value, description="Ingresos Brutos CABA", base_imp=Decimal(10000), aliquot=Decimal(3),amount=Decimal(300))]

@@ -27,7 +27,6 @@ class VoucherData(BaseModel):
 class VoucherInfo(BaseModel):
     pos: int
     voucher_type: VoucherType
-    number: int
 
 class InvoiceRequest(BaseModel):
     auth: Auth

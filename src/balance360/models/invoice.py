@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 import uuid
 import datetime
 from decimal import Decimal
+from dataclasses import dataclass
 from sqlalchemy import Uuid, Enum, Date, ForeignKey, Boolean, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.enums import InvoiceType, VoucherType, VoucherStatus, IvaAliquot
@@ -78,19 +79,33 @@ class Invoice(Base, TimestampMixin):
         back_populates="invoice"
     )
 
+    @dataclass
+    class IvaBreakdown:
+        aliquot: IvaAliquot
+        net_amount: Decimal
+        iva_amount: Decimal
+
     @property
-    def iva_breakdown(self) -> dict[IvaAliquot, Decimal]:
+    def iva_breakdown(self) -> list[IvaBreakdown]:
         iva_aliquots = {}
         for line in self.invoice_lines:
+            current = iva_aliquots.get(line.iva_aliquot, (Decimal(0), Decimal(0)))
             iva_aliquots[line.iva_aliquot] = (
-                iva_aliquots.get(line.iva_aliquot, Decimal(0)) + 
-                line.iva_aliquot.rate * line.quantity * line.unit_price / 100
+                current[0] + line.iva_aliquot.rate * line.net_amount / 100,
+                current[1] + line.net_amount
             )
-        return iva_aliquots
+        return [self.IvaBreakdown(
+            aliquot=key,
+            iva_amount=value[0],
+            net_amount=value[1] 
+        ) for key, value in iva_aliquots.items()
+        ]
 
     @property
     def total(self) -> Decimal:
-        net_amount = sum((line.net_amount for line in self.invoice_lines), Decimal(0))
-        iva = sum((iva_item_value for __, iva_item_value in self.iva_breakdown.items()), Decimal(0))
+        iva_breakdown = self.iva_breakdown
+        net_amount = sum((iva_item.net_amount for iva_item in iva_breakdown), Decimal(0))
+        iva = sum((iva_item.iva_amount for iva_item in iva_breakdown), Decimal(0))
         tributes = sum((tribute.amount for tribute in self.invoice_tributes), Decimal(0))
         return  net_amount + iva + tributes
+    

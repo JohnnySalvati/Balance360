@@ -7,6 +7,7 @@ from balance360.dtos.invoice_request import InvoiceRequest
 class AuthorizationResult:
     cae: str
     expiration: str
+    number: int
 
 voucher_type_code = {
     VoucherType.A: 1,
@@ -111,4 +112,4 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
     cae = response.FeDetResp.FECAEDetResponse[0].CAE
     expiration = response.FeDetResp.FECAEDetResponse[0].CAEFchVto
 
-    return AuthorizationResult(cae=cae, expiration=expiration)
+    return AuthorizationResult(cae=cae, expiration=expiration, number=last_voucher + 1)
