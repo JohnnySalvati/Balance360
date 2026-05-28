@@ -58,3 +58,15 @@ class TributeType(enum.Enum):
     iibb = 5
     iva_perception = 6
     other = 99
+
+class ReceiverDocType(enum.Enum):
+    CUIT = 80
+    CUIL = 86
+    DNI = 96
+    FINAL = 99
+
+class CondicionIva(enum.Enum):
+    INSCRIPTO = 1
+    EXENTO = 4
+    FINAL = 6
+    MONOTRIBUTO = 13

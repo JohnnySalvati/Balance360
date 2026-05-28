@@ -1,6 +1,12 @@
+from dataclasses import dataclass
 from zeep import Client
 from balance360.enums import VoucherType
 from balance360.dtos.invoice_request import InvoiceRequest
+
+@dataclass
+class AuthorizationResult:
+    cae: str
+    expiration: str
 
 voucher_type_code = {
     VoucherType.A: 1,
@@ -17,7 +23,7 @@ def get_last_voucher_number(
         voucher_type: VoucherType,
         token: str,
         sign: str
-        ) -> int|None:
+        ) -> int:
     wsdl_url = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx?WSDL"
     client = Client(wsdl_url)
   
@@ -27,10 +33,10 @@ def get_last_voucher_number(
         CbteTipo=voucher_type_code[voucher_type]
     )
 
-    return response.CbteNro
+    return response.CbteNro or 0
 
 
-def authorize_invoice(invoice_request: InvoiceRequest) -> dict:
+def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
     wsdl_url = "https://wswhomo.afip.gov.ar/wsfev1/service.asmx?WSDL"
     client = Client(wsdl_url)
 
@@ -42,9 +48,6 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> dict:
         sign=invoice_request.auth.sign
         )
 
-    if not last_voucher:
-        raise ValueError("Last voucher not found")
-    
     imp_neto = sum(line.base_imp for line in invoice_request.voucher_data.iva_detail)
     imp_iva = sum(line.amount for line in invoice_request.voucher_data.iva_detail)
     imp_trib = sum(line.amount for line in invoice_request.voucher_data.tributes)
@@ -63,8 +66,9 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> dict:
             "FeDetReq": {
                 "FECAEDetRequest": [{
                     "Concepto": 1,
-                    "DocTipo": invoice_request.voucher_data.receiver_doc_type,
-                    "DocNro": invoice_request.voucher_data.receiver_doc_number,
+                    "CondicionIVAReceptorId": invoice_request.voucher_data.receiver_condicion_iva.value,
+                    "DocTipo": invoice_request.voucher_data.receiver_doc_type.value,
+                    "DocNro": int(invoice_request.voucher_data.receiver_doc_number),
                     "CbteDesde": last_voucher + 1,
                     "CbteHasta": last_voucher + 1,
                     "CbteFch":  invoice_request.voucher_data.date.strftime("%Y%m%d"),
@@ -104,5 +108,7 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> dict:
             }
         }
     )
-    print(response)
-    return response.cae
+    cae = response.FeDetResp.FECAEDetResponse[0].CAE
+    expiration = response.FeDetResp.FECAEDetResponse[0].CAEFchVto
+
+    return AuthorizationResult(cae=cae, expiration=expiration)
