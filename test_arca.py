@@ -1,9 +1,9 @@
 from datetime import date
 from decimal import Decimal
 from balance360.services.wsfe import get_last_voucher_number, authorize_invoice
-from balance360.enums import VoucherType, IvaAliquot, TributeType, CondicionIva
+from balance360.enums import VoucherType, IvaAliquot, TributeType, CondicionIva, DocType
 from balance360.services.arca import get_access_ticket
-from balance360.dtos.invoice_request import InvoiceRequest, VoucherInfo, VoucherData, ReceiverDocType, IvaDetail, Tribute
+from balance360.dtos.invoice_request import InvoiceRequest, VoucherInfo, VoucherData, IvaDetail, Tribute
 from balance360.dtos.auth import Auth
 ticket = get_access_ticket("wsfe")
 token = ticket["token"]
@@ -27,7 +27,7 @@ tributes = [Tribute(id=TributeType.iibb.value, description="Ingresos Brutos CABA
 voucher_data = VoucherData(
     date=date.today(),
     receiver_condicion_iva=CondicionIva.INSCRIPTO,
-    receiver_doc_type=ReceiverDocType.CUIT,
+    receiver_doc_type=DocType.CUIT,
     receiver_doc_number="30503218107",
     iva_detail=iva_detail,
     tributes=tributes,

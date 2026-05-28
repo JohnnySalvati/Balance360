@@ -6,9 +6,9 @@ if TYPE_CHECKING:
     from balance360.models.invoice import Invoice
 
 import uuid 
-from sqlalchemy import Uuid, String, ForeignKey
+from sqlalchemy import Uuid, String, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from balance360.enums import CondicionIva
 from balance360.models.base import Base, TimestampMixin
 
 class Entity(Base, TimestampMixin):
@@ -18,6 +18,9 @@ class Entity(Base, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(
         String(30), unique=True
+    )
+    condicion_iva: Mapped[CondicionIva] = mapped_column(
+        Enum(CondicionIva)
     )
     tax_id: Mapped[str|None] = mapped_column(
         String(13)

@@ -59,7 +59,7 @@ class TributeType(enum.Enum):
     iva_perception = 6
     other = 99
 
-class ReceiverDocType(enum.Enum):
+class DocType(enum.Enum):
     CUIT = 80
     CUIL = 86
     DNI = 96

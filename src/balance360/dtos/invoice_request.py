@@ -2,7 +2,7 @@ import datetime
 from decimal import Decimal
 from pydantic import BaseModel
 from balance360.dtos.auth import Auth
-from balance360.enums import VoucherType, ReceiverDocType, CondicionIva
+from balance360.enums import VoucherType, DocType, CondicionIva
 
 class IvaDetail(BaseModel):
     id: int
@@ -18,7 +18,7 @@ class Tribute(BaseModel):
 class VoucherData(BaseModel):
     date: datetime.date
     receiver_condicion_iva: CondicionIva
-    receiver_doc_type: ReceiverDocType
+    receiver_doc_type: DocType
     receiver_doc_number: str
     iva_detail: list[IvaDetail]
     tributes: list[Tribute]

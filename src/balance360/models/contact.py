@@ -6,10 +6,10 @@ if TYPE_CHECKING:
     from balance360.models.invoice import Invoice
 
 import uuid
-from sqlalchemy import Uuid, String, Boolean, Enum
+from sqlalchemy import Uuid, String, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
-from balance360.enums import ContactType
+from balance360.enums import ContactType, CondicionIva, DocType
 
 class Contact(Base, TimestampMixin):
     __tablename__ = "contacts"
@@ -18,6 +18,12 @@ class Contact(Base, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(
         String(30)
+    )
+    condicion_iva: Mapped[CondicionIva] = mapped_column(
+        Enum(CondicionIva)
+    )
+    doc_type: Mapped[DocType] = mapped_column(
+        Enum(DocType)
     )
     tax_id: Mapped[str|None] = mapped_column(
         String(13)
