@@ -15,18 +15,17 @@ def get_by_id(db: Session, currency_id: uuid.UUID) -> Currency | None:
 def create(db: Session, data: CurrencyCreate) -> Currency:
     db_currency = Currency(**data.model_dump())
     db.add(db_currency)
-    db.commit()
+    db.flush()
     db.refresh(db_currency)
     return db_currency
 
 def delete(db: Session, currency: Currency):
     db.delete(currency)
-    db.commit()
 
 def update(db: Session, currency: Currency, data: CurrencyUpdate) -> Currency:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(currency, field, value)
-    db.commit()
+    db.flush()
     db.refresh(currency)
     return currency
 

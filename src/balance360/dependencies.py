@@ -1,8 +1,10 @@
 from balance360.database import SessionLocal
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    with SessionLocal() as db:
+        try:
+            yield db
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e

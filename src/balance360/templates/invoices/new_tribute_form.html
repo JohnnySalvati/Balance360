@@ -1,0 +1,53 @@
+<div class="border-b px-4 py-4 bg-gray-50">
+    <form hx-post="/invoices/{{ invoice.id }}/tributes"
+          hx-target="body"
+          hx-swap="outerHTML"
+          class="flex flex-col gap-3">
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Tipo</label>
+                <select name="tribute_type" required class="border rounded px-3 py-2 text-sm">
+                    {% for t in tribute_types %}
+                    <option value="{{ t.name }}">{{ t.name | replace('_', ' ') | title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Descripción</label>
+                <input type="text" name="description" maxlength="60" required
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Base imponible</label>
+                <input type="number" name="base_amount" step="0.01" min="0" required
+                       value="{{ invoice.net_total }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Alícuota (%)</label>
+                <input type="number" name="rate" step="0.01" min="0" required
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2">
+            <button type="button"
+                    hx-get="/invoices/{{ invoice.id }}/tributes/close-form"
+                    hx-target="#tribute-form-area"
+                    hx-swap="innerHTML"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancelar
+            </button>
+            <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                Agregar tributo
+            </button>
+        </div>
+    </form>
+</div>

@@ -12,6 +12,9 @@ def get_by_id(db: Session, contact_id: uuid.UUID) -> Contact | None:
     contact = db.execute(select(Contact).where(Contact.id == contact_id)).scalars().first()
     return contact
 
+def get_by_tax_id(db: Session, tax_id: str) -> Contact | None:
+    return db.execute(select(Contact).where(Contact.tax_id == tax_id)).scalars().first()
+
 def create(db: Session, data: ContactCreate) -> Contact:
     db_contact = Contact(**data.model_dump())
     db.add(db_contact)

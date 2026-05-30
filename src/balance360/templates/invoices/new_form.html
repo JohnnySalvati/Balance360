@@ -8,13 +8,17 @@
 
 <div class="flex-1 overflow-y-auto">
     <div class="bg-white rounded shadow p-6 max-w-2xl">
-        <form method="post" action="/invoices/" class="flex flex-col gap-4">
+        <form hx-post="/invoices/"
+              hx-target="#form-error"
+              hx-swap="innerHTML"
+              class="flex flex-col gap-4">
+            <div id="form-error"></div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Tipo de comprobante</label>
                     <select name="invoice_type" id="invoice-type" required
-                            onchange="filterContacts(this.value)"
+                            onchange="filterContacts(this.value); toggleNumberField(this.value)"
                             class="border rounded px-3 py-2 text-sm">
                         {% for t in invoice_type %}
                         <option value="{{ t.value }}">
@@ -79,7 +83,8 @@
                 <div class="flex gap-4 items-end">
                     <div class="flex flex-col gap-1 w-20">
                         <label class="text-xs text-gray-500">Tipo</label>
-                        <select name="voucher_type" class="border rounded px-2 py-2 text-sm">
+                        <select name="voucher_type" id="voucher-type-select" required
+                                class="border rounded px-2 py-2 text-sm">
                             <option value="">—</option>
                             {% for vt in voucher_type %}
                             <option value="{{ vt.value }}">{{ vt.value }}</option>
@@ -89,11 +94,12 @@
 
                     <div class="flex flex-col gap-1 w-28">
                         <label class="text-xs text-gray-500">Pto. de venta</label>
-                        <input type="text" inputmode="numeric" name="pos" maxlength="4"
+                        <input type="text" inputmode="numeric" name="pos" id="pos-input"
+                               required maxlength="4"
                                class="border rounded px-3 py-2 text-sm">
                     </div>
 
-                    <div class="flex flex-col gap-1 w-40">
+                    <div class="flex flex-col gap-1 w-40" id="number-field" style="display:none">
                         <label class="text-xs text-gray-500">Número</label>
                         <input type="text" inputmode="numeric" name="number" maxlength="8"
                                class="border rounded px-3 py-2 text-sm">
@@ -111,13 +117,77 @@
                     Crear comprobante
                 </button>
             </div>
+
+            <input type="hidden" name="pdf_lines" id="pdf-lines" value="">
+            
         </form>
     </div>
+</div>
+
+<!-- Botón PDF — solo visible en compras -->
+<div id="pdf-upload-row" class="hidden">
+    <button type="button" onclick="document.getElementById('pdf-modal').showModal()"
+            class="text-sm text-blue-600 hover:underline">
+        📄 Cargar desde PDF
+    </button>
+</div>
+
+<!-- Modal -->
+<dialog id="pdf-modal" class="rounded shadow p-6 w-96 backdrop:bg-black/40">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4">Cargar comprobante PDF</h2>
+    <form method="dialog" class="flex flex-col gap-4">
+        <input type="file" accept=".pdf" id="pdf-file-input"
+               class="text-sm border rounded px-3 py-2">
+        <p id="pdf-error" class="text-xs text-red-500 hidden"></p>
+        <div class="flex justify-end gap-2">
+            <button type="submit" class="text-sm text-gray-600 hover:text-gray-800">
+                Cancelar
+            </button>
+            <button type="button" onclick="uploadPdf()"
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                Procesar
+            </button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Aviso: ítems del PDF -->
+<div id="items-alert" class="hidden rounded p-4 text-sm mt-3"></div>
+
+<!-- Panel de alerta: proveedor no encontrado -->
+<div id="supplier-alert" class="hidden bg-yellow-50 border border-yellow-300 rounded p-4 text-sm">
+    <p class="font-semibold text-yellow-800 mb-2">⚠ Proveedor no encontrado en contactos</p>
+    <div id="supplier-alert-body" class="text-yellow-700 text-xs space-y-1 mb-3"></div>
+    <form id="quick-contact-form" class="flex justify-end">
+        <button type="button" onclick="createQuickContact()"
+                class="bg-yellow-600 text-white px-3 py-1.5 rounded text-xs hover:bg-yellow-700">
+            Crear contacto con estos datos
+        </button>
+    </form>
+    <p id="supplier-alert-note" class="mt-2 text-xs text-yellow-600"></p>
 </div>
 
 <script>
 function toggleFormal(checked) {
     document.getElementById('formal-fields').style.display = checked ? 'flex' : 'none';
+    document.getElementById('voucher-type-select').required = checked;
+    document.getElementById('pos-input').required = checked;
+    const numberField = document.getElementById('number-field');
+    const numberInput = numberField.querySelector('input');
+    if (!checked) {
+        numberField.style.display = 'none';
+        numberInput.required = false;
+    } else {
+        toggleNumberField(document.getElementById('invoice-type').value);
+    }
+}
+
+function toggleNumberField(invoiceType) {
+    const field = document.getElementById('number-field');
+    const input = field.querySelector('input');
+    const show = invoiceType === 'purchase';
+    field.style.display = show ? 'flex' : 'none';
+    input.required = show;
 }
 
 function filterContacts(invoiceType) {
@@ -134,7 +204,129 @@ function filterContacts(invoiceType) {
     if (firstVisible) select.value = firstVisible.value;
 }
 
+function toggleNumberField(invoiceType) {
+    const field = document.getElementById('number-field');
+    const input = field.querySelector('input');
+    const show = invoiceType === 'purchase';
+    field.style.display = show ? 'flex' : 'none';
+    input.required = show;
+    // mostrar/ocultar botón PDF
+    document.getElementById('pdf-upload-row').classList.toggle('hidden', !show);
+}
+
+async function uploadPdf() {
+    const fileInput = document.getElementById('pdf-file-input');
+    const errorEl = document.getElementById('pdf-error');
+    errorEl.classList.add('hidden');
+
+    if (!fileInput.files.length) {
+        errorEl.textContent = 'Seleccioná un archivo PDF.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    let data;
+    try {
+        const resp = await fetch('/invoices/parse-pdf', { method: 'POST', body: formData });
+        if (!resp.ok) throw new Error('Error al procesar el PDF');
+        data = await resp.json();
+    } catch (e) {
+        errorEl.textContent = e.message;
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    document.getElementById('pdf-modal').close();
+
+    // Pre-llenar campos
+    if (data.voucher_type) {
+        document.getElementById('voucher-type-select').value = data.voucher_type;
+    }
+    if (data.pos) document.getElementById('pos-input').value = data.pos;
+    if (data.number) {
+        const numInput = document.querySelector('[name="number"]');
+        if (numInput) numInput.value = data.number;
+    }
+    if (data.date) document.querySelector('[name="date"]').value = data.date;
+
+    // Contacto
+    if (data.contact_found && data.contact_id) {
+        document.getElementById('contact-select').value = data.contact_id;
+    } else {
+        _pendingSupplier = {
+            name: data.supplier_name || '',
+            cuit: data.supplier_cuit || '',
+            condicion_iva: data.supplier_condicion_iva || 'INSCRIPTO',
+        };
+        const body = document.getElementById('supplier-alert-body');
+        body.innerHTML = `
+            <p><strong>Nombre:</strong> ${_pendingSupplier.name || '—'}</p>
+            <p><strong>CUIT:</strong> ${_pendingSupplier.cuit || '—'}</p>
+            <p><strong>Condición IVA:</strong> ${_pendingSupplier.condicion_iva || '—'}</p>
+        `;
+        document.getElementById('supplier-alert').classList.remove('hidden');
+    }
+    // Ítems
+    const lines = data.lines || [];
+    document.getElementById('pdf-lines').value = JSON.stringify(lines);
+
+    const itemsAlert = document.getElementById('items-alert');
+    if (data.needs_manual_items) {
+        itemsAlert.className = 'rounded p-4 text-sm mt-3 bg-amber-50 border border-amber-300 text-amber-800';
+        itemsAlert.innerHTML =
+            '<p class="font-semibold mb-1">⚠ No se pudieron leer los ítems automáticamente</p>' +
+            '<p class="text-xs text-amber-700">El PDF puede ser un escaneo o un formato no reconocido. ' +
+            'Creá el comprobante y cargá los ítems a mano desde el detalle.</p>';
+    } else {
+        itemsAlert.className = 'rounded p-4 text-sm mt-3 bg-green-50 border border-green-300 text-green-800';
+        itemsAlert.innerHTML =
+            '<p class="font-semibold">✓ ' + lines.length +
+            (lines.length === 1 ? ' ítem detectado' : ' ítems detectados') +
+            '</p><p class="text-xs text-green-700">Se cargarán al crear el comprobante.</p>';
+    }
+    itemsAlert.classList.remove('hidden');
+}
+
+
+let _pendingSupplier = {};
+
+async function createQuickContact() {
+    const btn = document.querySelector('#quick-contact-form button');
+    btn.disabled = true;
+    btn.textContent = 'Creando...';
+
+    const formData = new FormData();
+    formData.append('name', _pendingSupplier.name);
+    formData.append('tax_id', _pendingSupplier.cuit);
+    formData.append('condicion_iva', _pendingSupplier.condicion_iva);
+
+    try {
+        const resp = await fetch('/invoices/quick-contact', { method: 'POST', body: formData });
+        if (!resp.ok) throw new Error('Error al crear contacto');
+        const data = await resp.json();
+
+        // agregar opción al select y seleccionarla
+        const select = document.getElementById('contact-select');
+        const opt = new Option(data.name, data.id);
+        opt.dataset.type = 'supplier';
+        select.add(opt);
+        select.value = data.id;
+
+        document.getElementById('supplier-alert').classList.add('hidden');
+    } catch(e) {
+        btn.disabled = false;
+        btn.textContent = 'Crear contacto con estos datos';
+        document.getElementById('supplier-alert-note').textContent = 'Error: ' + e.message;
+    }
+}
+
+
 // apply filter on page load based on default selected type
-filterContacts(document.getElementById('invoice-type').value);
+const initialType = document.getElementById('invoice-type').value;
+filterContacts(initialType);
+toggleNumberField(initialType);
 </script>
 {% endblock %}

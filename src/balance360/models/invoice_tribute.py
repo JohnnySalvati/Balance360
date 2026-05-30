@@ -2,8 +2,9 @@ import uuid
 from typing import TYPE_CHECKING
 from decimal import Decimal
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Uuid, ForeignKey, Integer, String, Numeric
+from sqlalchemy import Uuid, ForeignKey, String, Numeric, Enum
 from balance360.models.base import Base, TimestampMixin
+from balance360.enums import TributeType
 if TYPE_CHECKING:
     from balance360.models.invoice import Invoice
     
@@ -13,10 +14,10 @@ class InvoiceTribute(Base, TimestampMixin):
         Uuid, primary_key=True, default=uuid.uuid4
     )
     invoice_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("invoices.id")
+        Uuid, ForeignKey("invoices.id", ondelete="CASCADE")
     )
-    tribute_type: Mapped[int] = mapped_column(
-        Integer
+    tribute_type: Mapped[TributeType] = mapped_column(
+        Enum(TributeType)
     )
     description: Mapped[str] = mapped_column(
         String(60)

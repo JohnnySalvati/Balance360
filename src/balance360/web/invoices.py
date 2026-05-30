@@ -1,10 +1,11 @@
 import uuid
 import datetime
 from decimal import Decimal
+from pydantic import ValidationError
 from pathlib import Path
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File, Response
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.crud import invoice as invoice_crud
@@ -14,10 +15,13 @@ from balance360.crud import category as category_crud
 from balance360.crud import account as account_crud
 from balance360.crud import product as product_crud
 from balance360.crud import invoice_line as invoice_line_crud
+from balance360.crud import invoice_tribute as invoice_tribute_crud
 from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
 from balance360.schemas.invoice_line import InvoiceLineCreate
+from balance360.schemas.invoice_tribute import InvoiceTributeCreate
 from balance360.services import invoice as invoice_service
-from balance360.enums import InvoiceType, VoucherType
+from balance360.models.invoice import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError
+from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType
 
 router = APIRouter(prefix="/invoices")
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
@@ -59,7 +63,8 @@ def invoice_edit_form(request: Request, invoice_id: uuid.UUID, db: Session = Dep
         name="invoices/detail.html",
         context={
             "invoice": invoice,
-            "accounts": account_crud.get_all(db)
+            "accounts": account_crud.get_all(db),
+            "tribute_types": TributeType,
         }
     )
 
@@ -76,6 +81,7 @@ def create_invoice(
     voucher_type: str|None = Form(default=""),
     pos: str|None = Form(default=""),
     number: str|None = Form(default=""),
+    pdf_lines: str|None = Form(default=""),
 ):
     data = InvoiceCreate(
         invoice_type=InvoiceType(invoice_type),
@@ -89,8 +95,32 @@ def create_invoice(
         pos=int(pos) if pos else None,
         number=int(number) if number else None,
     )
+
     invoice = invoice_crud.create(db, data)
-    return RedirectResponse(url=f"/invoices/{invoice.id}", status_code=303)
+
+    if pdf_lines:
+        import json
+        from balance360.enums import IvaAliquot
+        for line in json.loads(pdf_lines):
+            iva_rate = Decimal(line["iva_rate"])
+            # mapear la tasa al enum
+            aliquot = next(
+                (a for a in IvaAliquot if a.rate == iva_rate),
+                IvaAliquot.standard
+            )
+            invoice_line_crud.create(db, InvoiceLineCreate(
+                invoice_id=invoice.id,
+                product_id=None,
+                description=line["description"],
+                quantity=int(Decimal(line["quantity"])),
+                unit_price=Decimal(line["unit_price"]),
+                iva_aliquot=aliquot,
+            ))
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    )
+
 
 @router.patch("/{invoice_id}", response_class=HTMLResponse)
 def update_invoice(
@@ -121,9 +151,17 @@ def update_invoice(
         voucher_type=VoucherType(voucher_type) if voucher_type else None,
         pos=int(pos) if pos else None,
         number=int(number) if number else None,
-    )   
-    invoice = invoice_crud.update(db, data, invoice)
-    return RedirectResponse(url=f"/invoices/{invoice.id}", status_code=303)
+    )
+    try:   
+        invoice = invoice_crud.update(db, data, invoice)
+    except ValueError as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+    
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    )
+
 
 @router.get("/{invoice_id}/lines/new-form", response_class=HTMLResponse)
 def new_line_form(
@@ -140,6 +178,7 @@ def new_line_form(
         context={
             "invoice": invoice,
             "products": product_crud.get_all(db),
+            "iva_aliquots": IvaAliquot,
         }
     )
 
@@ -176,11 +215,14 @@ def confirm_invoice(
     account = account_crud.get_by_id(db, account_id_parsed) if account_id_parsed else None
 
     try:
-        invoice_service.confirm_invoice(db, invoice, account, payment_date_parsed)
-    except invoice_service.InvoiceConfirmError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        invoice_service.confirm_invoice(db, invoice, payment_date_parsed, account)
+    except (InvoiceConfirmationError, InvoicePaymentError) as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
 
-    return RedirectResponse(url=f"/invoices/{invoice_id}", status_code=303)
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice_id}"}
+    )
 
 @router.post("/{invoice_id}/lines", response_class=HTMLResponse)
 def create_invoice_line(
@@ -190,6 +232,7 @@ def create_invoice_line(
     description: str|None = Form(default=""),
     quantity: str = Form(...),
     unit_price: str = Form(...),
+    iva_aliquot: str = Form(...),
 ):
     product_id_parsed = uuid.UUID(product_id) if product_id else None
     quantity_parsed = int(quantity)
@@ -204,14 +247,111 @@ def create_invoice_line(
         product_id=product_id_parsed,
         description=description or None,
         quantity=quantity_parsed,
-        unit_price=unit_price_parsed
+        unit_price=unit_price_parsed,
+        iva_aliquot=IvaAliquot[iva_aliquot],
     )
 
     invoice_line_crud.create(db, data)
-    return RedirectResponse(url=f"/invoices/{invoice.id}", status_code=303)
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    )
+
+
+
+@router.post("/{invoice_id}/authorize", response_class=HTMLResponse)
+def authorize_invoice(
+    invoice_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    invoice = invoice_crud.get_by_id(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    try:
+        invoice_service.authorize_invoice(db, invoice)
+    except InvoiceAuthorizationError as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice_id}"}
+    )
+
+
 
 @router.get("/{invoice_id}/lines/close-form", response_class=HTMLResponse)
 def close_line_form(invoice_id: uuid.UUID):
+    return HTMLResponse("")
+
+
+@router.get("/{invoice_id}/tributes/new-form", response_class=HTMLResponse)
+def new_tribute_form(
+    invoice_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    invoice = invoice_crud.get_by_id(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/new_tribute_form.html",
+        context={
+            "invoice": invoice,
+            "tribute_types": TributeType,
+        }
+    )
+
+
+@router.post("/{invoice_id}/tributes", response_class=HTMLResponse)
+def create_invoice_tribute(
+    invoice_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    tribute_type: str = Form(...),
+    description: str = Form(...),
+    base_amount: str = Form(...),
+    rate: str = Form(...),
+):
+    invoice = invoice_crud.get_by_id(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    data = InvoiceTributeCreate(
+        invoice_id=invoice_id,
+        tribute_type=TributeType[tribute_type],
+        description=description,
+        base_amount=Decimal(base_amount),
+        rate=Decimal(rate),
+    )
+    
+    try:
+        invoice_tribute_crud.create(db, data)
+    except ValidationError as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+    
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice_id}"}
+    )
+
+    
+
+
+@router.delete("/{invoice_id}/tributes/{tribute_id}", response_class=HTMLResponse)
+def delete_invoice_tribute(
+    tribute_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    tribute = invoice_tribute_crud.get_by_id(db, tribute_id)
+    if not tribute:
+        raise HTTPException(status_code=404, detail="Tribute not found")
+    invoice_tribute_crud.delete(db, tribute)
+    return HTMLResponse("")
+
+
+@router.get("/{invoice_id}/tributes/close-form", response_class=HTMLResponse)
+def close_tribute_form(invoice_id: uuid.UUID):
     return HTMLResponse("")
 
 
@@ -232,3 +372,67 @@ def edit_invoice_form(request: Request, invoice_id: uuid.UUID, db: Session = Dep
             "voucher_type": VoucherType,
         }
     )
+
+@router.post("/parse-pdf")
+async def parse_pdf(
+    db: Session = Depends(get_db),
+    file: UploadFile = File(...),
+):
+    from balance360.services.pdf_invoice import parse_invoice_pdf
+    content = await file.read()
+    parsed = parse_invoice_pdf(content)
+    
+    # buscar contacto por CUIT
+    contact = None
+    if parsed.supplier_cuit:
+        contact = contact_crud.get_by_tax_id(db, parsed.supplier_cuit)
+    
+    return {
+        "voucher_type": parsed.voucher_type,
+        "pos": parsed.pos,
+        "number": parsed.number,
+        "date": parsed.date.isoformat() if parsed.date else None,
+        "supplier_cuit": parsed.supplier_cuit,
+        "supplier_name": parsed.supplier_name,
+        "supplier_condicion_iva": parsed.supplier_condicion_iva,
+        "cae": parsed.cae,
+        "contact_id": str(contact.id) if contact else None,
+        "contact_found": contact is not None,
+        "lines": [
+            {
+                "description": l.description,
+                "quantity": str(l.quantity),
+                "unit_price": str(l.unit_price),
+                "iva_rate": str(l.iva_rate),
+            }
+            for l in parsed.lines
+        ],
+        "needs_manual_items": parsed.needs_manual_items,
+    }
+
+@router.post("/quick-contact")
+async def quick_contact(
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+    tax_id: str = Form(...),
+    condicion_iva: str = Form(...),
+):
+    from balance360.schemas.contact import ContactCreate
+    from balance360.enums import CondicionIva, ContactType, DocType
+    data = ContactCreate(
+        name=name,
+        tax_id=tax_id,
+        contact_type=ContactType.supplier,
+        condicion_iva=CondicionIva[condicion_iva],
+        doc_type=DocType.CUIT,
+    )
+    contact = contact_crud.create(db, data)
+    return {"id": str(contact.id), "name": contact.name}
+
+@router.delete("/{invoice_id}", response_class=HTMLResponse)
+def delete_invoice(invoice_id: uuid.UUID, db: Session = Depends(get_db)):
+    invoice = invoice_crud.get_by_id(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    invoice_crud.delete(db, invoice)
+    return HTMLResponse("")

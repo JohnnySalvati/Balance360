@@ -9,10 +9,11 @@
 <div class="flex-1 overflow-y-auto">
     <div class="bg-white rounded shadow p-6 max-w-2xl">
         <form hx-patch="/invoices/{{ invoice.id }}"
-              hx-target="body"
-              hx-swap="outerHTML"
+              hx-target="#edit-error"
+              hx-swap="innerHTML"
               class="flex flex-col gap-4">
 
+            <div id="edit-error"></div>
             <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Tipo de comprobante</label>

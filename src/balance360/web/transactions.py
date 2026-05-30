@@ -244,7 +244,7 @@ def apply_rules(
             )
             for field, value in transaction_data.model_dump(exclude_unset=True).items():
                 setattr(transaction, field, value)
-    db.commit()
+    db.flush()
 
     date_from_parsed = date.fromisoformat(date_from) if date_from else None
     date_to_parsed = date.fromisoformat(date_to) if date_to else None

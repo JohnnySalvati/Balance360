@@ -21,14 +21,14 @@ def get_by_pattern(db: Session, pattern: str, transaction_type: TransactionType)
 def create(db: Session, data: ImportRuleCreate) -> ImportRule:
     import_rule = ImportRule(**data.model_dump())
     db.add(import_rule)
-    db.commit()
+    db.flush()
     db.refresh(import_rule)
     return import_rule
 
 def update(db: Session, data: ImportRuleUpdate, import_rule: ImportRule) -> ImportRule:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(import_rule, field, value)
-    db.commit()
+    db.flush()
     db.refresh(import_rule)
     return import_rule
 
@@ -42,4 +42,3 @@ def get_by_exact_pattern(db: Session, description: str, transaction_type: Transa
 
 def delete(db: Session, import_rule: ImportRule):
     db.delete(import_rule)
-    db.commit()

@@ -15,17 +15,16 @@ def get_by_id(db: Session, account_id: uuid.UUID) -> Account|None:
 def create(db: Session, data: AccountCreate) -> Account:
     db_account = Account(**data.model_dump())
     db.add(db_account)
-    db.commit()
+    db.flush()
     db.refresh(db_account)
     return db_account
 
 def delete(db: Session, account: Account):
     db.delete(account)
-    db.commit()
 
 def update(db: Session, account: Account, data: AccountUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(account, field, value)
-    db.commit()
+    db.flush()
     db.refresh(account)
     return account

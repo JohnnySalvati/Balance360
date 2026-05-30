@@ -15,17 +15,16 @@ def get_by_id(db: Session, exchange_rate_id: uuid.UUID) -> ExchangeRate|None:
 def create(db: Session, data: ExchangeRateCreate):
     db_exchange_rate = ExchangeRate(**data.model_dump())
     db.add(db_exchange_rate)
-    db.commit()
+    db.flush()
     db.refresh(db_exchange_rate)
     return db_exchange_rate
 
 def delete(db: Session, exchange_rate: ExchangeRate):
     db.delete(exchange_rate)
-    db.commit()
 
 def update(db: Session, exchange_rate: ExchangeRate, data: ExchangeRateUpdate) -> ExchangeRate:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(exchange_rate, field, value)
-    db.commit()
+    db.flush()
     db.refresh(exchange_rate)
     return exchange_rate

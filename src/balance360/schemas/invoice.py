@@ -1,7 +1,7 @@
 import uuid
 import datetime
 from pydantic import BaseModel, ConfigDict, model_validator
-from balance360.enums import InvoiceType, VoucherType, VoucherStatus
+from balance360.enums import InvoiceType, VoucherType
 
 
 class InvoiceCreate(BaseModel):
@@ -15,14 +15,24 @@ class InvoiceCreate(BaseModel):
     voucher_type: VoucherType|None=None
     pos: int|None=None
     number: int|None=None
-    
-    @model_validator(mode='after')
-    def check_formal(self) -> 'InvoiceCreate':
+    confirmed: bool=False
+    paid: bool=False
+    authorized: bool=False
+    cae: str|None = None
+    cae_expiry: datetime.date|None= None
+
+    @model_validator(mode="after")
+    def check_number(self):
         if self.formal:
-            if not (self.voucher_type and self.pos and self.number):
-                raise ValueError('Todos los atributos son requeridos')
+            if not self.pos:
+                raise ValueError("Se necesita punto de venta")
+
+            if self.invoice_type == InvoiceType.purchase and not self.number:
+                raise ValueError("Se necesita numero de comprobante")
+
         return self
     
+
 class InvoiceUpdate(BaseModel):
     invoice_type: InvoiceType|None=None
     entity_id: uuid.UUID|None=None
@@ -34,6 +44,11 @@ class InvoiceUpdate(BaseModel):
     voucher_type: VoucherType|None=None
     pos: int|None=None
     number: int|None=None
+    confirmed: bool|None=None
+    paid: bool|None=None
+    authorized: bool|None=None
+    cae: str|None = None
+    cae_expiry: datetime.date|None= None
     
 class InvoiceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -48,7 +63,11 @@ class InvoiceRead(BaseModel):
     voucher_type: VoucherType|None=None
     pos: int|None=None
     number: int|None=None
-    status: VoucherStatus
+    confirmed: bool=False
+    paid: bool=False
+    authorized: bool=False
+    cae: str|None = None
+    cae_expiry: datetime.date|None= None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 

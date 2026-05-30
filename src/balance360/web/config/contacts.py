@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from balance360.enums import ContactType
+from balance360.enums import ContactType, CondicionIva, DocType
 from balance360.dependencies import get_db
 from balance360.crud import contact as contact_crud
 from balance360.schemas.contact import ContactCreate, ContactUpdate
@@ -34,13 +34,20 @@ def contacts_rows(request: Request, db: Session = Depends(get_db)):
         context={"contacts": contacts}
     )
 
+def _form_context(contact=None):
+    return {
+        "contact": contact,
+        "contact_type": ContactType,
+        "condicion_iva": CondicionIva,
+        "doc_type": DocType,
+    }
+
 @router.get("/new-form")
 def new_contact_form(request: Request, db: Session = Depends(get_db)):
-    contacts = contact_crud.get_all(db)
     return templates.TemplateResponse(
         request=request,
         name="config/contacts/_form_modal.html",
-        context={"contacts": contacts, "contact_type": ContactType}
+        context=_form_context()
     )
 
 @router.post("/", response_class=HTMLResponse)
@@ -49,10 +56,17 @@ def create_contact(
     db: Session = Depends(get_db),
     name: str = Form(...),
     tax_id: str = Form(default=""),
-    contact_type: str = Form(...)
+    contact_type: str = Form(...),
+    condicion_iva: str = Form(...),
+    doc_type: str = Form(...),
 ):
-    contact_type_parsed = ContactType(contact_type)
-    contact_crud.create(db, ContactCreate(name=name, tax_id=tax_id, contact_type=contact_type_parsed))
+    contact_crud.create(db, ContactCreate(
+        name=name,
+        tax_id=tax_id or None,
+        contact_type=ContactType(contact_type),
+        condicion_iva=CondicionIva[condicion_iva],
+        doc_type=DocType[doc_type],
+    ))
     response = HTMLResponse('<div id="modal"></div>')
     response.headers['HX-Trigger'] = "refreshRows"
     return response
@@ -66,10 +80,7 @@ def contact_edit_form(
     return templates.TemplateResponse(
         request=request,
         name="config/contacts/_form_modal.html",
-        context={
-            "contact": contact_crud.get_by_id(db, contact_id),
-            "contact_type": ContactType
-            }
+        context=_form_context(contact_crud.get_by_id(db, contact_id))
     )
 
 @router.patch("/{contact_id}", response_class=HTMLResponse)
@@ -78,13 +89,20 @@ def update_contact(
     db: Session = Depends(get_db),
     name: str = Form(...),
     tax_id: str = Form(default=""),
-    contact_type: str = Form(...)
+    contact_type: str = Form(...),
+    condicion_iva: str = Form(...),
+    doc_type: str = Form(...),
 ):
-    contact_type_parsed = ContactType(contact_type)
     contact = contact_crud.get_by_id(db, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
-    contact_crud.update(db, contact, ContactUpdate(name=name, tax_id=tax_id, contact_type=contact_type_parsed))
+    contact_crud.update(db, contact, ContactUpdate(
+        name=name,
+        tax_id=tax_id or None,
+        contact_type=ContactType(contact_type),
+        condicion_iva=CondicionIva[condicion_iva],
+        doc_type=DocType[doc_type],
+    ))
     response = HTMLResponse('<div id="modal"></div>')
     response.headers['HX-Trigger'] = "refreshRows"
     return response

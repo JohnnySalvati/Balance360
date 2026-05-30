@@ -16,7 +16,7 @@ class InvoiceLine(Base, TimestampMixin):
         Uuid, primary_key=True, default=uuid.uuid4
     )
     invoice_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("invoices.id")
+        Uuid, ForeignKey("invoices.id", ondelete="CASCADE")
     )
     product_id: Mapped[uuid.UUID|None] = mapped_column(
         Uuid, ForeignKey("products.id")

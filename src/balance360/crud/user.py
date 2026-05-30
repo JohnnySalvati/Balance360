@@ -27,17 +27,16 @@ def create(db: Session, data: UserCreate) -> User:
         is_active = data.is_active
     )
     db.add(db_user)
-    db.commit()
+    db.flush()
     db.refresh(db_user)
     return db_user
 
 def delete(db: Session, user: User):
     db.delete(user)
-    db.commit()
 
 def update(db: Session, user: User, data: UserUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(user, field, value)
-    db.commit()
+    db.flush()
     db.refresh(user)
     return user

@@ -14,18 +14,17 @@ def get_by_id(db: Session, invoice_line_id: uuid.UUID) -> InvoiceLine|None:
 def create(db: Session, data: InvoiceLineCreate) -> InvoiceLine:
     invoice_line = InvoiceLine(**data.model_dump())
     db.add(invoice_line)
-    db.commit()
+    db.flush()
     db.refresh(invoice_line)
     return invoice_line
 
 def update(db: Session, data: InvoiceLineUpdate, invoice_line: InvoiceLine) -> InvoiceLine:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(invoice_line, field, value)
-    db.commit()
+    db.flush()
     db.refresh(invoice_line)
     return invoice_line
 
 def delete(db: Session, invoice_line: InvoiceLine):
     db.delete(invoice_line)
-    db.commit()
 

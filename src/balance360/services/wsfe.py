@@ -1,3 +1,4 @@
+from datetime import date
 from dataclasses import dataclass
 from zeep import Client
 from balance360.enums import VoucherType
@@ -6,7 +7,7 @@ from balance360.dtos.invoice_request import InvoiceRequest
 @dataclass
 class AuthorizationResult:
     cae: str
-    expiration: str
+    expiration: date
     number: int
 
 voucher_type_code = {

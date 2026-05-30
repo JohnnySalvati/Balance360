@@ -19,9 +19,28 @@
 
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Nombre</label>
-                <input type="text" name="name" required maxlength="60"
+                <input type="text" name="name" required maxlength="30"
                        value="{{ entity.name if is_edit else '' }}"
                        class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">CUIT</label>
+                <input type="text" name="tax_id" maxlength="13"
+                       value="{{ entity.tax_id if is_edit and entity.tax_id else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Condición IVA</label>
+                <select name="condicion_iva" required class="border rounded px-3 py-2 text-sm">
+                    {% for c in condicion_iva %}
+                    <option value="{{ c.name }}"
+                            {% if is_edit and entity.condicion_iva == c %}selected{% endif %}>
+                        {{ c.name | replace('_', ' ') | title }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
 
             <div class="flex justify-end gap-2 mt-2">

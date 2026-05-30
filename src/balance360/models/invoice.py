@@ -5,8 +5,9 @@ from decimal import Decimal
 from dataclasses import dataclass
 from sqlalchemy import Uuid, Enum, Date, ForeignKey, Boolean, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from balance360.enums import InvoiceType, VoucherType, VoucherStatus, IvaAliquot
+from balance360.enums import InvoiceType, VoucherType, IvaAliquot
 from balance360.models.base import Base, TimestampMixin
+from balance360.enums import DocType
 
 if TYPE_CHECKING:
     from balance360.models.entity import Entity
@@ -16,6 +17,14 @@ if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
     from balance360.models.invoice_tribute import InvoiceTribute
 
+class InvoiceAuthorizationError(Exception):
+    pass
+class InvoicePaymentError(Exception):
+    pass
+class InvoiceConfirmationError(Exception):
+    pass
+class InvoiceDeleteError(Exception):
+    pass
 class Invoice(Base, TimestampMixin):
     __tablename__ = "invoices"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -51,8 +60,14 @@ class Invoice(Base, TimestampMixin):
     number: Mapped[int|None] = mapped_column(
         Integer
     )
-    status: Mapped[VoucherStatus]= mapped_column(
-        Enum(VoucherStatus), default=VoucherStatus.pending
+    confirmed: Mapped[bool] = mapped_column(
+        Boolean
+    )
+    paid: Mapped[bool] = mapped_column(
+        Boolean
+    )
+    authorized: Mapped[bool] = mapped_column(
+        Boolean
     )
     cae: Mapped[str|None] = mapped_column(
         String(14)
@@ -70,10 +85,10 @@ class Invoice(Base, TimestampMixin):
         back_populates='invoices'
     )
     invoice_lines: Mapped[list['InvoiceLine']] = relationship(
-        back_populates="invoice"
+        back_populates="invoice", cascade="all, delete-orphan"
     )
     invoice_tributes: Mapped[list['InvoiceTribute']] = relationship(
-        back_populates='invoice'
+        back_populates='invoice', cascade="all, delete-orphan"
     )
     transaction: Mapped['Transaction|None'] = relationship(
         back_populates="invoice"
@@ -109,3 +124,42 @@ class Invoice(Base, TimestampMixin):
         tributes = sum((tribute.amount for tribute in self.invoice_tributes), Decimal(0))
         return  net_amount + iva + tributes
     
+    @property
+    def net_total(self) -> Decimal:
+        return sum((iva_item.net_amount for iva_item in self.iva_breakdown), Decimal(0))
+
+
+    def validate_authorization(self):
+        if not self.entity.tax_id:
+            raise InvoiceAuthorizationError("La entidad no posee CUIT")
+    
+        if not self.pos or not self.voucher_type:
+            raise InvoiceAuthorizationError("El tipo y punto de venta del comprobante son obligatorios")
+    
+        if self.contact.doc_type != DocType.FINAL and not self.contact.tax_id:
+            raise InvoiceAuthorizationError("Se necesita numero de CUIT del cliente")
+
+        if not self.confirmed:
+            raise InvoiceAuthorizationError("El comprobante no esta confirmado")
+        
+        if self.authorized:
+            raise InvoiceAuthorizationError("El comprobante ya esta autorizado")
+        
+        if self.invoice_type == InvoiceType.purchase:
+            raise InvoiceAuthorizationError("No se puede autorizar una compra")
+
+    def validate_confirmation(self):
+        if self.confirmed:
+            raise InvoiceConfirmationError("El comprobante ya esta confirmado")
+        if not self.invoice_lines:
+            raise InvoiceConfirmationError("El comprobante no tiene items")
+
+    def validate_payment(self):
+        if not self.confirmed:
+            raise InvoicePaymentError("El comprobante no esta confirmado")
+        if self.paid:
+            raise InvoicePaymentError("El comprobante ya esta pago")
+        
+    def validate_delete(self):
+        if self.confirmed:
+            raise InvoiceDeleteError("El comprobante esta confirmado")

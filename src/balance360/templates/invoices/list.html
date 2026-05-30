@@ -41,7 +41,12 @@
                 <td class="px-4 py-3 text-gray-700">{{ inv.date }}</td>
                 <td class="px-4 py-3 text-gray-500">
                     {% if inv.formal %}
-                        {{ inv.voucher_type.value }} {{ inv.pos }}-{{ inv.number }}
+                        {{ inv.voucher_type.value }}
+                        {% if inv.pos and inv.number %}
+                            {{ inv.pos }}-{{ inv.number }}
+                        {% else %}
+                            —
+                        {% endif %}
                     {% else %}
                         Informal
                     {% endif %}
@@ -49,13 +54,17 @@
                 <td class="px-4 py-3 text-gray-800">{{ inv.contact.name }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ inv.category.name if inv.category else "—" }}</td>
                 <td class="px-4 py-3 text-right font-medium">{{ inv.total | currency }}</td>
-                <td class="px-4 py-3">
-                    {% if inv.status.value == "draft" %}
+                <td class="px-4 py-3 flex gap-1 flex-wrap">
+                    {% if not inv.confirmed %}
                         <span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Borrador</span>
-                    {% elif inv.status.value == "pending" %}
-                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pendiente</span>
-                    {% elif inv.status.value == "paid" %}
+                    {% endif %}
+                    {% if inv.authorized %}
+                        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Autorizado</span>
+                    {% endif %}
+                    {% if inv.paid %}
                         <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Pagado</span>
+                    {% elif inv.confirmed %}
+                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pendiente</span>
                     {% endif %}
                 </td>
             </tr>

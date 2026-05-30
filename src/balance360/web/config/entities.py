@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.crud import entity as entity_crud
 from balance360.schemas.entity import EntityCreate, EntityUpdate
+from balance360.enums import CondicionIva
 
 router = APIRouter(prefix="/entities")
 templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
@@ -35,20 +36,25 @@ def entities_rows(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/new-form")
 def new_entity_form(request: Request, db: Session = Depends(get_db)):
-    entities = entity_crud.get_all(db)
     return templates.TemplateResponse(
         request=request,
         name="config/entities/_form_modal.html",
-        context={"entities": entities}
+        context={"condicion_iva": CondicionIva}
     )
 
 @router.post("/", response_class=HTMLResponse)
 def create_entity(
     request: Request,
     db: Session = Depends(get_db),
-    name: str = Form(...)
+    name: str = Form(...),
+    tax_id: str = Form(default=""),
+    condicion_iva: str = Form(...),
 ):
-    entity_crud.create(db, EntityCreate(name=name))
+    entity_crud.create(db, EntityCreate(
+        name=name,
+        tax_id=tax_id or None,
+        condicion_iva=CondicionIva[condicion_iva],
+    ))
     response = HTMLResponse('<div id="modal"></div>')
     response.headers['HX-Trigger'] = "refreshRows"
     return response
@@ -62,19 +68,28 @@ def entity_edit_form(
     return templates.TemplateResponse(
         request=request,
         name="config/entities/_form_modal.html",
-        context={"entity": entity_crud.get_by_id(db, entity_id)}
+        context={
+            "entity": entity_crud.get_by_id(db, entity_id),
+            "condicion_iva": CondicionIva,
+        }
     )
 
 @router.patch("/{entity_id}", response_class=HTMLResponse)
 def update_entity(
     entity_id: uuid.UUID,
     db: Session = Depends(get_db),
-    name: str = Form(...)
+    name: str = Form(...),
+    tax_id: str = Form(default=""),
+    condicion_iva: str = Form(...),
 ):
     entity = entity_crud.get_by_id(db, entity_id)
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
-    entity_crud.update(db, entity, EntityUpdate(name=name))
+    entity_crud.update(db, entity, EntityUpdate(
+        name=name,
+        tax_id=tax_id or None,
+        condicion_iva=CondicionIva[condicion_iva],
+    ))
     response = HTMLResponse('<div id="modal"></div>')
     response.headers['HX-Trigger'] = "refreshRows"
     return response

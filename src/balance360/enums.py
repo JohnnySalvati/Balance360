@@ -34,12 +34,6 @@ class SerialStatus(enum.Enum):
     sold = "sold"
     reserved = "reserved"
 
-class VoucherStatus(enum.Enum):
-    draft = "draft"
-    pending = "pending"
-    authorized ="authorized"
-    paid = "paid"
-
 class IvaAliquot(enum.Enum):
     exempt = (3, Decimal(0))
     reduced = (4, Decimal(10.5))

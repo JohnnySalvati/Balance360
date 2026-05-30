@@ -6,7 +6,12 @@
         <h1 class="text-2xl font-bold">
             {{ "Compra" if invoice.invoice_type.value == "purchase" else "Venta" }}
             {% if invoice.formal %}
-                — {{ invoice.voucher_type.value }} {{ invoice.pos }}-{{ invoice.number }}
+                — {{ invoice.voucher_type.value }}
+                {% if invoice.pos and invoice.number %}
+                    {{ invoice.pos }}-{{ invoice.number }}
+                {% else %}
+                    —
+                {% endif %}
             {% else %}
                 — Informal
             {% endif %}
@@ -14,12 +19,16 @@
         <p class="text-sm text-gray-500 mt-1">{{ invoice.contact.name }} · {{ invoice.date }}</p>
     </div>
     <div class="flex items-center gap-3">
-        {% if invoice.status.value == "draft" %}
+        {% if not invoice.confirmed %}
             <span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Borrador</span>
-        {% elif invoice.status.value == "pending" %}
-            <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pendiente</span>
-        {% elif invoice.status.value == "paid" %}
+        {% endif %}
+        {% if invoice.authorized %}
+            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Autorizado</span>
+        {% endif %}
+        {% if invoice.paid %}
             <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Pagado</span>
+        {% elif invoice.confirmed %}
+            <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pendiente de pago</span>
         {% endif %}
         <a href="/invoices/" class="text-sm text-blue-600 hover:underline">← Volver</a>
     </div>
@@ -49,7 +58,17 @@
             <p class="text-xs text-gray-500">Solo impositivo</p>
             <p class="text-gray-800">{{ "Sí" if invoice.tax_only else "No" }}</p>
         </div>
-        {% if invoice.status.value == "draft" %}
+        {% if invoice.cae %}
+        <div>
+            <p class="text-xs text-gray-500">CAE</p>
+            <p class="text-gray-800 font-mono">{{ invoice.cae }}</p>
+        </div>
+        <div>
+            <p class="text-xs text-gray-500">Vencimiento CAE</p>
+            <p class="text-gray-800">{{ invoice.cae_expiry }}</p>
+        </div>
+        {% endif %}
+        {% if not invoice.confirmed %}
         <div class="col-span-2 flex justify-end">
             <a href="/invoices/{{ invoice.id }}/edit"
                class="text-xs text-blue-500 hover:text-blue-700">✎ Editar encabezado</a>
@@ -61,7 +80,7 @@
     <div class="bg-white rounded shadow">
         <div class="flex justify-between items-center px-4 py-3 border-b">
             <h2 class="text-sm font-semibold text-gray-700">Ítems</h2>
-            {% if invoice.status.value == "draft" %}
+            {% if not invoice.confirmed %}
             <button hx-get="/invoices/{{ invoice.id }}/lines/new-form"
                     hx-target="#line-form-area"
                     hx-swap="innerHTML"
@@ -77,8 +96,9 @@
                     <th class="px-4 py-3">Descripción</th>
                     <th class="px-4 py-3 text-right">Cantidad</th>
                     <th class="px-4 py-3 text-right">Precio unit.</th>
+                    <th class="px-4 py-3 text-right">IVA</th>
                     <th class="px-4 py-3 text-right">Subtotal</th>
-                    {% if invoice.status.value == "draft" %}
+                    {% if not invoice.confirmed %}
                     <th class="px-4 py-3"></th>
                     {% endif %}
                 </tr>
@@ -91,8 +111,9 @@
                     </td>
                     <td class="px-4 py-3 text-right text-gray-600">{{ line.quantity }}</td>
                     <td class="px-4 py-3 text-right text-gray-600">{{ line.unit_price | currency }}</td>
+                    <td class="px-4 py-3 text-right text-gray-400 text-xs">{{ line.iva_aliquot.rate }}%</td>
                     <td class="px-4 py-3 text-right font-medium">{{ (line.quantity * line.unit_price) | currency }}</td>
-                    {% if invoice.status.value == "draft" %}
+                    {% if not invoice.confirmed %}
                     <td class="px-4 py-3 text-right">
                         <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
                                 hx-target="closest tr"
@@ -104,22 +125,125 @@
                 </tr>
                 {% else %}
                 <tr id="empty-row">
-                    <td colspan="5" class="px-4 py-6 text-center text-gray-400">Sin ítems.</td>
+                    <td colspan="6" class="px-4 py-6 text-center text-gray-400">Sin ítems.</td>
                 </tr>
                 {% endfor %}
             </tbody>
-            <tfoot class="border-t">
+            <tfoot class="border-t text-sm">
                 <tr>
-                    <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-500">Total</td>
+                    <td colspan="4" class="px-4 py-2 text-right text-gray-500">Subtotal neto</td>
+                    <td class="px-4 py-2 text-right text-gray-600">{{ invoice.net_total | currency }}</td>
+                    {% if not invoice.confirmed %}<td></td>{% endif %}
+                </tr>
+                {% for item in invoice.iva_breakdown %}
+                <tr>
+                    <td colspan="4" class="px-4 py-2 text-right text-gray-500">IVA {{ item.aliquot.rate }}%</td>
+                    <td class="px-4 py-2 text-right text-gray-600">{{ item.iva_amount | currency }}</td>
+                    {% if not invoice.confirmed %}<td></td>{% endif %}
+                </tr>
+                {% endfor %}
+                {% for tribute in invoice.invoice_tributes %}
+                <tr>
+                    <td colspan="3" class="px-4 py-2 text-right text-gray-500">
+                        {{ tribute.description }}
+                        {% if not invoice.confirmed %}
+                        <button hx-delete="/invoices/{{ invoice.id }}/tributes/{{ tribute.id }}"
+                                hx-target="closest tr"
+                                hx-swap="outerHTML"
+                                hx-confirm="¿Eliminar este tributo?"
+                                class="ml-2 text-red-400 hover:text-red-600 text-xs">✕</button>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2 text-right text-gray-500 text-xs">{{ tribute.rate }}%</td>
+                    <td class="px-4 py-2 text-right text-gray-600">{{ tribute.amount | currency }}</td>
+                    {% if not invoice.confirmed %}<td></td>{% endif %}
+                </tr>
+                {% endfor %}
+                <tr class="border-t">
+                    <td colspan="4" class="px-4 py-3 text-right text-gray-700 font-semibold">Total</td>
                     <td class="px-4 py-3 text-right font-bold text-gray-800">{{ invoice.total | currency }}</td>
-                    {% if invoice.status.value == "draft" %}<td></td>{% endif %}
+                    {% if not invoice.confirmed %}<td></td>{% endif %}
                 </tr>
             </tfoot>
         </table>
+
+        {% if not invoice.confirmed %}
+        <div id="tribute-form-area"></div>
+        <div class="px-4 py-3 border-t flex justify-end">
+            <button hx-get="/invoices/{{ invoice.id }}/tributes/new-form"
+                    hx-target="#tribute-form-area"
+                    hx-swap="innerHTML"
+                    class="text-xs text-green-600 hover:text-green-800">+ Agregar tributo</button>
+        </div>
+        {% endif %}
     </div>
 
+    {# Authorize action — solo ventas formales confirmadas y no autorizadas #}
+    {% if invoice.confirmed and not invoice.authorized and invoice.formal and invoice.invoice_type.value == "sale" %}
+    <div class="bg-white rounded shadow p-6 flex justify-between items-center">
+        <div id="authorize-error"></div>
+        <form hx-post="/invoices/{{ invoice.id }}/authorize"
+              hx-target="#authorize-error"
+              hx-swap="innerHTML"
+              class="ml-auto">
+            <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                Autorizar con ARCA
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {# Register payment — confirmado y no pagado #}
+    {% if invoice.confirmed and not invoice.paid %}
+    <div class="bg-white rounded shadow p-6 flex justify-between items-center">
+        <p class="text-sm text-gray-500">Imputar pago a una cuenta</p>
+        <button onclick="document.getElementById('payment-panel').classList.toggle('hidden')"
+                class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+            Registrar pago
+        </button>
+    </div>
+
+    <div id="payment-panel" class="hidden bg-white rounded shadow p-6">
+        <h2 class="text-sm font-semibold text-gray-700 mb-4">Registrar pago</h2>
+        <form hx-post="/invoices/{{ invoice.id }}/confirm"
+              hx-target="#payment-error"
+              hx-swap="innerHTML"
+              class="flex flex-col gap-4">
+        <div id="payment-error"></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Cuenta</label>
+                    <select name="account_id" class="border rounded px-3 py-2 text-sm" required>
+                        <option value="">— Seleccionar cuenta —</option>
+                        {% for acc in accounts %}
+                        <option value="{{ acc.id }}">{{ acc.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Fecha de pago</label>
+                    <input type="date" name="payment_date" required
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button"
+                        onclick="document.getElementById('payment-panel').classList.add('hidden')"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+                    Confirmar pago
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
     {# Confirm / Delete actions #}
-    {% if invoice.status.value == "draft" %}
+    {% if not invoice.confirmed %}
     <div class="bg-white rounded shadow p-6 flex justify-between items-center">
         <button hx-delete="/invoices/{{ invoice.id }}"
                 hx-confirm="¿Eliminar este comprobante?"
@@ -136,11 +260,15 @@
 
     <div id="confirm-panel" class="hidden bg-white rounded shadow p-6">
         <h2 class="text-sm font-semibold text-gray-700 mb-4">Confirmar comprobante</h2>
-        <form method="post" action="/invoices/{{ invoice.id }}/confirm" class="flex flex-col gap-4">
+        <form hx-post="/invoices/{{ invoice.id }}/confirm"
+              hx-target="#confirm-error"
+              hx-swap="innerHTML"
+              class="flex flex-col gap-4">
             <p class="text-xs text-gray-500">
                 Si asignás una cuenta, se registra el pago y el comprobante queda <strong>pagado</strong>.
                 Si no, queda <strong>pendiente</strong> en la cuenta corriente.
             </p>
+            <div id="confirm-error"></div>
             <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Cuenta (opcional)</label>

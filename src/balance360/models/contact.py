@@ -17,7 +17,7 @@ class Contact(Base, TimestampMixin):
         Uuid, primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(
-        String(30)
+        String(60)
     )
     condicion_iva: Mapped[CondicionIva] = mapped_column(
         Enum(CondicionIva)

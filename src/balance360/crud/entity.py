@@ -16,17 +16,16 @@ def get_by_id(db: Session, entity_id: uuid.UUID) -> Entity | None:
 def create(db: Session, data: EntityCreate) -> Entity:
     db_entity = Entity(**data.model_dump())
     db.add(db_entity)
-    db.commit()
+    db.flush()
     db.refresh(db_entity)
     return db_entity
 
 def delete(db: Session, entity: Entity):
     db.delete(entity)
-    db.commit()
 
 def update(db: Session, entity: Entity, data: EntityUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(entity, field, value)
-    db.commit()
+    db.flush()
     db.refresh(entity)
     return entity
