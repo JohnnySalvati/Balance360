@@ -29,7 +29,7 @@ class ProductSuggestion:
     score: int
 
 
-def suggest(description: str, products: list[Product], limit: int = 5) -> list[ProductSuggestion]:
+def suggest(description: str|None, products: list[Product], limit: int = 5) -> list[ProductSuggestion]:
     """Return the best-matching products for a description, best first."""
     if not description or not products:
         return []

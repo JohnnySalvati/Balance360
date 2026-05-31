@@ -107,7 +107,15 @@
                 {% for line in invoice.invoice_lines %}
                 <tr>
                     <td class="px-4 py-3 text-gray-800">
-                        {{ line.product.name if line.product else line.description }}
+                        {% if not line.product and not invoice.confirmed %}
+                            <span class="text-gray-500">{{ line.description }}</span>
+                            <button hx-get="/invoices/{{ invoice.id }}/lines/{{ line.id }}/match-form"
+                                    hx-target="closest td"
+                                    hx-swap="innerHTML"
+                                    class="ml-2 text-xs text-blue-500 hover:text-blue-700">Vincular producto</button>
+                        {% else %}
+                            {{ line.product.name if line.product else line.description }}
+                        {% endif %}
                     </td>
                     <td class="px-4 py-3 text-right text-gray-600">{{ line.quantity }}</td>
                     <td class="px-4 py-3 text-right text-gray-600">{{ line.unit_price | currency }}</td>

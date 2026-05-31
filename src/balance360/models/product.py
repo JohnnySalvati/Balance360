@@ -14,7 +14,7 @@ class Product(Base, TimestampMixin):
         Uuid, primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(
-        String(30)
+        String(100)
     )
     margin: Mapped[Decimal] = mapped_column(
         Numeric(precision=10, scale=2)

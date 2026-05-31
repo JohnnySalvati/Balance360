@@ -1,0 +1,18 @@
+<tr>
+    <td class="px-4 py-3 text-gray-800">
+        {{ invoice_line.product.name if invoice_line.product else invoice_line.description }}
+    </td>
+    <td class="px-4 py-3 text-right text-gray-600">{{ invoice_line.quantity }}</td>
+    <td class="px-4 py-3 text-right text-gray-600">{{ invoice_line.unit_price | currency }}</td>
+    <td class="px-4 py-3 text-right text-gray-400 text-xs">{{ invoice_line.iva_aliquot.rate }}%</td>
+    <td class="px-4 py-3 text-right font-medium">{{ (invoice_line.quantity * invoice_line.unit_price) | currency }}</td>
+    {% if not invoice.confirmed %}
+    <td class="px-4 py-3 text-right">
+        <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ invoice_line.id }}"
+                hx-target="closest tr"
+                hx-swap="outerHTML"
+                hx-confirm="¿Eliminar este ítem?"
+                class="text-red-400 hover:text-red-600 text-xs">✕</button>
+    </td>
+    {% endif %}
+</tr>

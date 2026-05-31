@@ -17,11 +17,15 @@ from balance360.crud import product as product_crud
 from balance360.crud import invoice_line as invoice_line_crud
 from balance360.crud import invoice_tribute as invoice_tribute_crud
 from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
-from balance360.schemas.invoice_line import InvoiceLineCreate
+from balance360.schemas.invoice_line import InvoiceLineCreate, InvoiceLineUpdate
 from balance360.schemas.invoice_tribute import InvoiceTributeCreate
+from balance360.schemas.product import ProductCreate
 from balance360.services import invoice as invoice_service
+from balance360.services import product_match as product_match_service
 from balance360.models.invoice import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError, Invoice
 from balance360.models.invoice_tribute import InvoiceTribute
+from balance360.models.invoice_line import InvoiceLine
+from balance360.models.product import Product
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType
 
 router = APIRouter(prefix="/invoices")
@@ -193,17 +197,21 @@ def new_line_form(
         }
     )
 
-@router.delete("/{invoice_id}/lines/{invoice_line_id}", response_class=HTMLResponse)
-def delete_invoice_line(
-    invoice_id: uuid.UUID,
-    invoice_line_id: uuid.UUID,
-    db: Session = Depends(get_db)
-):
-    invoice_line = invoice_line_crud.get_by_id(db, invoice_line_id)
+def get_invoice_line_or_404(line_id: uuid.UUID, db: Session = Depends(get_db)) -> InvoiceLine:
+    invoice_line = invoice_line_crud.get_by_id(db, line_id)
     if not invoice_line:
         raise HTTPException(status_code=404, detail="Invoice line not found")
-    if invoice_line.invoice != invoice_id:
+    return invoice_line
+
+@router.delete("/{invoice_id}/lines/{invoice_line_id}", response_class=HTMLResponse)
+def delete_invoice_line(
+    invoice: Invoice = Depends(get_invoice_or_404),
+    invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
+    db: Session = Depends(get_db)
+):
+    if invoice_line.invoice.id != invoice.id:
         raise HTTPException(status_code=404, detail="Invoice line mistmach invoice")
+    
     invoice_line_crud.delete(db, invoice_line)
     return HTMLResponse("")
 
@@ -460,3 +468,59 @@ def delete_invoice(
     return HTMLResponse("")
 
 
+@router.get("/{invoice_id}/lines/{line_id}/match-form", response_class= HTMLResponse)
+def match_product_suggestions(
+    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
+    invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
+    db: Session = Depends(get_db)
+): 
+    suggestions = product_match_service.suggest(
+        invoice_line.description,
+        product_crud.get_all(db), 
+        limit=5 )
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/partials/match_form.html",
+        context={
+            "suggestions": suggestions,
+            "invoice": invoice,
+            "line": invoice_line
+        }
+    )
+
+def get_product_or_404(product_id: uuid.UUID, db: Session = Depends(get_db)) -> Product:
+    product = product_crud.get_by_id(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+@router.post("/{invoice_id}/lines/{line_id}/link", response_class=HTMLResponse)
+def product_link(
+    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
+    invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
+    db: Session = Depends(get_db),
+    product_id: str = Form(default=""),
+    new_product_name: str = Form(default="")
+):
+    if not product_id and not new_product_name: 
+        raise HTTPException(status_code=400, detail="At least one parameter is required")
+    
+    if not product_id:
+        product = product_crud.create(db, ProductCreate(name=new_product_name))
+    else:
+        product = get_product_or_404(uuid.UUID(product_id), db)
+
+    invoice_line_crud.update(db, InvoiceLineUpdate(product_id=product.id), invoice_line)
+    
+    return templates.TemplateResponse(
+        request=request, 
+        name="invoices/partials/line_row.html",
+        context={
+            "invoice": invoice,
+            "invoice_line": invoice_line,
+        }
+    )        

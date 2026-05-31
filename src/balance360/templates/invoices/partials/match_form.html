@@ -1,0 +1,28 @@
+<div id="match-form-{{ line.id }}" class="mt-2">
+    <form hx-post="/invoices/{{ invoice.id }}/lines/{{ line.id }}/link"
+          hx-target="closest tr"
+          hx-swap="outerHTML"
+          class="flex flex-col gap-2">
+
+        {% if suggestions %}
+        <select name="product_id" class="border rounded px-3 py-2 text-sm">
+            <option value="">— Seleccionar producto existente —</option>
+            {% for s in suggestions %}
+            <option value="{{ s.product.id }}">{{ s.product.name }} ({{ s.score }}%)</option>
+            {% endfor %}
+        </select>
+        <p class="text-xs text-gray-400 text-center">— o crear nuevo —</p>
+        {% endif %}
+
+        <div class="flex gap-2">
+            <input type="text" name="new_product_name"
+                   value="{{ line.description }}"
+                   placeholder="Nombre del producto nuevo"
+                   class="border rounded px-3 py-2 text-sm flex-1" />
+            <button type="submit"
+                    class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">
+                Vincular
+            </button>
+        </div>
+    </form>
+</div>
