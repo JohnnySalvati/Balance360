@@ -20,13 +20,21 @@ from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
 from balance360.schemas.invoice_line import InvoiceLineCreate
 from balance360.schemas.invoice_tribute import InvoiceTributeCreate
 from balance360.services import invoice as invoice_service
-from balance360.models.invoice import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError
+from balance360.models.invoice import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError, Invoice
+from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType
 
 router = APIRouter(prefix="/invoices")
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 templates.env.filters["currency"] = lambda v: f"${v:,.2f}"
+
+def get_invoice_or_404(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> Invoice:
+    invoice =invoice_crud.get_by_id(db, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return invoice
+
 
 @router.get("/", response_class=HTMLResponse)
 def invoice_page(request: Request, db: Session = Depends(get_db), invoice_type: InvoiceType|None = None):
@@ -54,10 +62,7 @@ def new_invoice_form(request: Request, db: Session = Depends(get_db)):
     )    
 
 @router.get("/{invoice_id}")
-def invoice_edit_form(request: Request, invoice_id: uuid.UUID, db: Session = Depends(get_db)):
-    invoice =invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+def invoice_edit_form(request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request=request,
         name="invoices/detail.html",
@@ -83,39 +88,51 @@ def create_invoice(
     number: str|None = Form(default=""),
     pdf_lines: str|None = Form(default=""),
 ):
-    data = InvoiceCreate(
-        invoice_type=InvoiceType(invoice_type),
-        entity_id=uuid.UUID(entity_id),
-        contact_id=uuid.UUID(contact_id),
-        category_id=uuid.UUID(category_id) if category_id else None,
-        date=datetime.date.fromisoformat(date),
-        formal=formal if formal else False,
-        tax_only=tax_only if tax_only else False,
-        voucher_type=VoucherType(voucher_type) if voucher_type else None,
-        pos=int(pos) if pos else None,
-        number=int(number) if number else None,
-    )
+    try:
+        data = InvoiceCreate(
+            invoice_type=InvoiceType(invoice_type),
+            entity_id=uuid.UUID(entity_id),
+            contact_id=uuid.UUID(contact_id),
+            category_id=uuid.UUID(category_id) if category_id else None,
+            date=datetime.date.fromisoformat(date),
+            formal=formal if formal else False,
+            tax_only=tax_only if tax_only else False,
+            voucher_type=VoucherType(voucher_type) if voucher_type else None,
+            pos=int(pos) if pos else None,
+            number=int(number) if number else None,
+        )
+        invoice = invoice_crud.create(db, data)
 
-    invoice = invoice_crud.create(db, data)
-
-    if pdf_lines:
-        import json
-        from balance360.enums import IvaAliquot
-        for line in json.loads(pdf_lines):
-            iva_rate = Decimal(line["iva_rate"])
-            # mapear la tasa al enum
-            aliquot = next(
-                (a for a in IvaAliquot if a.rate == iva_rate),
-                IvaAliquot.standard
-            )
-            invoice_line_crud.create(db, InvoiceLineCreate(
-                invoice_id=invoice.id,
-                product_id=None,
-                description=line["description"],
-                quantity=int(Decimal(line["quantity"])),
-                unit_price=Decimal(line["unit_price"]),
-                iva_aliquot=aliquot,
-            ))
+        if pdf_lines:
+            import json
+            from balance360.enums import IvaAliquot
+            from balance360.services import product_match
+            products = product_crud.get_all(db)   # cargar el catálogo una sola vez
+            for line in json.loads(pdf_lines):
+                iva_rate = Decimal(line["iva_rate"])
+                # mapear la tasa al enum
+                aliquot = next(
+                    (a for a in IvaAliquot if a.rate == iva_rate),
+                    IvaAliquot.standard
+                )
+                # auto-vincular el producto solo si el match es muy fuerte;
+                # el resto queda sin producto para revisar en el borrador.
+                match = product_match.best_match(line["description"], products)
+                product_id = (
+                    match.product.id
+                    if match and match.score >= product_match.AUTO_ACCEPT_SCORE
+                    else None
+                )
+                invoice_line_crud.create(db, InvoiceLineCreate(
+                    invoice_id=invoice.id,
+                    product_id=product_id,
+                    description=line["description"] or None,
+                    quantity=int(Decimal(line["quantity"])),
+                    unit_price=Decimal(line["unit_price"]),
+                    iva_aliquot=aliquot,
+                ))
+    except (ValidationError, ValueError) as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
     return Response(
         status_code=200,
         headers={"HX-Redirect": f"/invoices/{invoice.id}"}
@@ -124,7 +141,7 @@ def create_invoice(
 
 @router.patch("/{invoice_id}", response_class=HTMLResponse)
 def update_invoice(
-    invoice_id: uuid.UUID,
+    invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     invoice_type: str|None = Form(default=""),
     entity_id: str|None = Form(default=""),
@@ -137,9 +154,6 @@ def update_invoice(
     pos: str|None = Form(default=""),
     number: str|None = Form(default=""),
 ):
-    invoice =invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
     data = InvoiceUpdate(
         invoice_type=InvoiceType(invoice_type) if invoice_type else None,
         entity_id=uuid.UUID(entity_id) if entity_id else None,
@@ -165,13 +179,10 @@ def update_invoice(
 
 @router.get("/{invoice_id}/lines/new-form", response_class=HTMLResponse)
 def new_line_form(
-    invoice_id: uuid.UUID,
     request: Request, 
+    invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     ):
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
     return templates.TemplateResponse(
         request=request,
         name="invoices/new_line_form.html",
@@ -188,29 +199,23 @@ def delete_invoice_line(
     invoice_line_id: uuid.UUID,
     db: Session = Depends(get_db)
 ):
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
     invoice_line = invoice_line_crud.get_by_id(db, invoice_line_id)
     if not invoice_line:
         raise HTTPException(status_code=404, detail="Invoice line not found")
+    if invoice_line.invoice != invoice_id:
+        raise HTTPException(status_code=404, detail="Invoice line mistmach invoice")
     invoice_line_crud.delete(db, invoice_line)
     return HTMLResponse("")
 
 @router.post("/{invoice_id}/confirm", response_class=HTMLResponse)
 def confirm_invoice(
-    invoice_id: uuid.UUID,
-    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     account_id: str|None = Form(default=""),
     payment_date: str|None = Form(default="")
 ):
     account_id_parsed = uuid.UUID(account_id) if account_id else None
     payment_date_parsed = datetime.date.fromisoformat(payment_date) if payment_date else None
-
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
 
     account = account_crud.get_by_id(db, account_id_parsed) if account_id_parsed else None
 
@@ -221,12 +226,36 @@ def confirm_invoice(
 
     return Response(
         status_code=200,
-        headers={"HX-Redirect": f"/invoices/{invoice_id}"}
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    )
+
+@router.post("/{invoice_id}/pay", response_class=HTMLResponse)
+def pay_invoice(
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db),
+    account_id: str = Form(...),
+    payment_date: str = Form(...),
+):
+
+    account = account_crud.get_by_id(db, uuid.UUID(account_id))
+    if not account:
+        return HTMLResponse('<p class="text-red-600 text-sm">Cuenta no encontrada</p>')
+
+    try:
+        invoice_service.register_payment(
+            db, invoice, account, datetime.date.fromisoformat(payment_date)
+        )
+    except InvoicePaymentError as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
     )
 
 @router.post("/{invoice_id}/lines", response_class=HTMLResponse)
 def create_invoice_line(
-    invoice_id: uuid.UUID,
+    invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     product_id: str|None = Form(default=""),
     description: str|None = Form(default=""),
@@ -238,12 +267,8 @@ def create_invoice_line(
     quantity_parsed = int(quantity)
     unit_price_parsed = Decimal(unit_price)
 
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-
     data = InvoiceLineCreate(
-        invoice_id=invoice_id,
+        invoice_id=invoice.id,
         product_id=product_id_parsed,
         description=description or None,
         quantity=quantity_parsed,
@@ -261,13 +286,9 @@ def create_invoice_line(
 
 @router.post("/{invoice_id}/authorize", response_class=HTMLResponse)
 def authorize_invoice(
-    invoice_id: uuid.UUID,
+    invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
 ):
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-
     try:
         invoice_service.authorize_invoice(db, invoice)
     except InvoiceAuthorizationError as e:
@@ -275,7 +296,7 @@ def authorize_invoice(
 
     return Response(
         status_code=200,
-        headers={"HX-Redirect": f"/invoices/{invoice_id}"}
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
     )
 
 
@@ -285,15 +306,19 @@ def close_line_form(invoice_id: uuid.UUID):
     return HTMLResponse("")
 
 
+
+def get_tribute_or_404(tribute_id: uuid.UUID, db: Session = Depends(get_db)) -> InvoiceTribute:
+    invoice_tribute = invoice_tribute_crud.get_by_id(db, tribute_id)
+    if not invoice_tribute:
+        raise HTTPException(status_code=404, detail="Invoice tribute not found")
+    return invoice_tribute
+
+
 @router.get("/{invoice_id}/tributes/new-form", response_class=HTMLResponse)
 def new_tribute_form(
-    invoice_id: uuid.UUID,
     request: Request,
-    db: Session = Depends(get_db),
+    invoice: Invoice = Depends(get_invoice_or_404),
 ):
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
     return templates.TemplateResponse(
         request=request,
         name="invoices/new_tribute_form.html",
@@ -306,19 +331,16 @@ def new_tribute_form(
 
 @router.post("/{invoice_id}/tributes", response_class=HTMLResponse)
 def create_invoice_tribute(
-    invoice_id: uuid.UUID,
+    invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     tribute_type: str = Form(...),
     description: str = Form(...),
     base_amount: str = Form(...),
     rate: str = Form(...),
 ):
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
 
     data = InvoiceTributeCreate(
-        invoice_id=invoice_id,
+        invoice_id=invoice.id,
         tribute_type=TributeType[tribute_type],
         description=description,
         base_amount=Decimal(base_amount),
@@ -332,20 +354,19 @@ def create_invoice_tribute(
     
     return Response(
         status_code=200,
-        headers={"HX-Redirect": f"/invoices/{invoice_id}"}
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
     )
-
-    
 
 
 @router.delete("/{invoice_id}/tributes/{tribute_id}", response_class=HTMLResponse)
 def delete_invoice_tribute(
-    tribute_id: uuid.UUID,
+    invoice: Invoice = Depends(get_invoice_or_404),
+    tribute: InvoiceTribute = Depends(get_tribute_or_404),
     db: Session = Depends(get_db),
 ):
-    tribute = invoice_tribute_crud.get_by_id(db, tribute_id)
-    if not tribute:
-        raise HTTPException(status_code=404, detail="Tribute not found")
+    if tribute.invoice_id != invoice.id:
+        raise HTTPException(status_code=404, detail="Invoice tribute mistmach invoice")
+    
     invoice_tribute_crud.delete(db, tribute)
     return HTMLResponse("")
 
@@ -356,10 +377,11 @@ def close_tribute_form(invoice_id: uuid.UUID):
 
 
 @router.get("/{invoice_id}/edit")
-def edit_invoice_form(request: Request, invoice_id: uuid.UUID, db: Session = Depends(get_db)):
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+def edit_invoice_form(
+    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db)
+    ):
     return templates.TemplateResponse(
         request=request,
         name="invoices/edit_form.html",
@@ -430,9 +452,11 @@ async def quick_contact(
     return {"id": str(contact.id), "name": contact.name}
 
 @router.delete("/{invoice_id}", response_class=HTMLResponse)
-def delete_invoice(invoice_id: uuid.UUID, db: Session = Depends(get_db)):
-    invoice = invoice_crud.get_by_id(db, invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+def delete_invoice(
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db)
+    ):
     invoice_crud.delete(db, invoice)
     return HTMLResponse("")
+
+

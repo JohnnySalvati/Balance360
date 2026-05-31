@@ -206,7 +206,7 @@
 
     <div id="payment-panel" class="hidden bg-white rounded shadow p-6">
         <h2 class="text-sm font-semibold text-gray-700 mb-4">Registrar pago</h2>
-        <form hx-post="/invoices/{{ invoice.id }}/confirm"
+        <form hx-post="/invoices/{{ invoice.id }}/pay"
               hx-target="#payment-error"
               hx-swap="innerHTML"
               class="flex flex-col gap-4">
@@ -301,4 +301,12 @@
     {% endif %}
 
 </div>
+
+<script>
+    // Proponer la fecha de hoy en los campos de fecha de pago (editable).
+    const _today = new Date().toISOString().slice(0, 10);
+    document.querySelectorAll('input[name="payment_date"]').forEach(input => {
+        if (!input.value) input.value = _today;
+    });
+</script>
 {% endblock %}

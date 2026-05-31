@@ -61,13 +61,13 @@ class Invoice(Base, TimestampMixin):
         Integer
     )
     confirmed: Mapped[bool] = mapped_column(
-        Boolean
+        Boolean, default=False, server_default="false"
     )
     paid: Mapped[bool] = mapped_column(
-        Boolean
+        Boolean, default=False, server_default="false"
     )
     authorized: Mapped[bool] = mapped_column(
-        Boolean
+        Boolean, default=False, server_default="false"
     )
     cae: Mapped[str|None] = mapped_column(
         String(14)

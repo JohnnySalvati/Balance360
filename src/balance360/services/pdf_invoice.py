@@ -135,7 +135,15 @@ def _extract_date(text: str) -> datetime.date | None:
     return None
 
 
+# Air/NVX invoices ("FACTURA\nA 0047-…"): the supplier (Venex/NVX) is printed
+# only in the logo image, so the text layer carries the BUYER's data. We must
+# not return the buyer as the supplier — leave it for manual selection.
+_AIR_SIGNATURE = re.compile(r'^FACTURA\s*\n[A-C]\s+\d{4}-\d+', re.MULTILINE)
+
+
 def _extract_supplier_cuit(lines: list, text: str) -> str | None:
+    if _AIR_SIGNATURE.search(text):
+        return None
     buyer_pos = text.find("Apellido y Nombre")
     emisor_zone = text[:buyer_pos] if buyer_pos > 0 else text
     m = re.search(r'Cuit\s+Nro\.?[:\s]+(\d{2}-\d{7,8}-\d)', emisor_zone, re.IGNORECASE)
@@ -164,6 +172,8 @@ def _clean_line(line: str) -> str:
 
 
 def _extract_supplier_name(lines: list, text: str) -> str | None:
+    if _AIR_SIGNATURE.search(text):
+        return None
     m = re.search(r'^De:\s+(.+?)(?:\s+FACTURA)?\s*$', text, re.MULTILINE | re.IGNORECASE)
     if m:
         return m.group(1).strip()
@@ -243,7 +253,7 @@ LAYOUTS: list[Layout] = [
         name="air_nvx",
         signature=re.compile(r"Cant\.\s+Código\s+Descripción.*Precio.*Subtotal", re.I),
         row=re.compile(
-            rf"^(?P<qty>\d+)\s+(?P<code>\S+)\s+(?P<desc>.+?)\s+\d+/\d+\s+(?P<iva>\d+,\d+)\s+{N}\s+(?P<price>{N})\s+{N}\s*$"
+            rf"^(?P<qty>\d+)\s+(?P<code>\S+)\s+(?P<desc>.+?)\s*\d+/\d+\s+(?P<iva>\d+,\d+)\s+{N}\s+(?P<price>{N})\s+{N}\s*$"
         ),
     ),
     # 3. Venex: qty [- ]desc (iva%) $ price [$ subtotal]

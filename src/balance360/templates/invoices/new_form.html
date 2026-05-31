@@ -48,6 +48,7 @@
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Contacto</label>
                     <select name="contact_id" id="contact-select" required class="border rounded px-3 py-2 text-sm">
+                        <option value="" data-type="both">— Seleccionar contacto —</option>
                         {% for c in contacts %}
                         <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}">{{ c.name }}</option>
                         {% endfor %}
@@ -60,7 +61,7 @@
                 <select name="category_id" class="border rounded px-3 py-2 text-sm">
                     <option value="">— Sin categoría —</option>
                     {% for cat in categories %}
-                    <option value="{{ cat.id }}" style="padding-left: {{ 1 + cat.depth * 1.5 }}rem">
+                    <option value="{{ cat.id }}">{{ '\u00a0\u00a0' * cat.depth }}{{ cat.name }}</option>
                         {{ cat.name }}
                     </option>
                     {% endfor %}
@@ -182,14 +183,6 @@ function toggleFormal(checked) {
     }
 }
 
-function toggleNumberField(invoiceType) {
-    const field = document.getElementById('number-field');
-    const input = field.querySelector('input');
-    const show = invoiceType === 'purchase';
-    field.style.display = show ? 'flex' : 'none';
-    input.required = show;
-}
-
 function filterContacts(invoiceType) {
     const select = document.getElementById('contact-select');
     const options = select.querySelectorAll('option');
@@ -256,6 +249,9 @@ async function uploadPdf() {
     if (data.contact_found && data.contact_id) {
         document.getElementById('contact-select').value = data.contact_id;
     } else {
+        // Proveedor del PDF no existe como contacto: vaciar el select para que
+        // el 'required' obligue a crearlo/elegirlo y no quede uno equivocado.
+        document.getElementById('contact-select').value = '';
         _pendingSupplier = {
             name: data.supplier_name || '',
             cuit: data.supplier_cuit || '',
