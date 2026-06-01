@@ -14,3 +14,4 @@ router.include_router(reports.router)
 router.include_router(config_router.router)
 router.include_router(import_rules.router)
 router.include_router(invoices.router)
+

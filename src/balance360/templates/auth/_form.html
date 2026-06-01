@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance360 — Iniciar sesión</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen flex items-center justify-center">
+
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-8">
+        <h1 class="text-2xl font-bold mb-6 text-center">Balance360</h1>
+
+        {% if error %}
+        <p class="text-red-600 text-sm mb-4 text-center">{{ error }}</p>
+        {% endif %}
+
+        <form method="post" action="/login/" class="flex flex-col gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Email</label>
+                <input type="email" name="email" required autofocus
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Contraseña</label>
+                <input type="password" name="password" required
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+            <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 mt-2">
+                Ingresar
+            </button>
+        </form>
+    </div>
+
+</body>
+</html>

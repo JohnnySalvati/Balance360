@@ -18,6 +18,10 @@ def get_by_id(db: Session, user_id: uuid.UUID) -> User|None:
     user = db.execute(select(User).where(User.id == user_id)).scalars().first()
     return user
 
+def get_by_email(db: Session, email: str) -> User|None:
+    user = db.execute(select(User).where(User.email == email)).scalars().first()
+    return user
+
 def create(db: Session, data: UserCreate) -> User:
     hashed = hash_password(data.password)
     db_user = User(
@@ -40,3 +44,6 @@ def update(db: Session, user: User, data: UserUpdate):
     db.flush()
     db.refresh(user)
     return user
+
+def verify_user_password(user: User, password: str) -> bool:
+    return pwd_context.verify(password, user.hashed_password)

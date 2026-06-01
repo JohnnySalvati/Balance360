@@ -14,7 +14,7 @@ class User(Base, TimestampMixin):
         String(50), unique=True
     )
     hashed_password: Mapped[str] = mapped_column(
-        String(60)
+        String(72)
     )
     full_name: Mapped[str] = mapped_column(
         String(30)

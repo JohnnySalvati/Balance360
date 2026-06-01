@@ -1,0 +1,24 @@
+<tr id="currency-row-{{ c.id }}" class="hover:bg-gray-50">
+    <td class="px-4 py-3 font-mono font-medium text-gray-800">{{ c.code }}</td>
+    <td class="px-4 py-3 text-gray-700">{{ c.name }}</td>
+    <td class="px-4 py-3 text-gray-500 text-xs">
+        {% if c.is_bond %}
+        <span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Bono</span>
+        {% else %}
+        <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Moneda</span>
+        {% endif %}
+    </td>
+    <td class="px-4 py-3 text-right">
+        <div class="flex justify-end gap-3">
+            <button hx-get="/config/currencies/{{ c.id }}/edit-form"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
+            <button hx-delete="/config/currencies/{{ c.id }}"
+                    hx-target="#currency-row-{{ c.id }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="¿Eliminar '{{ c.name }}'?"
+                    class="text-red-400 hover:text-red-600 text-xs">✕</button>
+        </div>
+    </td>
+</tr>
