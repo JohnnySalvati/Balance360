@@ -64,3 +64,4 @@ class CondicionIva(enum.Enum):
     EXENTO = 4
     FINAL = 6
     MONOTRIBUTO = 13
+

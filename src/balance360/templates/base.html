@@ -21,5 +21,52 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Toast -->
+    <div id="toast"
+         class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded shadow-lg text-sm text-white transition-opacity duration-300">
+    </div>
+
+    <script>
+        function showToast(message, type = "error") {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.className = toast.className.replace(/bg-\w+-\d+/g, "");
+            toast.classList.add(type === "error" ? "bg-red-600" : "bg-green-600");
+            toast.classList.remove("hidden");
+            setTimeout(() => toast.classList.add("hidden"), 4000);
+        }
+
+        document.body.addEventListener("showToast", (e) => {
+            showToast(e.detail.message, e.detail.type || "error");
+        });
+
+        // Confirm-on-second-click para botones con data-confirm-delete
+        document.body.addEventListener("click", (e) => {
+            const btn = e.target.closest("[data-confirm-delete]");
+            if (!btn) return;
+
+            if (btn.dataset.confirming) {
+                // Segundo click — disparar el request HTMX
+                clearTimeout(btn._confirmTimer);
+                delete btn.dataset.confirming;
+                btn.textContent = btn.dataset.originalText;
+                btn.classList.remove("text-orange-500");
+                htmx.trigger(btn, "confirmedDelete");
+            } else {
+                // Primer click — pedir confirmación
+                e.preventDefault();
+                btn.dataset.confirming = "true";
+                btn.dataset.originalText = btn.textContent;
+                btn.textContent = "¿Confirmás?";
+                btn.classList.add("text-orange-500");
+                btn._confirmTimer = setTimeout(() => {
+                    delete btn.dataset.confirming;
+                    btn.textContent = btn.dataset.originalText;
+                    btn.classList.remove("text-orange-500");
+                }, 3000);
+            }
+        });
+    </script>
+
 </body>
 </html>

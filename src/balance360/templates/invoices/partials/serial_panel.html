@@ -1,0 +1,38 @@
+<td colspan="6" class="px-4 py-2 bg-gray-50">
+<div id="serial-panel-{{ invoice_line.id }}" class="mt-2">
+
+    {% if serials %}
+    <ul class="mb-2 space-y-1">
+        {% for s in serials %}
+        <li class="flex items-center justify-between text-xs text-gray-700 bg-gray-50 rounded px-2 py-1">
+            <span class="font-mono">{{ s.serial }}</span>
+            {% if not invoice.confirmed %}
+            <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ invoice_line.id }}/serials/{{ s.id }}"
+                    hx-target="#serial-row-{{ invoice_line.id }}"
+                    hx-swap="innerHTML"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
+                    class="text-red-400 hover:text-red-600 ml-2">✕</button>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if not invoice.confirmed %}
+    <form hx-post="/invoices/{{ invoice.id }}/lines/{{ invoice_line.id }}/serials"
+          hx-target="#serial-row-{{ invoice_line.id }}"
+          hx-swap="innerHTML"
+          class="flex gap-2 items-center">
+        <input type="text" name="serial" required
+               placeholder="S/N"
+               class="border rounded px-2 py-1 text-xs font-mono flex-1">
+        <button type="submit"
+                class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700">
+            + Agregar
+        </button>
+    </form>
+    {% endif %}
+
+</div>
+</td>

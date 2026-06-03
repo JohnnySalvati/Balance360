@@ -28,7 +28,7 @@ class SerialNumber(Base, TimestampMixin):
         Uuid, ForeignKey("invoice_lines.id")
     )
     sale_line_id: Mapped[uuid.UUID|None] = mapped_column(
-        Uuid, ForeignKey("invoice_lines.id")
+        Uuid, ForeignKey("invoice_lines.id"), nullable=True
     )
     product: Mapped['Product'] = relationship(
         back_populates="serial_numbers"

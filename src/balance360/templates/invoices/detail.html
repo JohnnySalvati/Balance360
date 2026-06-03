@@ -115,6 +115,12 @@
                                     class="ml-2 text-xs text-blue-500 hover:text-blue-700">Vincular producto</button>
                         {% else %}
                             {{ line.product.name if line.product else line.description }}
+                            {% if line.product and line.product.track_serial %}
+                            <button hx-get="/invoices/{{ invoice.id }}/lines/{{ line.id }}/serials"
+                                    hx-target="#serial-row-{{ line.id }}"
+                                    hx-swap="innerHTML"
+                                    class="ml-2 text-xs text-purple-500 hover:text-purple-700">S/N</button>
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td class="px-4 py-3 text-right text-gray-600">{{ line.quantity }}</td>
@@ -124,13 +130,15 @@
                     {% if not invoice.confirmed %}
                     <td class="px-4 py-3 text-right">
                         <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
                                 hx-target="closest tr"
                                 hx-swap="outerHTML"
-                                hx-confirm="¿Eliminar este ítem?"
                                 class="text-red-400 hover:text-red-600 text-xs">✕</button>
                     </td>
                     {% endif %}
                 </tr>
+                <tr id="serial-row-{{ line.id }}"></tr>
                 {% else %}
                 <tr id="empty-row">
                     <td colspan="6" class="px-4 py-6 text-center text-gray-400">Sin ítems.</td>
@@ -156,9 +164,10 @@
                         {{ tribute.description }}
                         {% if not invoice.confirmed %}
                         <button hx-delete="/invoices/{{ invoice.id }}/tributes/{{ tribute.id }}"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
                                 hx-target="closest tr"
                                 hx-swap="outerHTML"
-                                hx-confirm="¿Eliminar este tributo?"
                                 class="ml-2 text-red-400 hover:text-red-600 text-xs">✕</button>
                         {% endif %}
                     </td>
@@ -254,7 +263,8 @@
     {% if not invoice.confirmed %}
     <div class="bg-white rounded shadow p-6 flex justify-between items-center">
         <button hx-delete="/invoices/{{ invoice.id }}"
-                hx-confirm="¿Eliminar este comprobante?"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
                 hx-on::after-request="window.location='/invoices/'"
                 class="text-sm text-red-500 hover:text-red-700">
             Eliminar borrador

@@ -52,11 +52,13 @@ def create_product(
     request: Request,
     db: Session = Depends(get_db),
     name: str = Form(...),
-    margin: str = Form(default="")
+    margin: str = Form(default=""),
+    track_serial: bool = Form(default=False)
 ):
     data = ProductCreate(
         name=name,
         margin=Decimal(margin) if margin else Decimal(0),
+        track_serial=track_serial
     )
     product_service.create_product(db, data)
     response = HTMLResponse('<div id="modal"></div>')
@@ -78,14 +80,16 @@ def update_product(
     product_id: uuid.UUID,
     db: Session = Depends(get_db),
     name: str|None = Form(default=""),
-    margin: str|None = Form(default="")
+    margin: str|None = Form(default=""),
+    track_serial: bool = Form(default=False)
 ):
     product = product_crud.get_by_id(db, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     data = ProductUpdate(
         name=name if name else None,
-        margin=Decimal(margin) if margin else Decimal(0)
+        margin=Decimal(margin) if margin else Decimal(0),
+        track_serial=track_serial
     )
     product_service.update_product(db, product, data)
     response = HTMLResponse('<div id="modal"></div>')

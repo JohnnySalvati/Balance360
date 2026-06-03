@@ -49,6 +49,7 @@ class InvoiceLine(Base, TimestampMixin):
         back_populates="sale_line"
     )
 
+
     @property
     def net_amount(self) -> Decimal:
         return self.quantity * self.unit_price

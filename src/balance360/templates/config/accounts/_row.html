@@ -10,9 +10,11 @@
                     hx-swap="outerHTML"
                     class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
             <button hx-delete="/config/accounts/{{ a.id }}"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
                     hx-target="#acc-row-{{ a.id }}"
                     hx-swap="outerHTML"
-                    hx-confirm="¿Eliminar '{{ a.name }}'?"
+                    
                     class="text-red-400 hover:text-red-600 text-xs">✕</button>
         </div>
     </td>

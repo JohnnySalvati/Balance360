@@ -153,6 +153,11 @@ class Invoice(Base, TimestampMixin):
             raise InvoiceConfirmationError("El comprobante ya esta confirmado")
         if not self.invoice_lines:
             raise InvoiceConfirmationError("El comprobante no tiene items")
+        
+        for invoice_line in self.invoice_lines:
+            if invoice_line.product and invoice_line.product.track_serial:
+                if invoice_line.quantity != len(invoice_line.purchased_serials):
+                    raise InvoiceConfirmationError("Faltan numeros de serie")
 
     def validate_payment(self):
         if not self.confirmed:

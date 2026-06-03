@@ -1,12 +1,12 @@
-{% set is_edit = product is defined and product %}
-{% set action_url = "/config/products/" ~ product.id if is_edit else "/config/products/" %}
-{% set title = "Editar producto" if is_edit else "Nuevo producto" %}
+{% set is_edit = user is defined and user %}
+{% set action_url = "/config/users/" ~ user.id if is_edit else "/config/users/" %}
+{% set title = "Editar usuario" if is_edit else "Nuevo usuario" %}
 
 <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold">{{ title }}</h2>
-            <button hx-get="/config/products/close-modal"
+            <button hx-get="/config/users/close-modal"
                     hx-target="#modal"
                     hx-swap="outerHTML"
                     class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
@@ -18,29 +18,39 @@
               class="flex flex-col gap-3">
 
             <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Nombre</label>
-                <input type="text" name="name" required maxlength="100"
-                       value="{{ product.name if is_edit else '' }}"
+                <label class="text-xs text-gray-500">Nombre completo</label>
+                <input type="text" name="full_name" required maxlength="30"
+                       value="{{ user.full_name if is_edit else '' }}"
                        class="border rounded px-3 py-2 text-sm">
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Margen de ganancia (%)</label>
-                <input type="number" name="margin" step="0.01" min="0"
-                       value="{{ product.margin if is_edit else '0' }}"
+                <label class="text-xs text-gray-500">Email</label>
+                <input type="email" name="email" required maxlength="50"
+                       value="{{ user.email if is_edit else '' }}"
                        class="border rounded px-3 py-2 text-sm">
             </div>
 
-            <div class="flex items-center gap-2">
-                <input type="checkbox" name="track_serial" id="track_serial" value="true"
-                       {% if is_edit and product.track_serial %}checked{% endif %}
-                       class="rounded border-gray-300">
-                <label for="track_serial" class="text-sm text-gray-700">Registrar números de serie</label>
+            {% if not is_edit %}
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Contraseña</label>
+                <input type="password" name="password" required
+                       class="border rounded px-3 py-2 text-sm">
             </div>
+            {% endif %}
+
+            {% if is_edit %}
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="is_active" id="is_active" value="true"
+                       {% if user.is_active %}checked{% endif %}
+                       class="rounded border-gray-300">
+                <label for="is_active" class="text-sm text-gray-700">Usuario activo</label>
+            </div>
+            {% endif %}
 
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"
-                        hx-get="/config/products/close-modal"
+                        hx-get="/config/users/close-modal"
                         hx-target="#modal"
                         hx-swap="outerHTML"
                         class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">

@@ -57,9 +57,11 @@
                     title="Editar">✎</button>
             <button type="button"
                     hx-delete="/transactions/{{ t.id }}"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
                     hx-target="#row-{{ t.id }}"
                     hx-swap="outerHTML"
-                    hx-confirm="¿Eliminar esta transacción?"
+                    
                     class="text-red-400 hover:text-red-600 text-xs"
                     title="Eliminar">✕</button>
         </div>

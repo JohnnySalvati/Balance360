@@ -2,8 +2,8 @@
 
 {% block content %}
 <div class="shrink-0 flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Productos</h1>
-    <button hx-get="/config/products/new-form"
+    <h1 class="text-2xl font-bold">Usuarios</h1>
+    <button hx-get="/config/users/new-form"
             hx-target="#modal"
             hx-swap="outerHTML"
             class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
@@ -16,18 +16,18 @@
         <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3">Nombre</th>
-                <th class="px-4 py-3">Margen</th>
-                <th class="px-4 py-3">S/N</th>
+                <th class="px-4 py-3">Email</th>
+                <th class="px-4 py-3">Estado</th>
                 <th class="px-4 py-3"></th>
             </tr>
         </thead>
         <tbody id="tbody" class="divide-y divide-gray-100"
                hx-trigger="refreshRows from:body"
-               hx-get="/config/products/rows"
+               hx-get="/config/users/rows"
                hx-target="#tbody"
                hx-swap="innerHTML">
-            {% for p in products %}
-            {% include "products/_row.html" %}
+            {% for u in users %}
+            {% include "users/_row.html" %}
             {% endfor %}
         </tbody>
     </table>

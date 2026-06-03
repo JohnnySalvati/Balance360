@@ -1,23 +1,23 @@
-<tr id="prod-row-{{ p.id }}" class="hover:bg-gray-50">
-    <td class="px-4 py-3 font-medium text-gray-800">{{ p.name }}</td>
-    <td class="px-4 py-3 text-gray-500">{{ p.margin }}%</td>
+<tr id="user-row-{{ u.id }}" class="hover:bg-gray-50">
+    <td class="px-4 py-3 font-medium text-gray-800">{{ u.full_name }}</td>
+    <td class="px-4 py-3 text-gray-600">{{ u.email }}</td>
     <td class="px-4 py-3">
-        {% if p.track_serial %}
-        <span class="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded">Sí</span>
+        {% if u.is_active %}
+        <span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">Activo</span>
         {% else %}
-        <span class="text-gray-300 text-xs">—</span>
+        <span class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded">Inactivo</span>
         {% endif %}
     </td>
     <td class="px-4 py-3 text-right">
         <div class="flex justify-end gap-3">
-            <button hx-get="/config/products/{{ p.id }}/edit-form"
+            <button hx-get="/config/users/{{ u.id }}/edit-form"
                     hx-target="#modal"
                     hx-swap="outerHTML"
                     class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
-            <button hx-delete="/config/products/{{ p.id }}"
+            <button hx-delete="/config/users/{{ u.id }}"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
-                    hx-target="#prod-row-{{ p.id }}"
+                    hx-target="#user-row-{{ u.id }}"
                     hx-swap="outerHTML"
                     
                     class="text-red-400 hover:text-red-600 text-xs">✕</button>

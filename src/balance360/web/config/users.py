@@ -1,0 +1,120 @@
+import uuid
+from pathlib import Path
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from balance360.dependencies import get_db
+from balance360.crud import user as user_crud
+from balance360.schemas.user import UserCreate, UserUpdate
+from balance360.dependencies import get_current_user
+
+router = APIRouter(prefix="/users")
+templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
+
+@router.get("/", response_class=HTMLResponse)
+def user_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request=request,
+        name="users/list.html",
+        context={
+            "users": user_crud.get_all(db)
+        }
+    )
+
+@router.get("/close-modal")
+def close_modl():
+    return HTMLResponse('<div id="modal"></div>')
+
+@router.get("/rows")
+def product_rows(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request=request,
+        name="users/_rows.html",
+        context={
+            "users": user_crud.get_all(db)
+        }
+    )
+
+@router.get("/new-form")
+def new_user_form(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="users/_form_modal.html",
+    )
+
+@router.post("/", response_class=HTMLResponse)
+def create_user(
+    request: Request,
+    db: Session = Depends(get_db),
+    email: str = Form(...),
+    password: str = Form(...),
+    full_name: str = Form(...),
+):
+    data = UserCreate(
+        email=email,
+        password=password,
+        full_name=full_name,
+        is_active=True
+    )
+    try:
+        user_crud.create(db, data)
+    except IntegrityError: 
+        db.rollback()
+        return HTMLResponse('<div id="modal"><p class="text-red-600 text-sm p-4">El email ya está registrado.</p></div>')
+    
+    response = HTMLResponse('<div id="modal"></div>')
+    response.headers["HX-Trigger"] = "refreshRows"
+    return response
+
+@router.get("/{user_id}/edit-form")
+def user_edit_form(request: Request, user_id: uuid.UUID, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request=request,
+        name="users/_form_modal.html",
+        context={
+            "user": user_crud.get_by_id(db, user_id)
+        }
+    )
+
+@router.patch("/{user_id}", response_class=HTMLResponse)
+def update_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    email: str|None = Form(default=""),
+    full_name: str|None = Form(default=""),
+    is_active: bool|None = Form(default=True)
+):
+    user = user_crud.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    data = UserUpdate(
+        email=email if email else None,
+        full_name=full_name if full_name else None,
+        is_active=is_active
+    )
+    user_crud.update(db, user, data)
+    response = HTMLResponse('<div id="modal"></div>')
+    response.headers["HX-Trigger"] = "refreshRows"
+    return response
+
+@router.delete("/{user_id}")
+def delete_user(
+    user_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user = user_crud.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    current_user = get_current_user(request, db)
+    if current_user.id == user.id:
+        response = HTMLResponse("")
+        response.headers["HX-Trigger"] = '{"showToast": {"message": "No podés eliminar tu propio usuario.", "type": "error"}}'
+        response.headers["HX-Reswap"] = "none"
+        return response
+
+    user_crud.delete(db, user)
+    return HTMLResponse("")
