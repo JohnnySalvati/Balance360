@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
+from balance360.models.category import Category
 from balance360.crud import category as category_crud
 from balance360.schemas.category import CategoryCreate, CategoryUpdate
 
@@ -71,18 +72,20 @@ def category_edit_form(request: Request, category_id: uuid.UUID, db: Session = D
         }
     )
 
+def get_category_or_404(category_id: uuid.UUID, db: Session = Depends(get_db)) -> Category:
+    category = category_crud.get_by_id(db, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return category
 
 @router.patch("/{category_id}", response_class=HTMLResponse)
 def update_category(
-        category_id: uuid.UUID,
+        category: Category = Depends(get_category_or_404),
         db: Session = Depends(get_db),
         name: str = Form(...),
         parent_id: str = Form(default=""),
         description: str = Form(default="")
 ):
-    category = category_crud.get_by_id(db, category_id)
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
     data = CategoryUpdate(
         name=name,
         parent_id=uuid.UUID(parent_id) if parent_id else None,
@@ -95,12 +98,9 @@ def update_category(
 
 @router.delete("/{category_id}", response_class=HTMLResponse)
 def delete_category(
-    category_id: uuid.UUID,
+    category: Category = Depends(get_category_or_404),
     db: Session = Depends(get_db),
 ):
-    category = category_crud.get_by_id(db, category_id)
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
     if category.transactions or category.children:
         return HTMLResponse(
             '<tr><td colspan="4" class="px-4 py-2 text-red-600 text-sm">'

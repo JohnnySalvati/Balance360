@@ -42,11 +42,13 @@ class InvoiceLine(Base, TimestampMixin):
     )
     purchased_serials: Mapped[list['SerialNumber']] = relationship(
         foreign_keys="SerialNumber.purchase_line_id",
-        back_populates="purchase_line"
+        back_populates="purchase_line",
+        cascade="all, delete-orphan"
     )
     sold_serials: Mapped[list['SerialNumber']] = relationship(
         foreign_keys="SerialNumber.sale_line_id",
-        back_populates="sale_line"
+        back_populates="sale_line",
+        passive_deletes=True
     )
 
 

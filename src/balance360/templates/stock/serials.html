@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-4">
+    <div class="flex items-center gap-3">
+        <a href="/stock/" class="text-gray-400 hover:text-blue-600 text-sm">← Stock</a>
+        <h1 class="text-2xl font-bold">Seriales</h1>
+    </div>
+</div>
+
+{# Filtros #}
+<div class="shrink-0 flex gap-3 mb-4">
+    <form method="get" action="/stock/serials" class="flex gap-3 items-center">
+        <select name="status" class="border rounded px-3 py-2 text-sm"
+                onchange="this.form.submit()">
+            <option value="">— Todos los estados —</option>
+            {% for s in statuses %}
+            <option value="{{ s.value }}" {% if current_status == s.value %}selected{% endif %}>
+                {{ s.value }}
+            </option>
+            {% endfor %}
+        </select>
+        <select name="product_id" class="border rounded px-3 py-2 text-sm"
+                onchange="this.form.submit()">
+            <option value="">— Todos los productos —</option>
+            {% for p in products %}
+            <option value="{{ p.id }}" {% if current_product_id == p.id|string %}selected{% endif %}>
+                {{ p.name }}
+            </option>
+            {% endfor %}
+        </select>
+        <input type="text" name="q" id="serial-search-input" value="{{ current_q or '' }}"
+               placeholder="Buscar serial..."
+               class="border rounded px-3 py-2 text-sm w-48">
+        <input type="file" id="serial-scan-file" accept="image/*" capture="environment" class="hidden"
+               onchange="scanSerialFromPhoto(this)">
+        <button type="button" onclick="document.getElementById('serial-scan-file').click()"
+                class="bg-gray-600 text-white px-3 py-2 rounded text-sm hover:bg-gray-700" title="Escanear">
+            📷
+        </button>
+        <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">
+            Buscar
+        </button>
+    </form>
+</div>
+
+<script>
+function scanSerialFromPhoto(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+
+    if (!('BarcodeDetector' in window)) {
+        alert('BarcodeDetector no soportado. Usá Chrome en Android.');
+        return;
+    }
+
+    const detector = new BarcodeDetector({ formats: ['code_128', 'qr_code', 'ean_13', 'ean_8'] });
+
+    createImageBitmap(file).then(bitmap => detector.detect(bitmap)).then(barcodes => {
+        if (barcodes.length > 0) {
+            const raw = barcodes[0].rawValue.replace(/^\][A-Za-z]\d/, '');
+            window.location.href = '/stock/serials?q=' + encodeURIComponent(raw);
+        } else {
+            alert('No se detectó código — intentá con mejor luz o más cerca.');
+        }
+    }).catch(err => alert('Error: ' + err.message));
+}
+</script>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Serial</th>
+                <th class="px-4 py-3">Producto</th>
+                <th class="px-4 py-3">Estado</th>
+                <th class="px-4 py-3">Compra</th>
+                <th class="px-4 py-3">Venta</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for s in serial_numbers %}
+            <tr class="hover:bg-gray-50 cursor-pointer"
+                onclick="location.href='/stock/serials/{{ s.id }}'">
+                <td class="px-4 py-3 font-mono text-gray-800">{{ s.serial }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ s.product.name if s.product else "—" }}</td>
+                <td class="px-4 py-3">
+                    {% if s.status.value == 'pending' %}
+                        <span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Pendiente</span>
+                    {% elif s.status.value == 'available' %}
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Disponible</span>
+                    {% elif s.status.value == 'reserved' %}
+                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Reservado</span>
+                    {% elif s.status.value == 'sold' %}
+                        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Vendido</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                    {% if s.purchase_line %}
+                        <a href="/invoices/{{ s.purchase_line.invoice_id }}"
+                           class="hover:text-blue-600"
+                           onclick="event.stopPropagation()">
+                            {{ s.purchase_line.invoice.date }} — {{ s.purchase_line.invoice.contact.name }}
+                        </a>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                    {% if s.sale_line %}
+                        <a href="/invoices/{{ s.sale_line.invoice_id }}"
+                           class="hover:text-blue-600"
+                           onclick="event.stopPropagation()">
+                            {{ s.sale_line.invoice.date }} — {{ s.sale_line.invoice.contact.name }}
+                        </a>
+                    {% else %}—{% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="px-4 py-6 text-center text-gray-400">No hay seriales.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

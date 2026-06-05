@@ -4,7 +4,7 @@ from balance360.crud import transaction as transaction_crud
 from balance360.models.invoice import Invoice
 from balance360.models.account import Account
 from balance360.schemas.transaction import TransactionCreate
-from balance360.enums import TransactionType, InvoiceType
+from balance360.enums import TransactionType, InvoiceType, SerialStatus
 from balance360.dtos.invoice_request import InvoiceRequest, VoucherData, VoucherInfo, IvaDetail, Tribute
 from balance360.dtos.auth import Auth
 from balance360.services.arca import get_access_ticket
@@ -17,12 +17,21 @@ class InvoiceConfirmError(Exception):
 class InvoiceRegisterPaymentError(Exception):
     pass
 
-def confirm_invoice(db: Session, invoice: Invoice, payment_date: date|None = None, account: Account|None = None):
+def confirm_invoice(db: Session, invoice: Invoice):
     invoice.validate_confirmation()
     invoice.confirmed = True
+
+    for invoice_line in invoice.invoice_lines:
+        if not invoice_line.product or not invoice_line.product.track_serial:
+            continue
+        if invoice.invoice_type == InvoiceType.purchase:
+            for serial in invoice_line.purchased_serials:
+                serial.status = SerialStatus.available
+        else:
+            for serial in invoice_line.sold_serials:
+                serial.status = SerialStatus.sold
+
     db.flush()
-    if account:
-        register_payment(db, invoice, account, payment_date or date.today())
 
 def register_payment(db: Session, invoice: Invoice, account: Account, payment_date: date):
     

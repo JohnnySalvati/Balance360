@@ -1,5 +1,6 @@
 import uuid
 import datetime
+import json
 from decimal import Decimal
 from pydantic import ValidationError
 from pathlib import Path
@@ -21,20 +22,22 @@ from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
 from balance360.schemas.invoice_line import InvoiceLineCreate, InvoiceLineUpdate
 from balance360.schemas.invoice_tribute import InvoiceTributeCreate
 from balance360.schemas.product import ProductCreate
-from balance360.schemas.serial_number import SerialNumberCreate
 from balance360.services import invoice as invoice_service
+from balance360.services import serial_number as serial_number_service
+from balance360.services.serial_number import SerialValidationError
 from balance360.services import product_match as product_match_service
 from balance360.models.invoice import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError, Invoice
 from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.product import Product
 from balance360.models.serial_number import SerialNumber
-from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType, SerialStatus
+from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType
 
 router = APIRouter(prefix="/invoices")
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 templates.env.filters["currency"] = lambda v: f"${v:,.2f}"
+
 
 def get_invoice_or_404(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> Invoice:
     invoice =invoice_crud.get_by_id(db, invoice_id)
@@ -222,16 +225,9 @@ def delete_invoice_line(
 def confirm_invoice(
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
-    account_id: str|None = Form(default=""),
-    payment_date: str|None = Form(default="")
 ):
-    account_id_parsed = uuid.UUID(account_id) if account_id else None
-    payment_date_parsed = datetime.date.fromisoformat(payment_date) if payment_date else None
-
-    account = account_crud.get_by_id(db, account_id_parsed) if account_id_parsed else None
-
     try:
-        invoice_service.confirm_invoice(db, invoice, payment_date_parsed, account)
+        invoice_service.confirm_invoice(db, invoice)
     except (InvoiceConfirmationError, InvoicePaymentError) as e:
         return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
 
@@ -534,6 +530,19 @@ def get_serial_number_or_404(serial_number_id: uuid.UUID, db: Session = Depends(
         raise HTTPException(status_code=404, detail="Serial number not found")
     return serial_number
 
+def get_serials(invoice_line: InvoiceLine) -> list:
+    if invoice_line.invoice.invoice_type == InvoiceType.sale:
+        return invoice_line.sold_serials
+    return invoice_line.purchased_serials
+
+
+def toast_error(message: str) -> HTMLResponse:
+    response = HTMLResponse("")
+    response.headers["HX-Trigger"] = json.dumps({"showToast": {"message": message , "type": "error"}})
+    response.headers["HX-Reswap"] = "none"
+    return response
+
+
 @router.get("/{invoice_id}/lines/{invoice_line_id}/serials")
 def serial_rows(
     request: Request,
@@ -548,7 +557,7 @@ def serial_rows(
         request=request,
         name="invoices/partials/serial_panel.html",
         context={
-            "serials": invoice_line.purchased_serials,
+            "serials": get_serials(invoice_line),
             "invoice": invoice_line.invoice,
             "invoice_line": invoice_line
         }
@@ -561,31 +570,16 @@ def create_serial(
     db: Session = Depends(get_db),
     serial: str = Form(...),
 ):
-    if len(invoice_line.purchased_serials) == invoice_line.quantity:
-        response = HTMLResponse("")
-        response.headers["HX-Trigger"] = '{"showToast": {"message": "Cantidad de seriales excedida", "type": "error"}}'
-        response.headers["HX-Reswap"] = "none"
-        return response
-
-    if not invoice_line.product_id:
-        raise HTTPException(status_code=404, detail="Invoice_id is empty")
-
-    data = SerialNumberCreate(
-        product_id=invoice_line.product_id,
-        serial=serial,
-        purchase_line_id=invoice_line.id,
-    )   
     try:
-        serial_number_crud.create(db, data)
-        db.refresh(invoice_line)
-    except (ValidationError, ValueError) as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
-    
+        serial_number_service.add_serial_to_line(db, serial, invoice_line)
+    except SerialValidationError as e:
+        return toast_error(str(e))
+
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/serial_panel.html",
         context={
-            "serials": invoice_line.purchased_serials,
+            "serials": get_serials(invoice_line),
             "invoice": invoice_line.invoice,
             "invoice_line": invoice_line
         }
@@ -599,15 +593,17 @@ def delete_serial(
     invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
 ):
     serial_number = get_serial_number_or_404(serial_id, db)
-
-    serial_number_crud.delete(db, serial_number)
-    db.flush()
-    # db.expire(invoice_line)
-
+    
+    try:
+        serial_number_service.remove_serial_from_line(db, serial_number, invoice_line)
+    except SerialValidationError as e:
+        return toast_error(str(e))
+    
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/serial_panel.html",
-        context={"serials": invoice_line.purchased_serials,
+        context={
+            "serials": get_serials(invoice_line),
             "invoice": invoice_line.invoice,
             "invoice_line": invoice_line
         }

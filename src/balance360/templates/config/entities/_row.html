@@ -2,6 +2,10 @@
     <td class="px-4 py-3 font-medium text-gray-800">{{ e.name }}</td>
     <td class="px-4 py-3 text-right">
         <div class="flex justify-end gap-3">
+            <button hx-get="/config/entities/{{ e.id }}/memberships"
+                    hx-target="#membership-panel-{{ e.id }}"
+                    hx-swap="outerHTML"
+                    class="text-gray-400 hover:text-gray-600 text-xs" title="Miembros">👥</button>
             <button hx-get="/config/entities/{{ e.id }}/edit-form"
                     hx-target="#modal"
                     hx-swap="outerHTML"
@@ -11,8 +15,8 @@
                     data-confirm-delete
                     hx-target="#ent-row-{{ e.id }}"
                     hx-swap="outerHTML"
-                    
                     class="text-red-400 hover:text-red-600 text-xs">✕</button>
         </div>
     </td>
 </tr>
+<tr id="membership-panel-{{ e.id }}"></tr>

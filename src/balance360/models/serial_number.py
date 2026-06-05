@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 import uuid
 
+
 from sqlalchemy import Uuid, ForeignKey, String, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
@@ -19,7 +20,7 @@ class SerialNumber(Base, TimestampMixin):
         Uuid, ForeignKey("products.id")
     )
     serial: Mapped[str] = mapped_column(
-        String(20), nullable=False
+        String(20), nullable=False, unique=True
     )
     status: Mapped[SerialStatus] = mapped_column(
         Enum(SerialStatus)
@@ -28,7 +29,9 @@ class SerialNumber(Base, TimestampMixin):
         Uuid, ForeignKey("invoice_lines.id")
     )
     sale_line_id: Mapped[uuid.UUID|None] = mapped_column(
-        Uuid, ForeignKey("invoice_lines.id"), nullable=True
+        Uuid,
+        ForeignKey("invoice_lines.id", ondelete="SET NULL"),
+        nullable=True
     )
     product: Mapped['Product'] = relationship(
         back_populates="serial_numbers"

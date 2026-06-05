@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold">Stock</h1>
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Producto</th>
+                <th class="px-4 py-3 text-right">Stock</th>
+                <th class="px-4 py-3 text-right">Último precio compra</th>
+                <th class="px-4 py-3 text-right">Valorización</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for item in stock_items %}
+            <tr class="hover:bg-gray-50 cursor-pointer"
+                onclick="location.href='/stock/serials?product_id={{ item.id|string }}'">
+                <td class="px-4 py-3 text-gray-800">{{ item.name }}</td>
+                <td class="px-4 py-3 text-right
+                    {% if item.stock_qty <= 0 %}text-red-500{% else %}text-gray-800{% endif %}">
+                    {{ item.stock_qty }}
+                </td>
+                <td class="px-4 py-3 text-right text-gray-600">
+                    {% if item.unit_price %}
+                        $ {{ "{:,.2f}".format(item.unit_price) }}
+                    {% else %}—{% endif %}
+                </td>
+                <td class="px-4 py-3 text-right text-gray-600">
+                    {% if item.valuation %}
+                        $ {{ "{:,.2f}".format(item.valuation) }}
+                    {% else %}—{% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="px-4 py-6 text-center text-gray-400">No hay productos con movimientos.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if stock_items %}
+        <tfoot class="bg-gray-50 text-xs text-gray-500 uppercase">
+            <tr>
+                <td colspan="3" class="px-4 py-3 text-right font-medium">Total valorización</td>
+                <td class="px-4 py-3 text-right font-semibold text-gray-800">
+                    $ {{ "{:,.2f}".format(stock_items | sum(attribute="valuation")) }}
+                </td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+</div>
+{% endblock %}

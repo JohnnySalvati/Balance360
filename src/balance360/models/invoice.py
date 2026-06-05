@@ -7,7 +7,7 @@ from sqlalchemy import Uuid, Enum, Date, ForeignKey, Boolean, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot
 from balance360.models.base import Base, TimestampMixin
-from balance360.enums import DocType
+from balance360.enums import DocType, SerialStatus
 
 if TYPE_CHECKING:
     from balance360.models.entity import Entity
@@ -155,9 +155,26 @@ class Invoice(Base, TimestampMixin):
             raise InvoiceConfirmationError("El comprobante no tiene items")
         
         for invoice_line in self.invoice_lines:
-            if invoice_line.product and invoice_line.product.track_serial:
+            if not invoice_line.product or not invoice_line.product.track_serial:
+                continue
+
+            if self.invoice_type == InvoiceType.sale:
+                if invoice_line.quantity != len(invoice_line.sold_serials):
+                    raise InvoiceConfirmationError("Cantidad erronea de seriales")
+                for serial in invoice_line.sold_serials:
+                    if serial.product_id != invoice_line.product_id:
+                        raise InvoiceConfirmationError("El serial no corresponde a este producto")
+                    if serial.status != SerialStatus.reserved:
+                        raise InvoiceConfirmationError("El serial no esta reservado")
+            else:
                 if invoice_line.quantity != len(invoice_line.purchased_serials):
-                    raise InvoiceConfirmationError("Faltan numeros de serie")
+                    raise InvoiceConfirmationError("Cantidad erronea de seriales")
+                for serial in invoice_line.purchased_serials:
+                    if serial.product_id != invoice_line.product_id:
+                        raise InvoiceConfirmationError("El serial no corresponde a este producto")
+                    if serial.status != SerialStatus.pending:
+                        raise InvoiceConfirmationError("El serial no esta pendiente")
+                
 
     def validate_payment(self):
         if not self.confirmed:

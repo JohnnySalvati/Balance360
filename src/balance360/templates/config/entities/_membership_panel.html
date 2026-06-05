@@ -1,0 +1,167 @@
+<tr id="membership-panel-{{ entity.id }}">
+    <td colspan="2" class="px-6 py-4 bg-blue-50 border-t border-blue-100">
+        <div class="flex gap-8">
+
+            {# Pie chart #}
+            <div class="flex-shrink-0 flex flex-col items-center gap-2">
+                <canvas id="pie-{{ entity.id }}" width="150" height="150"></canvas>
+                <div id="total-{{ entity.id }}" class="text-xs font-medium"></div>
+            </div>
+
+            {# Members table + form #}
+            <div class="flex-1">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-semibold text-gray-700">Miembros — {{ entity.name }}</h3>
+                    <button onclick="closeMembershipPanel('{{ entity.id }}')"
+                            class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+                </div>
+
+                <table class="w-full text-sm mb-3">
+                    <thead class="text-xs text-gray-400 uppercase">
+                        <tr>
+                            <th class="py-1 text-left">Usuario</th>
+                            <th class="py-1 text-left">Rol</th>
+                            <th class="py-1 text-right w-24">%</th>
+                            <th class="py-1 w-16"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="mem-tbody-{{ entity.id }}">
+                        {% for m in entity_memberships %}
+                        <tr id="mem-row-{{ m.id }}">
+                            <td class="py-2 pr-4 text-gray-800">{{ m.user.full_name }}</td>
+                            <td class="py-2 pr-4">
+                                <select class="border rounded px-2 py-1 text-xs mem-role" data-id="{{ m.id }}">
+                                    {% for r in roles %}
+                                    <option value="{{ r.value }}" {% if m.role == r %}selected{% endif %}>
+                                        {{ r.value }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="py-2 pr-2 text-right">
+                                <input type="number" min="0" max="100" step="0.01"
+                                       value="{{ m.share if m.share is not none else '' }}"
+                                       class="border rounded px-2 py-1 text-xs w-20 text-right mem-share"
+                                       data-id="{{ m.id }}"
+                                       oninput="updatePie('{{ entity.id }}')">
+                            </td>
+                            <td class="py-2 text-right">
+                                <div class="flex justify-end gap-2">
+                                    <button onclick="saveMembership('{{ entity.id }}', '{{ m.id }}')"
+                                            class="text-blue-500 hover:text-blue-700 text-xs" title="Guardar">✓</button>
+                                    <button hx-delete="/config/entities/{{ entity.id }}/memberships/{{ m.id }}"
+                                            hx-target="#mem-row-{{ m.id }}"
+                                            hx-swap="outerHTML"
+                                            data-confirm-delete
+                                            hx-trigger="confirmedDelete"
+                                            hx-on::after-request="updatePie('{{ entity.id }}')"
+                                            class="text-red-400 hover:text-red-600 text-xs">✕</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                {# Add member form #}
+                <form hx-post="/config/entities/{{ entity.id }}/memberships"
+                      hx-target="#membership-panel-{{ entity.id }}"
+                      hx-swap="outerHTML"
+                      class="flex gap-2 items-center border-t pt-3">
+                    <select name="user_id" class="border rounded px-2 py-1 text-xs flex-1">
+                        {% for u in users %}
+                        <option value="{{ u.id }}">{{ u.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="role" class="border rounded px-2 py-1 text-xs">
+                        {% for r in roles %}
+                        <option value="{{ r.value }}">{{ r.value }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="share" min="0" max="100" step="0.01"
+                           placeholder="%" class="border rounded px-2 py-1 text-xs w-20 text-right">
+                    <button type="submit"
+                            class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                        + Agregar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </td>
+</tr>
+
+<script>
+(function() {
+    const entityId = '{{ entity.id }}';
+    const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899'];
+    let chart = null;
+
+    function getRows() {
+        const tbody = document.getElementById('mem-tbody-' + entityId);
+        if (!tbody) return [];
+        return Array.from(tbody.querySelectorAll('tr')).map((row, i) => ({
+            name: row.querySelector('td').textContent.trim(),
+            share: parseFloat(row.querySelector('.mem-share').value) || 0,
+            color: COLORS[i % COLORS.length]
+        }));
+    }
+
+    window.updatePie = function(id) {
+        if (id !== entityId) return;
+        const members = getRows();
+        const total = members.reduce((s, m) => s + m.share, 0);
+
+        const totalEl = document.getElementById('total-' + entityId);
+        const ok = Math.abs(total - 100) < 0.01;
+        totalEl.innerHTML = `Total: <span class="${ok ? 'text-green-600' : 'text-red-500'} font-semibold">${total.toFixed(1)}% ${ok ? '✓' : '⚠'}</span>`;
+
+        const canvas = document.getElementById('pie-' + entityId);
+        if (!canvas) return;
+        if (chart) { chart.destroy(); chart = null; }
+
+        chart = new Chart(canvas, {
+            type: 'pie',
+            data: {
+                labels: members.map(m => m.name),
+                datasets: [{
+                    data: members.map(m => m.share > 0 ? m.share : 0.001),
+                    backgroundColor: members.map(m => m.color),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } }
+                },
+                animation: { duration: 150 }
+            }
+        });
+    };
+
+    window.saveMembership = function(eid, mid) {
+        const row = document.getElementById('mem-row-' + mid);
+        const role = row.querySelector('.mem-role').value;
+        const share = row.querySelector('.mem-share').value;
+        const fd = new FormData();
+        fd.append('role', role);
+        if (share) fd.append('share', share);
+        fetch(`/config/entities/${eid}/memberships/${mid}`, { method: 'PATCH', body: fd })
+            .then(r => showToast(r.ok ? 'Guardado' : 'Error al guardar', r.ok ? 'success' : 'error'));
+    };
+
+    window.closeMembershipPanel = function(eid) {
+        const panel = document.getElementById('membership-panel-' + eid);
+        if (panel) panel.outerHTML = `<tr id="membership-panel-${eid}"></tr>`;
+    };
+
+    if (typeof Chart === 'undefined') {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+        s.onload = () => updatePie(entityId);
+        document.head.appendChild(s);
+    } else {
+        updatePie(entityId);
+    }
+})();
+</script>

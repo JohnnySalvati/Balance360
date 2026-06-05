@@ -1,8 +1,10 @@
 import uuid
 from sqlalchemy import Uuid, String, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
-
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from balance360.models.entity_membership import EntityMembership
 
 class User(Base, TimestampMixin):
     __tablename__ = "users"
@@ -22,5 +24,11 @@ class User(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True
     )
+    entity_memberships: Mapped[list['EntityMembership']] = relationship(
+        back_populates="user",
+        foreign_keys="[EntityMembership.user_id]"
+    )
+        
+    
 
     

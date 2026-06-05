@@ -30,10 +30,11 @@ class VoucherType(enum.Enum):
     ND = "ND"
 
 class SerialStatus(enum.Enum):
+    pending = 'pending'
     available = "available"
-    sold = "sold"
     reserved = "reserved"
-
+    sold = "sold"
+    
 class IvaAliquot(enum.Enum):
     exempt = (3, Decimal(0))
     reduced = (4, Decimal(10.5))
@@ -65,3 +66,6 @@ class CondicionIva(enum.Enum):
     FINAL = 6
     MONOTRIBUTO = 13
 
+class Role(enum.Enum):
+    owner = "owner"
+    operator = "operator"
