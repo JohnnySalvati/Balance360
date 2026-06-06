@@ -7,10 +7,11 @@ from balance360.dependencies import get_db
 from balance360.models.transaction import Transaction
 from balance360.models.account import Account
 from balance360.models.category import Category
-from balance360.models.currency import Currency, ExchangeRate
+from balance360.models.exchange_rate import ExchangeRate
 from balance360.enums import TransactionType
 from balance360.reports import group_by_parent
 from balance360.crud import entity as entity_crud
+from balance360.services.exchange_rate import ars_rate_subquery
 
 MONTH_NAMES = {
     1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
@@ -40,13 +41,19 @@ def report_balance(request: Request, db: Session = Depends(get_db)):
         select(
             Account,
             func.coalesce(
-                func.sum(Transaction.amount).filter(
+                func.sum(
+                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                )
+                .filter(
                     Transaction.type == TransactionType.income,
                     Transaction.is_transfer == False
                 ), 0
             ).label("total_income"),
             func.coalesce(
-                func.sum(Transaction.amount).filter(
+                func.sum(
+                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                )
+                .filter(
                     Transaction.type == TransactionType.expense,
                     Transaction.is_transfer == False
                 ), 0
@@ -119,13 +126,18 @@ def report_pl(
             extract("year", Transaction.date).label("year"),
             extract("month", Transaction.date).label("month"),
             func.coalesce(
-                func.sum(Transaction.amount).filter(Transaction.type == TransactionType.income), 0
+                func.sum(
+                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date),1)
+                    ).filter(Transaction.type == TransactionType.income), 0
             ).label("total_income"),
             func.coalesce(
-                func.sum(Transaction.amount).filter(Transaction.type == TransactionType.expense), 0
+                func.sum(
+                    Transaction.amount *func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                    ).filter(Transaction.type == TransactionType.expense), 0
             ).label("total_expense"),
         )
         .where(Transaction.is_transfer == False)
+        .join(Account)
         .group_by("year", "month")
         .order_by("year", "month")
     )
@@ -187,14 +199,18 @@ def report_pl_category(
         select(
             Category,
             func.coalesce(
-                func.sum(Transaction.amount).filter(Transaction.type == TransactionType.income), 0
+                func.sum(
+                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                ).filter(Transaction.type == TransactionType.income), 0
             ).label("total_income"),
             func.coalesce(
-                func.sum(Transaction.amount).filter(Transaction.type == TransactionType.expense), 0
+                func.sum(
+                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                ).filter(Transaction.type == TransactionType.expense), 0
             ).label("total_expense"),
         )
-        .outerjoin(Transaction, Transaction.category_id == Category.id)
-        .where(Transaction.is_transfer == False)
+        .outerjoin(Transaction, (Transaction.category_id == Category.id) & (Transaction.is_transfer == False))
+        .join(Account)
         .group_by(Category.id)
         .order_by(func.sum(Transaction.amount).desc())
     )

@@ -1,4 +1,4 @@
-{% set type_labels = {"bank": "Banco", "cash": "Efectivo", "wallet": "Billetera"} %}
+{% set type_labels = {"bank": "Banco", "cash": "Efectivo", "wallet": "Billetera", "credit_card": "Tarjeta de crédito"} %}
 <tr id="acc-row-{{ a.id }}" class="hover:bg-gray-50">
     <td class="px-4 py-3 font-medium text-gray-800">{{ a.name }}</td>
     <td class="px-4 py-3 text-gray-500">{{ type_labels[a.type.value] }}</td>

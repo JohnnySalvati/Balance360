@@ -125,7 +125,7 @@ if __name__ == "__main__":
         rules = load_rules(db)
         accounts = load_accounts(db)
         visa_account = next(a for a in accounts if a.name == 'VISA Ciudad')
-        accounts_to_import = ['Frances', 'Ciudad', 'MP', 'VISA Ciudad']
+        accounts_to_import = ['Banco Frances (ARS)', 'Banco Ciudad (ARS)', 'MP', 'VISA Ciudad']
         
         clean_work_book(wb, 'Efectivo')
         clean_work_book(wb, 'VISA Ciudad')

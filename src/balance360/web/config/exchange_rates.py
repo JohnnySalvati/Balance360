@@ -11,7 +11,7 @@ from balance360.dependencies import get_db
 from balance360.crud import currency as currency_crud
 from balance360.crud import exchange_rate as exchange_rate_crud
 from balance360.schemas.exchange_rate import ExchangeRateCreate
-from balance360.models.currency import ExchangeRate
+from balance360.models.exchange_rate import ExchangeRate
 
 router = APIRouter(prefix="/exchange-rates")
 templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")

@@ -1,7 +1,7 @@
 {% set is_edit = account is defined and account %}
 {% set action_url = "/config/accounts/" ~ account.id if is_edit else "/config/accounts/" %}
 {% set title = "Editar cuenta" if is_edit else "Nueva cuenta" %}
-{% set type_labels = {"bank": "Banco", "cash": "Efectivo", "wallet": "Billetera"} %}
+{% set type_labels = {"bank": "Banco", "cash": "Efectivo", "wallet": "Billetera", "credit_card": "Tarjeta de crédito"} %}
 
 <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">

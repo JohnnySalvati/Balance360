@@ -1,7 +1,8 @@
 import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from balance360.models.currency import Currency, ExchangeRate
+from balance360.models.currency import Currency
+from balance360.models.exchange_rate import ExchangeRate
 from balance360.schemas.currency import CurrencyCreate, CurrencyUpdate
 
 def get_all(db: Session) -> list[Currency]:

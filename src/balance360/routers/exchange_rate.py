@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
-from balance360.models.currency import ExchangeRate
+from balance360.models.exchange_rate import ExchangeRate
 from balance360.schemas.exchange_rate import ExchangeRateRead, ExchangeRateUpdate, ExchangeRateCreate
 from balance360.crud.exchange_rate import get_all, get_by_id, create, delete, update
 

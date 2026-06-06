@@ -99,11 +99,13 @@
     function getRows() {
         const tbody = document.getElementById('mem-tbody-' + entityId);
         if (!tbody) return [];
-        return Array.from(tbody.querySelectorAll('tr')).map((row, i) => ({
-            name: row.querySelector('td').textContent.trim(),
-            share: parseFloat(row.querySelector('.mem-share').value) || 0,
-            color: COLORS[i % COLORS.length]
-        }));
+        return Array.from(tbody.querySelectorAll('tr'))
+            .filter(row => row.querySelector('.mem-role')?.value !== 'operator')
+            .map((row, i) => ({
+                name: row.querySelector('td').textContent.trim(),
+                share: parseFloat(row.querySelector('.mem-share').value) || 0,
+                color: COLORS[i % COLORS.length]
+            }));
     }
 
     window.updatePie = function(id) {
@@ -119,13 +121,23 @@
         if (!canvas) return;
         if (chart) { chart.destroy(); chart = null; }
 
+        const remaining = parseFloat((100 - total).toFixed(2));
+        const labels = members.map(m => m.name);
+        const data = members.map(m => m.share > 0 ? m.share : 0.001);
+        const colors = members.map(m => m.color);
+        if (remaining > 0.01) {
+            labels.push('Restante');
+            data.push(remaining);
+            colors.push('#e5e7eb');
+        }
+
         chart = new Chart(canvas, {
             type: 'pie',
             data: {
-                labels: members.map(m => m.name),
+                labels,
                 datasets: [{
-                    data: members.map(m => m.share > 0 ? m.share : 0.001),
-                    backgroundColor: members.map(m => m.color),
+                    data,
+                    backgroundColor: colors,
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]

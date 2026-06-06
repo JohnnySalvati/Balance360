@@ -1,7 +1,7 @@
 import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from balance360.models.currency import ExchangeRate
+from balance360.models.exchange_rate import ExchangeRate
 from balance360.schemas.exchange_rate import ExchangeRateCreate, ExchangeRateUpdate
 
 def get_all(db: Session) -> list[ExchangeRate]:
