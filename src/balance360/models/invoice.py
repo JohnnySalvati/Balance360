@@ -7,8 +7,6 @@ from sqlalchemy import Uuid, Enum, Date, ForeignKey, Boolean, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot
 from balance360.models.base import Base, TimestampMixin
-from balance360.enums import DocType, SerialStatus
-
 if TYPE_CHECKING:
     from balance360.models.entity import Entity
     from balance360.models.contact import Contact
@@ -16,15 +14,6 @@ if TYPE_CHECKING:
     from balance360.models.category import Category
     from balance360.models.transaction import Transaction
     from balance360.models.invoice_tribute import InvoiceTribute
-
-class InvoiceAuthorizationError(Exception):
-    pass
-class InvoicePaymentError(Exception):
-    pass
-class InvoiceConfirmationError(Exception):
-    pass
-class InvoiceDeleteError(Exception):
-    pass
 class Invoice(Base, TimestampMixin):
     __tablename__ = "invoices"
     id: Mapped[uuid.UUID] = mapped_column(
@@ -129,59 +118,4 @@ class Invoice(Base, TimestampMixin):
         return sum((iva_item.net_amount for iva_item in self.iva_breakdown), Decimal(0))
 
 
-    def validate_authorization(self):
-        if not self.entity.tax_id:
-            raise InvoiceAuthorizationError("La entidad no posee CUIT")
     
-        if not self.pos or not self.voucher_type:
-            raise InvoiceAuthorizationError("El tipo y punto de venta del comprobante son obligatorios")
-    
-        if self.contact.doc_type != DocType.FINAL and not self.contact.tax_id:
-            raise InvoiceAuthorizationError("Se necesita numero de CUIT del cliente")
-
-        if not self.confirmed:
-            raise InvoiceAuthorizationError("El comprobante no esta confirmado")
-        
-        if self.authorized:
-            raise InvoiceAuthorizationError("El comprobante ya esta autorizado")
-        
-        if self.invoice_type == InvoiceType.purchase:
-            raise InvoiceAuthorizationError("No se puede autorizar una compra")
-
-    def validate_confirmation(self):
-        if self.confirmed:
-            raise InvoiceConfirmationError("El comprobante ya esta confirmado")
-        if not self.invoice_lines:
-            raise InvoiceConfirmationError("El comprobante no tiene items")
-        
-        for invoice_line in self.invoice_lines:
-            if not invoice_line.product or not invoice_line.product.track_serial:
-                continue
-
-            if self.invoice_type == InvoiceType.sale:
-                if invoice_line.quantity != len(invoice_line.sold_serials):
-                    raise InvoiceConfirmationError("Cantidad erronea de seriales")
-                for serial in invoice_line.sold_serials:
-                    if serial.product_id != invoice_line.product_id:
-                        raise InvoiceConfirmationError("El serial no corresponde a este producto")
-                    if serial.status != SerialStatus.reserved:
-                        raise InvoiceConfirmationError("El serial no esta reservado")
-            else:
-                if invoice_line.quantity != len(invoice_line.purchased_serials):
-                    raise InvoiceConfirmationError("Cantidad erronea de seriales")
-                for serial in invoice_line.purchased_serials:
-                    if serial.product_id != invoice_line.product_id:
-                        raise InvoiceConfirmationError("El serial no corresponde a este producto")
-                    if serial.status != SerialStatus.pending:
-                        raise InvoiceConfirmationError("El serial no esta pendiente")
-                
-
-    def validate_payment(self):
-        if not self.confirmed:
-            raise InvoicePaymentError("El comprobante no esta confirmado")
-        if self.paid:
-            raise InvoicePaymentError("El comprobante ya esta pago")
-        
-    def validate_delete(self):
-        if self.confirmed:
-            raise InvoiceDeleteError("El comprobante esta confirmado")

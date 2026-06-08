@@ -26,7 +26,8 @@ from balance360.services import invoice as invoice_service
 from balance360.services import serial_number as serial_number_service
 from balance360.services.serial_number import SerialValidationError
 from balance360.services import product_match as product_match_service
-from balance360.models.invoice import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError, Invoice
+from balance360.exceptions import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError
+from balance360.models.invoice import Invoice
 from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.product import Product

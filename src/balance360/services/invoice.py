@@ -4,21 +4,17 @@ from balance360.crud import transaction as transaction_crud
 from balance360.models.invoice import Invoice
 from balance360.models.account import Account
 from balance360.schemas.transaction import TransactionCreate
-from balance360.enums import TransactionType, InvoiceType, SerialStatus
+from balance360.enums import TransactionType, InvoiceType, SerialStatus, DocType
 from balance360.dtos.invoice_request import InvoiceRequest, VoucherData, VoucherInfo, IvaDetail, Tribute
 from balance360.dtos.auth import Auth
 from balance360.services.arca import get_access_ticket
 from balance360.services.wsfe import authorize_invoice as wsfe_authorize_invoice
+from balance360.services.stock import get_product_stock
+from balance360.exceptions import InvoiceAuthorizationError, InvoiceConfirmationError, InvoiceDeleteError, InvoicePaymentError
 
-class InvoiceDeleteError(Exception):
-    pass
-class InvoiceConfirmError(Exception):
-    pass
-class InvoiceRegisterPaymentError(Exception):
-    pass
 
 def confirm_invoice(db: Session, invoice: Invoice):
-    invoice.validate_confirmation()
+    validate_confirmation(db, invoice)
     invoice.confirmed = True
 
     for invoice_line in invoice.invoice_lines:
@@ -35,7 +31,7 @@ def confirm_invoice(db: Session, invoice: Invoice):
 
 def register_payment(db: Session, invoice: Invoice, account: Account, payment_date: date):
     
-    invoice.validate_payment()
+    validate_payment(invoice)
     ref = f"{invoice.pos}-{invoice.number}" if invoice.formal else "informal"
     
     data = TransactionCreate(
@@ -56,7 +52,7 @@ def register_payment(db: Session, invoice: Invoice, account: Account, payment_da
     db.flush()
     
 def delete_invoice(db: Session, invoice: Invoice):
-    invoice.validate_delete()
+    validate_delete(invoice)
     db.delete(invoice)
 
 def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
@@ -112,7 +108,7 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
     return invoice_request
 
 def authorize_invoice(db: Session, invoice: Invoice):
-    invoice.validate_authorization()
+    validate_authorization(invoice)
     
     invoice_request = _build_invoice_request(invoice)
     
@@ -124,3 +120,68 @@ def authorize_invoice(db: Session, invoice: Invoice):
     invoice.authorized = True
     db.flush()
 
+def validate_authorization(invoice: Invoice):
+        if not invoice.entity.tax_id:
+            raise InvoiceAuthorizationError("La entidad no posee CUIT")
+    
+        if not invoice.pos or not invoice.voucher_type:
+            raise InvoiceAuthorizationError("El tipo y punto de venta del comprobante son obligatorios")
+    
+        if invoice.contact.doc_type != DocType.FINAL and not invoice.contact.tax_id:
+            raise InvoiceAuthorizationError("Se necesita numero de CUIT del cliente")
+
+        if not invoice.confirmed:
+            raise InvoiceAuthorizationError("El comprobante no esta confirmado")
+        
+        if invoice.authorized:
+            raise InvoiceAuthorizationError("El comprobante ya esta autorizado")
+        
+        if invoice.invoice_type == InvoiceType.purchase:
+            raise InvoiceAuthorizationError("No se puede autorizar una compra")
+
+def validate_confirmation(db: Session, invoice: Invoice):
+    if invoice.confirmed:
+        raise InvoiceConfirmationError("El comprobante ya esta confirmado")
+    if not invoice.invoice_lines:
+        raise InvoiceConfirmationError("El comprobante no tiene items")
+    
+    for invoice_line in invoice.invoice_lines:
+        if not invoice_line.product:
+            continue
+
+        if invoice.invoice_type == InvoiceType.sale:
+            if not invoice_line.product.track_serial:
+                stock = get_product_stock(db, invoice_line.product.id, invoice.entity_id)
+                if stock < invoice_line.quantity:
+                    raise InvoiceConfirmationError("Stock insuficiente")
+                continue
+            if invoice_line.quantity != len(invoice_line.sold_serials):
+                raise InvoiceConfirmationError("Cantidad erronea de seriales")
+            for serial in invoice_line.sold_serials:
+                if serial.product_id != invoice_line.product_id:
+                    raise InvoiceConfirmationError("El serial no corresponde a este producto")
+                if serial.status != SerialStatus.reserved:
+                    raise InvoiceConfirmationError("El serial no esta reservado")
+                if serial.purchase_line.invoice.entity.id != invoice.entity_id:
+                    raise InvoiceConfirmationError("El serial no fue comprado por esta entidad")
+        else:
+            if not invoice_line.product.track_serial:
+                continue
+            if invoice_line.quantity != len(invoice_line.purchased_serials):
+                raise InvoiceConfirmationError("Cantidad erronea de seriales")
+            for serial in invoice_line.purchased_serials:
+                if serial.product_id != invoice_line.product_id:
+                    raise InvoiceConfirmationError("El serial no corresponde a este producto")
+                if serial.status != SerialStatus.pending:
+                    raise InvoiceConfirmationError("El serial no esta pendiente")
+            
+
+def validate_payment(invoice: Invoice):
+    if not invoice.confirmed:
+        raise InvoicePaymentError("El comprobante no esta confirmado")
+    if invoice.paid:
+        raise InvoicePaymentError("El comprobante ya esta pago")
+    
+def validate_delete(invoice: Invoice):
+    if invoice.confirmed:
+        raise InvoiceDeleteError("El comprobante esta confirmado")

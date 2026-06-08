@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
@@ -8,6 +8,7 @@ from balance360.enums import SerialStatus
 from balance360.dependencies import get_db
 from balance360.crud import serial_number as serial_number_crud
 from balance360.crud import product as product_crud
+from balance360.crud import entity as entity_crud
 from balance360.models.serial_number import SerialNumber
 from balance360.services.stock import get_stock_summary
 
@@ -75,11 +76,20 @@ def serial_history(
 @router.get("/", response_class=HTMLResponse)
 def stock(
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    entity_id: str = Query(default="")
 ):
-    
+    entity_id_parsed = uuid.UUID(entity_id) if entity_id else None
+
+    entities = entity_crud.get_all(db) 
+
     return templates.TemplateResponse(
         request=request,
         name="stock/index.html",
-        context={"stock_items": get_stock_summary(db)}
+        context={
+            "stock_items": get_stock_summary(db, entity_id_parsed),
+            "entity_id": entity_id_parsed,
+            "entities": entities,
+            "selected_entity_id": entity_id
+        }
     )

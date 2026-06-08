@@ -16,7 +16,7 @@ class Stock:
     unit_price: Decimal
     valuation: Decimal
 
-def get_stock_summary(db: Session) -> list[Stock]:
+def get_stock_summary(db: Session, entity_id: uuid.UUID|None = None) -> list[Stock]:
 
     last_price_sq = (
         select(InvoiceLine.unit_price)
@@ -27,9 +27,12 @@ def get_stock_summary(db: Session) -> list[Stock]:
         .order_by(Invoice.date.desc())
         .limit(1)
         .correlate(Product)
-        .scalar_subquery()
     )
-
+    if entity_id:
+        last_price_sq = last_price_sq.where(Invoice.entity_id == entity_id)
+       
+    last_price_sq = last_price_sq.scalar_subquery()
+    
     stmt = (
         select(Product.name,
                func.sum(
@@ -47,6 +50,9 @@ def get_stock_summary(db: Session) -> list[Stock]:
         .group_by(Product.id)
     )
 
+    if entity_id:
+        stmt = stmt.where(Invoice.entity_id == entity_id)
+
     rows = db.execute(stmt).all()
     return [
         Stock(
@@ -57,3 +63,24 @@ def get_stock_summary(db: Session) -> list[Stock]:
             valuation= row.stock_qty * row.unit_price if row.unit_price else Decimal(0)
         ) for row in rows
     ]
+
+
+def get_product_stock(db, product_id, entity_id) -> int:
+
+        stmt = (
+            select(
+                func.sum(
+                    case(
+                        (Invoice.invoice_type == InvoiceType.purchase, InvoiceLine.quantity),
+                        else_=-InvoiceLine.quantity
+                    )
+                ).label("stock_qty"),
+            )
+            .join(Invoice)
+            .where(Invoice.confirmed)
+            .where(InvoiceLine.product_id == product_id)
+            .where(Invoice.entity_id == entity_id)
+        )
+        quantity = db.execute(stmt).scalar()
+
+        return quantity or 0
