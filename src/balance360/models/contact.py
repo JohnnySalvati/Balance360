@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
     from balance360.models.invoice import Invoice
-
+    from balance360.models.import_rule import ImportRule
 import uuid
 from sqlalchemy import Uuid, String, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -38,5 +38,8 @@ class Contact(Base, TimestampMixin):
         back_populates="contact"
     )
     invoices: Mapped[list["Invoice"]] = relationship(
+        back_populates="contact"
+    )
+    import_rules: Mapped[list["ImportRule"]] = relationship(
         back_populates="contact"
     )

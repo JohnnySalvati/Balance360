@@ -35,12 +35,16 @@ def close_modal():
     return HTMLResponse('<div id="modal"></div>')
 
 @router.get("/rows")
-def import_rules_rows(request: Request, db: Session = Depends(get_db)):
+def import_rules_rows(
+    request: Request,
+    db: Session = Depends(get_db),
+    pattern: str = ""
+):
     return templates.TemplateResponse(
         request=request,
         name="import_rules/_rows.html",
         context={
-            "import_rules": import_rule_crud.get_all(db),
+            "import_rules": import_rule_crud.get_all(db, pattern),
             "entities": entity_crud.get_all(db),
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),

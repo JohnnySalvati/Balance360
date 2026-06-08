@@ -16,7 +16,7 @@ import decimal
 from sqlalchemy import Uuid, Date, String, Numeric, Enum, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
-from balance360.enums import TransactionType
+from balance360.enums import TransactionType, ClassificationStatus
 
 class Transaction(Base, TimestampMixin):
     __tablename__ = "transactions"
@@ -60,7 +60,7 @@ class Transaction(Base, TimestampMixin):
         default=False, nullable=False
     )
     applied_rule_id: Mapped[uuid.UUID|None] = mapped_column(
-        ForeignKey("import_rules.id")
+        ForeignKey("import_rules.id", ondelete="SET NULL")
     )
     applied_rule: Mapped["ImportRule|None"] = relationship(
         back_populates="transactions"
@@ -83,3 +83,16 @@ class Transaction(Base, TimestampMixin):
     account: Mapped["Account"] = relationship(
         back_populates="transactions"
     )
+
+
+    @property
+    def classification_status(self) -> ClassificationStatus:
+        match (self.is_manual, self.applied_rule == None):
+            case (False, True):
+                return ClassificationStatus.unclassified
+            case (False, False):
+                return ClassificationStatus.auto_classified
+            case (True, True):
+                return ClassificationStatus.manual_no_rule
+            case (True, False):
+                return ClassificationStatus.manual_with_rule

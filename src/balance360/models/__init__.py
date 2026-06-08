@@ -14,3 +14,4 @@ from balance360.models.transaction import Transaction
 from balance360.models.user import User
 from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.entity_membership import EntityMembership
+from balance360.models.app_config import AppConfig

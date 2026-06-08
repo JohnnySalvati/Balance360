@@ -69,3 +69,9 @@ class CondicionIva(enum.Enum):
 class Role(enum.Enum):
     owner = "owner"
     operator = "operator"
+
+class ClassificationStatus(enum.Enum):
+    unclassified = "unclassified"     
+    auto_classified = "auto_classified"
+    manual_no_rule = "manual_no_rule"
+    manual_with_rule = "manual_with_rule"

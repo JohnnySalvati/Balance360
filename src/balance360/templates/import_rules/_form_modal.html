@@ -82,6 +82,21 @@
                 </select>
             </div>
 
+            <div class="grid grid-cols-2 gap-3">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Monto mínimo</label>
+                    <input type="number" name="min_amount" step="0.01" min="0" required
+                           value="{{ import_rule.min_amount if is_edit else '' }}"
+                           class="border rounded px-3 py-2 text-sm font-mono">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Monto máximo</label>
+                    <input type="number" name="max_amount" step="0.01" min="0" required
+                           value="{{ import_rule.max_amount if is_edit else '' }}"
+                           class="border rounded px-3 py-2 text-sm font-mono">
+                </div>
+            </div>
+
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"
                         hx-get="/import-rules/close-modal"

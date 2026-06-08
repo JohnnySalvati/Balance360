@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
     from balance360.models.invoice import Invoice
     from balance360.models.entity_membership import EntityMembership
+    from balance360.models.import_rule import ImportRule
 
 import uuid 
 from sqlalchemy import Uuid, String, Enum
@@ -33,5 +34,8 @@ class Entity(Base, TimestampMixin):
         back_populates="entity"
     )
     entity_memberships: Mapped[list['EntityMembership']] = relationship(
+        back_populates="entity"
+    )
+    import_rules: Mapped[list["ImportRule"]] = relationship(
         back_populates="entity"
     )

@@ -11,10 +11,13 @@
                 class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
             + Nueva
         </button>
-        <button hx-post="/transactions/apply-rules"
+        <button id="apply-rules-btn"
+                hx-post="/transactions/apply-rules"
                 hx-target="#tbody"
                 hx-swap="innerHTML"
                 hx-include="form"
+                hx-on:htmx:before-request="this.disabled=true; this.classList.remove('bg-blue-600','hover:bg-blue-700'); this.classList.add('bg-gray-400'); this.innerHTML='⏳ Aplicando...'"
+                hx-on:htmx:after-request="this.disabled=false; this.classList.remove('bg-gray-400'); this.classList.add('bg-blue-600','hover:bg-blue-700'); this.innerHTML='Reaplicar reglas'"
                 class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
             Reaplicar reglas
         </button>
@@ -25,10 +28,19 @@
         </div>
     </div>
 
-    <form hx-get="/transactions/rows"
-          hx-target="#tbody"
-          hx-trigger="change, refreshRows from:body"
-          class="bg-white rounded shadow p-4 mb-3 flex gap-4 items-end">
+    <div class="flex gap-3 mb-3 items-stretch">
+
+        <div id="status-chart-container"
+             hx-get="/transactions/status-chart"
+             hx-trigger="load, refreshChart from:body"
+             hx-swap="innerHTML"
+             class="flex-shrink-0">
+        </div>
+
+        <form hx-get="/transactions/rows"
+              hx-target="#tbody"
+              hx-trigger="change, refreshRows from:body"
+              class="bg-white rounded shadow p-4 flex flex-wrap gap-4 items-end flex-1">
 
         <div class="flex flex-col gap-1">
             <label class="text-xs text-gray-500">Desde</label>
@@ -59,9 +71,15 @@
             </select>
         </div>
 
-        <div class="flex items-center gap-2 pb-2">
-            <input type="checkbox" name="unclassified" value="true" id="unclassified">
-            <label for="unclassified" class="text-sm text-gray-600">Sin clasificar</label>
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Estado</label>
+            <select name="classification_status" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                <option value="unclassified">🟡 Pendiente</option>
+                <option value="auto_classified">🔵 Automática</option>
+                <option value="manual_no_rule">🟣 Manual sin regla</option>
+                <option value="manual_with_rule">🟢 Completa</option>
+            </select>
         </div>
 
         <div class="flex flex-col gap-1">
@@ -71,7 +89,8 @@
                 hx-get="/transactions/rows"
                 hx-target="#tbody"
                 hx-trigger="keyup changed delay:400ms"
-                hx-include="form">
+                hx-include="form"
+                hx-disinherit="*">
         </div>
 
         <div class="flex flex-col gap-1">
@@ -94,43 +113,40 @@
             </select>
         </div>
 
-    </form>
+        </form>
 
-    <div id="tx-counter" class="text-xs text-gray-400 mb-2">
-        {{ transactions|length }} / {{ total_count }} transacciones
     </div>
+
+    <div id="tx-counter" class="text-xs text-gray-400 mb-2"></div>
 </div>
 
-<script>
-document.body.addEventListener('htmx:afterSwap', function(e) {
-    if (e.detail.target.id === 'tbody') {
-        const count = document.querySelectorAll('#tbody tr').length;
-        document.getElementById('tx-counter').textContent = count + ' / {{ total_count }} transacciones';
-    }
-});
-</script>
+<div class="flex-1 flex flex-col overflow-hidden bg-white rounded shadow">
+    <div class="flex-1 overflow-y-auto">
+        <table class="w-full text-sm">
+            <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Fecha</th>
+                    <th class="px-4 py-3">Descripción</th>
+                    <th class="px-4 py-3">Tipo</th>
+                    <th class="px-4 py-3 text-right">Monto</th>
+                    <th class="px-4 py-3">Cuenta</th>
+                    <th class="px-4 py-3">Entidad</th>
+                    <th class="px-4 py-3">Contacto</th>
+                    <th class="px-4 py-3">Categoría</th>
+                    <th class="px-4 py-3"></th>
+                </tr>
+            </thead>
+            <tbody id="tbody" class="divide-y divide-gray-100">
+            </tbody>
+        </table>
+    </div>
+    <div id="tx-pagination" class="shrink-0 flex justify-center border-t border-gray-100 py-3"></div>
+</div>
 
-<div class="flex-1 overflow-y-auto bg-white rounded shadow">
-    <table class="w-full text-sm">
-        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
-            <tr>
-                <th class="px-4 py-3">Fecha</th>
-                <th class="px-4 py-3">Descripción</th>
-                <th class="px-4 py-3">Tipo</th>
-                <th class="px-4 py-3 text-right">Monto</th>
-                <th class="px-4 py-3">Cuenta</th>
-                <th class="px-4 py-3">Entidad</th>
-                <th class="px-4 py-3">Contacto</th>
-                <th class="px-4 py-3">Categoría</th>
-                <th class="px-4 py-3"></th>
-            </tr>
-        </thead>
-        <tbody id="tbody" class="divide-y divide-gray-100">
-            {% for t in transactions %}
-            {% include "transactions/_row.html" %}
-            {% endfor %}
-        </tbody>
-    </table>
+<div hx-get="/transactions/rows"
+     hx-target="#tbody"
+     hx-trigger="load, refreshRows from:body"
+     hx-swap="innerHTML">
 </div>
 <div id="modal"></div>
 {% endblock %}

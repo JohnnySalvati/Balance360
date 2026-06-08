@@ -1,45 +1,52 @@
 from collections import defaultdict
+from decimal import Decimal
+from dataclasses import dataclass, field
+from sqlalchemy.engine import Row
+from balance360.models.category import Category
 
-def group_by_parent(rows) -> list[dict]:
-    roots = [row for row in rows if not row.Category.parent_id]
-    children = [row for row in rows if row.Category.parent_id]
-    children_dict = defaultdict(list)
+@dataclass
+class CategoryNode:
+    category: Category
+    income: Decimal
+    expense: Decimal
+    subtotal_income: Decimal
+    subtotal_expense: Decimal
+    children: list['CategoryNode'] = field(default_factory=list)
 
-    for child in children:
-        children_dict[child.Category.parent_id].append(child)
+def get_children(node: CategoryNode, nodes: list[CategoryNode]) -> list[CategoryNode]:
+    node_children = [n for n in nodes if n.category.parent_id == node.category.id]
+    for node_child in node_children:
+        node_child.children = get_children(node_child, nodes)
+        node.subtotal_income += node_child.subtotal_income
+        node.subtotal_expense += node_child.subtotal_expense
+    node.subtotal_income += node.income
+    node.subtotal_expense += node.expense
+    return node_children
 
-    groups = []
-    for root in roots:
-        root_children = children_dict.get(root.Category.id, [])
-        subtotal_income = sum(child.total_income for child in root_children) + root.total_income
-        subtotal_expense = sum(child.total_expense for child in root_children) + root.total_expense
-        groups.append(
-            {
-                'parent': root.Category,
-                'parent_data': {
-                    'total_income': root.total_income,
-                    'total_expense': root.total_expense,
-                    'net': root.total_income - root.total_expense
-                } if root.total_income or root.total_expense else None,
-                'children': root_children,
-                'subtotal_income': subtotal_income,
-                'subtotal_expense': subtotal_expense,
-                'subtotal_net': subtotal_income - subtotal_expense
-            }
-        )
-    root_ids = {root.Category.id for root in roots}
-    for parent_id, parent_children in children_dict.items():
-        if parent_id not in root_ids:
-            subtotal_income = sum(child.total_income for child in parent_children)
-            subtotal_expense = sum(child.total_expense for child in parent_children)
-            groups.append(
-                {
-                'parent': parent_children[0].Category.parent,
-                'parent_data': None,
-                'children': parent_children,
-                'subtotal_income': subtotal_income,
-                'subtotal_expense': subtotal_expense,
-                'subtotal_net': subtotal_income - subtotal_expense
-                }
-            )
-    return sorted(groups, key=lambda group: group["parent"].name)
+def build_category_tree(rows: list[Row]) -> list[CategoryNode]:
+    """
+    rows: resultado de db.execute() con columnas (Category, total_income, total_expense)
+    """
+    category_parent_nodes = [CategoryNode(
+        category=row.Category,
+        income=row.total_income,
+        expense=row.total_expense,
+        subtotal_income=Decimal(0),
+        subtotal_expense=Decimal(0),
+        children=[]
+    )for row in rows if row.Category.parent_id == None]
+
+    category_nodes = [CategoryNode(
+        category=row.Category,
+        income=row.total_income,
+        expense=row.total_expense,
+        subtotal_income=Decimal(0),
+        subtotal_expense=Decimal(0),
+        children=[]
+    )for row in rows if row.Category.parent_id != None]
+   
+    for category_parent_node in category_parent_nodes:
+        category_parent_node.children = get_children(category_parent_node, category_nodes)
+
+    print(category_parent_nodes)
+    return category_parent_nodes

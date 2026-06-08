@@ -1,6 +1,18 @@
 {% set type_labels = {"income": "Ingreso", "expense": "Egreso"} %}
-{% set unclassified = not t.is_manual and not t.applied_rule %}
-<tr class="{{ 'bg-yellow-50 hover:bg-yellow-100' if unclassified else 'hover:bg-gray-50' }}"
+{% set status = t.classification_status.value %}
+{% set row_colors = {
+    "unclassified":     "bg-yellow-50 hover:bg-yellow-100",
+    "auto_classified":  "bg-blue-100 hover:bg-blue-200",
+    "manual_no_rule":   "bg-violet-200 hover:bg-violet-300",
+    "manual_with_rule": "bg-green-50 hover:bg-green-100"
+} %}
+{% set status_badges = {
+    "unclassified":     ("Pendiente",  "bg-yellow-100 text-yellow-700"),
+    "auto_classified":  ("Automática", "bg-blue-100 text-blue-700"),
+    "manual_no_rule":   ("Manual",     "bg-purple-100 text-purple-700"),
+    "manual_with_rule": ("Completa",   "bg-green-100 text-green-700")
+} %}
+<tr class="{{ row_colors[status] }}"
     id="row-{{ t.id }}"
     hx-patch="/transactions/{{ t.id }}/classify"
     hx-target="#row-{{ t.id }}"
@@ -41,14 +53,42 @@
         <select name="category_id" class="border rounded px-2 py-1 text-sm w-full">
             <option value="">-</option>
             {% for c in categories %}
-            <option value="{{ c.id }}" {% if t.category and t.category.id == c.id %}selected{% endif %}>{{ '   ' * c.depth }}{{ c.name }}</option>
+            <option value="{{ c.id }}" {% if t.category and t.category.id == c.id %}selected{% endif %}>{{ '· ' * c.depth }}{{ c.name }}</option>
             {% endfor %}
         </select>
     </td>
     <td class="px-4 py-3">
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-medium {{ status_badges[status][1] }}">
+                {{ status_badges[status][0] }}
+            </span>
             <input type="checkbox" name="is_transfer" value="true" {% if t.is_transfer %}checked{% endif %} title="Es transferencia">
-            <input type="checkbox" name="create_rule" value="true" checked title="Crear regla">
+            <button type="button"
+                    id="create-rule-btn-{{ t.id }}"
+                    hx-patch="/transactions/{{ t.id }}/classify"
+                    hx-target="#row-{{ t.id }}"
+                    hx-swap="outerHTML"
+                    hx-include="#row-{{ t.id }}"
+                    hx-vals='{"create_rule": "true"}'
+                    class="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    {% if not t.entity_id and not t.contact_id and not t.category_id and not t.is_transfer %}disabled{% endif %}
+                    title="Crear regla">+ Regla</button>
+<script>
+(function() {
+    var row = document.getElementById('row-{{ t.id }}');
+    var btn = document.getElementById('create-rule-btn-{{ t.id }}');
+    function check() {
+        var ok = row.querySelector('[name="entity_id"]').value ||
+                 row.querySelector('[name="contact_id"]').value ||
+                 row.querySelector('[name="category_id"]').value ||
+                 row.querySelector('[name="is_transfer"]').checked;
+        btn.disabled = !ok;
+    }
+    ['entity_id','contact_id','category_id','is_transfer'].forEach(function(n) {
+        row.querySelector('[name="' + n + '"]').addEventListener('change', check);
+    });
+})();
+</script>
             <button type="button"
                     hx-get="/transactions/{{ t.id }}/edit-form"
                     hx-target="#modal"
@@ -61,7 +101,6 @@
                     data-confirm-delete
                     hx-target="#row-{{ t.id }}"
                     hx-swap="outerHTML"
-                    
                     class="text-red-400 hover:text-red-600 text-xs"
                     title="Eliminar">✕</button>
         </div>

@@ -6,6 +6,7 @@
     <title>Balance360</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>htmx.config.useTemplateFragments = true;</script>
 </head>
 <body class="bg-gray-100 text-gray-800 h-screen flex flex-col overflow-hidden">
 
@@ -39,6 +40,25 @@
 
         document.body.addEventListener("showToast", (e) => {
             showToast(e.detail.message, e.detail.type || "error");
+        });
+
+        // Caso 3: regla existente con ECC diferente — confirmar antes de crear nueva
+        document.body.addEventListener("showRuleConflict", (e) => {
+            const btn = document.querySelector(`#${e.detail.row_id} [id^="create-rule-btn"]`);
+            if (!btn || btn._conflictMode) return;
+            btn._conflictMode = true;
+            const originalText = btn.textContent;
+            const originalVals = btn.getAttribute("hx-vals");
+            const originalClass = btn.className;
+            btn.textContent = "⚠️ ¿Crear nueva regla?";
+            btn.classList.add("text-orange-600", "border-orange-400", "bg-orange-50");
+            btn.setAttribute("hx-vals", '{"create_rule": "true", "force": "true"}');
+            btn._conflictTimer = setTimeout(() => {
+                btn._conflictMode = false;
+                btn.textContent = originalText;
+                btn.className = originalClass;
+                btn.setAttribute("hx-vals", originalVals);
+            }, 5000);
         });
 
         // Confirm-on-second-click para botones con data-confirm-delete

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-lg">
+    <div class="flex items-center gap-3 mb-6">
+        <a href="/config/" class="text-gray-400 hover:text-gray-600 text-sm">← Configuración</a>
+        <h1 class="text-2xl font-bold">Parámetros del sistema</h1>
+    </div>
+
+    <div class="bg-white rounded shadow p-6">
+        <form hx-patch="/config/app-config/"
+              hx-target="#toast-target"
+              hx-swap="none">
+
+            <div class="flex flex-col gap-1 mb-6">
+                <label class="text-sm font-medium text-gray-700">
+                    Tolerancia de rango de monto (%)
+                </label>
+                <p class="text-xs text-gray-400 mb-2">
+                    Porcentaje aplicado al monto de una transacción para definir el rango min/max al crear o expandir una regla de importación.
+                </p>
+                <div class="flex items-center gap-2">
+                    <input type="number"
+                           name="import_rule_tolerance_pct"
+                           value="{{ app_config.import_rule_tolerance_pct }}"
+                           min="0" max="100" step="0.01"
+                           class="border rounded px-3 py-2 text-sm w-32">
+                    <span class="text-sm text-gray-500">%</span>
+                </div>
+            </div>
+
+            <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                Guardar
+            </button>
+        </form>
+    </div>
+</div>
+<div id="toast-target"></div>
+{% endblock %}

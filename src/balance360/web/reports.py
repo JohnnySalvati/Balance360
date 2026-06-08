@@ -8,7 +8,7 @@ from balance360.models.transaction import Transaction
 from balance360.models.account import Account
 from balance360.models.category import Category
 from balance360.enums import TransactionType
-from balance360.reports import group_by_parent
+from balance360.reports import build_category_tree
 from balance360.crud import entity as entity_crud
 from balance360.services.exchange_rate import ars_rate_subquery
 
@@ -194,6 +194,23 @@ def report_pl_category(
     entity_id_parsed = UUID(entity_id) if entity_id else None
     entities = entity_crud.get_all(db)
 
+    from sqlalchemy import and_
+
+    tx_conditions = [
+        Transaction.category_id == Category.id,
+        Transaction.is_transfer == False,
+    ]
+    if selected_year:
+        tx_conditions.append(extract("year", Transaction.date) == selected_year)
+    if selected_month:
+        tx_conditions.append(extract("month", Transaction.date) == selected_month)
+    if date_from_parsed:
+        tx_conditions.append(Transaction.date >= date_from_parsed)
+    if date_to_parsed:
+        tx_conditions.append(Transaction.date <= date_to_parsed)
+    if entity_id_parsed:
+        tx_conditions.append(Transaction.entity_id == entity_id_parsed)
+
     stmt = (
         select(
             Category,
@@ -208,16 +225,15 @@ def report_pl_category(
                 ).filter(Transaction.type == TransactionType.expense), 0
             ).label("total_expense"),
         )
-        .outerjoin(Transaction, (Transaction.category_id == Category.id) & (Transaction.is_transfer == False))
-        .join(Account)
+        .outerjoin(Transaction, and_(*tx_conditions))
+        .outerjoin(Account, Account.id == Transaction.account_id)
         .group_by(Category.id)
         .order_by(func.sum(Transaction.amount).desc())
     )
-    stmt = _apply_period_filters(stmt, selected_year, date_from_parsed, date_to_parsed, selected_month, entity_id_parsed)
 
     rows = db.execute(stmt).all()
     
-    groups_data = group_by_parent(rows)
+    groups_data = build_category_tree(list(rows))
 
     return templates.TemplateResponse(
         request=request,

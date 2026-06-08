@@ -9,7 +9,7 @@ from balance360 import models
 from balance360.models import Account, ImportRule, Transaction
 from balance360.enums import TransactionType
 from balance360.database import SessionLocal
-from balance360.matching import find_best_rule, extract_amount
+from balance360.services.import_rule import find_best_rule, extract_amount
 
 def clean_work_book(wb: Workbook, ws_name: str):
     if ws_name in wb.sheetnames: del wb[ws_name]
@@ -96,7 +96,7 @@ def load_accounts(db: Session) -> list[Account]:
 
 def import_sheet(db: Session, rows: list[dict], account: Account, rules: list[ImportRule]):
     for row in rows:
-        import_rule = find_best_rule(row['description'], row['transaction_type'], rules)
+        import_rule = find_best_rule(row['description'], row['transaction_type'], rules )
         transaction_dict = {
             'id': uuid.uuid4(),
             'date': row['date'],

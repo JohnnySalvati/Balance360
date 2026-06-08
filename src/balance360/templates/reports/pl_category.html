@@ -7,7 +7,12 @@
 </div>
 
 <div class="shrink-0 mb-4">
-    <form method="get" class="bg-white rounded shadow p-4 flex gap-4 items-end">
+    <form hx-get="/reports/pl/category"
+          hx-target="#pl-cat-table"
+          hx-select="#pl-cat-table"
+          hx-trigger="change"
+          hx-push-url="true"
+          class="bg-white rounded shadow p-4 flex gap-4 items-end">
         <div class="flex flex-col gap-1">
             <label class="text-xs text-gray-500">Entidad</label>
             <select name="entity_id" class="border rounded px-3 py-2 text-sm">
@@ -43,13 +48,44 @@
             <label class="text-xs text-gray-500">Hasta</label>
             <input type="date" name="date_to" value="{{ date_to }}" class="border rounded px-3 py-2 text-sm">
         </div>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-            Filtrar
-        </button>
     </form>
 </div>
 
-<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+{% macro render_node(node, depth) %}
+{% set has_children = node.children | length > 0 %}
+{% set node_id = node.category.id | string | replace('-', '') %}
+{% set parent_id = node.category.parent_id | string | replace('-', '') if node.category.parent_id else '' %}
+{% set net = node.subtotal_income - node.subtotal_expense %}
+<tr id="node-{{ node_id }}"
+    class="hover:bg-gray-50
+           {% if depth == 0 %}bg-gray-50{% endif %}
+           {% if parent_id %}child-of-{{ parent_id }} hidden{% endif %}"
+    {% if has_children %}onclick="toggleNode('{{ node_id }}')" style="cursor:pointer;user-select:none"{% endif %}>
+    <td class="px-4 py-2" style="padding-left: {{ 16 + depth * 20 }}px">
+        {% if has_children %}
+        <span id="icon-{{ node_id }}" class="inline-block w-4 text-gray-400 text-xs mr-1">▶</span>
+        {% endif %}
+        <span class="{% if depth == 0 %}font-semibold text-gray-700{% else %}text-gray-600{% endif %}">
+            {{ node.category.name }}
+        </span>
+    </td>
+    <td class="px-4 py-2 text-right text-green-700 {% if depth == 0 %}font-semibold{% endif %}">
+        {{ node.subtotal_income | amount }}
+    </td>
+    <td class="px-4 py-2 text-right text-red-700 {% if depth == 0 %}font-semibold{% endif %}">
+        {{ node.subtotal_expense | amount }}
+    </td>
+    <td class="px-4 py-2 text-right {% if depth == 0 %}font-semibold{% endif %}
+               {% if net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+        {{ net | amount }}
+    </td>
+</tr>
+{% for child in node.children %}
+{{ render_node(child, depth + 1) }}
+{% endfor %}
+{% endmacro %}
+
+<div id="pl-cat-table" class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
         <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
             <tr>
@@ -62,54 +98,10 @@
         <tbody class="divide-y divide-gray-100">
             {% set grand_income = namespace(value=0) %}
             {% set grand_expense = namespace(value=0) %}
-            {% for group in groups %}
-            {% set grand_income.value = grand_income.value + group.subtotal_income %}
-            {% set grand_expense.value = grand_expense.value + group.subtotal_expense %}
-
-            {# Fila del padre — solo si tiene transacciones directas #}
-            {% if group.parent_data %}
-            <tr class="bg-gray-50 hover:bg-gray-100">
-                <td class="px-4 py-2 font-semibold text-gray-700">{{ group.parent.name }}</td>
-                <td class="px-4 py-2 text-right text-green-700">{{ group.parent_data.total_income | amount }}</td>
-                <td class="px-4 py-2 text-right text-red-700">{{ group.parent_data.total_expense | amount }}</td>
-                <td class="px-4 py-2 text-right font-semibold
-                    {% if group.parent_data.net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ group.parent_data.net | amount }}
-                </td>
-            </tr>
-            {% else %}
-            <tr class="bg-gray-50">
-                <td class="px-4 py-2 font-semibold text-gray-700" colspan="4">{{ group.parent.name }}</td>
-            </tr>
-            {% endif %}
-
-            {# Filas de hijos #}
-            {% for child in group.children %}
-            <tr class="hover:bg-gray-50">
-                <td class="pl-10 pr-4 py-2 text-gray-600">{{ child.Category.name }}</td>
-                <td class="px-4 py-2 text-right text-green-700">{{ child.total_income | amount }}</td>
-                <td class="px-4 py-2 text-right text-red-700">{{ child.total_expense | amount }}</td>
-                {% set child_net = child.total_income - child.total_expense %}
-                <td class="px-4 py-2 text-right
-                    {% if child_net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ child_net | amount }}
-                </td>
-            </tr>
-            {% endfor %}
-
-            {# Fila de subtotal — solo si hay hijos #}
-            {% if group.children %}
-            <tr class="border-t border-gray-200 bg-gray-50 text-xs uppercase text-gray-400">
-                <td class="px-4 py-2 pl-10">Subtotal {{ group.parent.name }}</td>
-                <td class="px-4 py-2 text-right text-green-700 font-semibold">{{ group.subtotal_income | amount }}</td>
-                <td class="px-4 py-2 text-right text-red-700 font-semibold">{{ group.subtotal_expense | amount }}</td>
-                <td class="px-4 py-2 text-right font-semibold
-                    {% if group.subtotal_net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ group.subtotal_net | amount }}
-                </td>
-            </tr>
-            {% endif %}
-
+            {% for node in groups %}
+            {% set grand_income.value = grand_income.value + node.subtotal_income %}
+            {% set grand_expense.value = grand_expense.value + node.subtotal_expense %}
+            {{ render_node(node, 0) }}
             {% endfor %}
         </tbody>
         <tfoot>
@@ -125,4 +117,32 @@
         </tfoot>
     </table>
 </div>
+
+<script>
+function toggleNode(nodeId) {
+    const icon = document.getElementById('icon-' + nodeId);
+    const expanded = icon && icon.textContent.trim() === '▼';
+    const children = document.querySelectorAll('.child-of-' + nodeId);
+    if (expanded) {
+        children.forEach(row => {
+            row.classList.add('hidden');
+            const childId = row.id.replace('node-', '');
+            collapseDescendants(childId);
+            const childIcon = document.getElementById('icon-' + childId);
+            if (childIcon) childIcon.textContent = '▶';
+        });
+        if (icon) icon.textContent = '▶';
+    } else {
+        children.forEach(row => row.classList.remove('hidden'));
+        if (icon) icon.textContent = '▼';
+    }
+}
+
+function collapseDescendants(nodeId) {
+    document.querySelectorAll('.child-of-' + nodeId).forEach(row => {
+        row.classList.add('hidden');
+        collapseDescendants(row.id.replace('node-', ''));
+    });
+}
+</script>
 {% endblock %}

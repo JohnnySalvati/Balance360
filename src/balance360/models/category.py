@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
     from balance360.models.invoice import Invoice
-    
+    from balance360.models.import_rule import ImportRule    
 import uuid
 from sqlalchemy import Uuid, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -39,6 +39,10 @@ class Category(Base, TimestampMixin):
     invoices: Mapped[list[Invoice]] = relationship(
         back_populates="category"
     )
+    import_rules: Mapped[list["ImportRule"]] = relationship(
+        back_populates="category"
+    )
+
 
     @property
     def depth(self) -> int:

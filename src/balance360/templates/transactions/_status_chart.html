@@ -1,0 +1,69 @@
+<div class="bg-white rounded shadow p-3 flex items-center gap-4">
+    <div class="relative" style="width:90px;height:90px;">
+        <canvas id="statusChart"></canvas>
+        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span class="text-lg font-bold text-gray-700">{{ counts.values() | sum }}</span>
+            <span class="text-xs text-gray-400">total</span>
+        </div>
+    </div>
+    <ul class="text-xs space-y-1">
+        <li class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full inline-block flex-shrink-0" style="background:#F59E0B"></span>
+            <span class="text-gray-600">Pendiente</span>
+            <span class="ml-2 font-semibold text-gray-800">{{ counts[ClassificationStatus.unclassified] }}</span>
+        </li>
+        <li class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full inline-block flex-shrink-0" style="background:#3B82F6"></span>
+            <span class="text-gray-600">Automática</span>
+            <span class="ml-2 font-semibold text-gray-800">{{ counts[ClassificationStatus.auto_classified] }}</span>
+        </li>
+        <li class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full inline-block flex-shrink-0" style="background:#8B5CF6"></span>
+            <span class="text-gray-600">Manual sin regla</span>
+            <span class="ml-2 font-semibold text-gray-800">{{ counts[ClassificationStatus.manual_no_rule] }}</span>
+        </li>
+        <li class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full inline-block flex-shrink-0" style="background:#10B981"></span>
+            <span class="text-gray-600">Completa</span>
+            <span class="ml-2 font-semibold text-gray-800">{{ counts[ClassificationStatus.manual_with_rule] }}</span>
+        </li>
+    </ul>
+</div>
+
+<script>
+(function() {
+    function renderChart() {
+    const ctx = document.getElementById('statusChart');
+        if (!ctx) return;
+        if (window._statusChart) window._statusChart.destroy();
+        window._statusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [
+                        {{ counts[ClassificationStatus.unclassified] }},
+                        {{ counts[ClassificationStatus.auto_classified] }},
+                        {{ counts[ClassificationStatus.manual_no_rule] }},
+                        {{ counts[ClassificationStatus.manual_with_rule] }}
+                    ],
+                    backgroundColor: ['#F59E0B','#3B82F6','#8B5CF6','#10B981'],
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                cutout: '70%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                animation: { duration: 400 }
+            }
+        });
+    }
+    if (typeof Chart === 'undefined') {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+        s.onload = renderChart;
+        document.head.appendChild(s);
+    } else {
+        renderChart();
+    }
+})();
+</script>
