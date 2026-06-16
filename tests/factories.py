@@ -5,13 +5,15 @@ from sqlalchemy.orm import Session
 from balance360.models.entity import Entity
 from balance360.models.contact import Contact
 from balance360.models.account import Account
+from balance360.models.category import Category
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.currency import Currency
-from balance360.enums import ContactType, AccountType, InvoiceType
+from balance360.models.import_rule import ImportRule
+from balance360.enums import ContactType, AccountType, InvoiceType, IvaAliquot, CondicionIva, DocType, TransactionType
 
-def make_entity(db: Session, name="Test"):
-    entity = Entity(id=uuid.uuid4(), name= name)
+def make_entity(db: Session, name="Test", condicion_iva=CondicionIva.INSCRIPTO):
+    entity = Entity(id=uuid.uuid4(), name= name, condicion_iva=condicion_iva)
     db.add(entity)
     db.commit()
     db.refresh(entity)
@@ -22,14 +24,19 @@ def make_contact(
         name="Test",
         tax_id="11-11111111-1",
         contact_type=ContactType.both,
-        email= "test@testing.com.ar"
+        email= "test@testing.com.ar",
+        condicion_iva=CondicionIva.INSCRIPTO,
+        doc_type=DocType.CUIT
         ):
     contact = Contact(
         id=uuid.uuid4(),
         name=name,
         tax_id=tax_id,
         contact_type=contact_type,
-        email=email)
+        email=email,
+        condicion_iva=condicion_iva,
+        doc_type=doc_type
+        )
     db.add(contact)
     db.commit()
     db.refresh(contact)
@@ -69,6 +76,17 @@ def make_account(
     db.refresh(account)
     return account
 
+def make_category(
+    db: Session, 
+    name: str = "Compras",
+    parent_id: uuid.UUID|None = None
+):
+    category = Category(name=name, parent_id=parent_id)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+    
 def make_invoice(
         db: Session,
         invoice_type=InvoiceType.purchase,
@@ -96,7 +114,8 @@ def make_invoice_line(
         product_id=None,
         description="Test ",
         quantity=1,
-        unit_price=Decimal("125.5")
+        unit_price=Decimal("125.5"),
+        iva_aliquot=IvaAliquot.exempt
 ):
     invoice_line = InvoiceLine(
         id=uuid.uuid4(),
@@ -104,9 +123,33 @@ def make_invoice_line(
         product_id=product_id,
         description=description,
         quantity=quantity,
-        unit_price=unit_price
+        unit_price=unit_price,
+        iva_aliquot=iva_aliquot
     )
     db.add(invoice_line)
     db.commit()
     db.refresh(invoice_line)
     return invoice_line
+
+def make_import_rule(
+        db: Session,
+        pattern: str,
+        transaction_type: TransactionType=TransactionType.expense,
+        entity_id: uuid.UUID|None=None,
+        contact_id: uuid.UUID|None=None,
+        category_id: uuid.UUID|None=None,
+        is_transfer: bool=False,
+):
+    import_rule = ImportRule(
+        id=uuid.uuid4(),
+        pattern=pattern,
+        transaction_type=transaction_type,
+        entity_id=entity_id,
+        contact_id=contact_id,
+        category_id=category_id,
+        is_transfer=is_transfer
+    )
+    db.add(import_rule)
+    db.commit()
+    db.refresh(import_rule)
+    return import_rule

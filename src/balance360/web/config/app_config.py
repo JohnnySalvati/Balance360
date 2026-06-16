@@ -1,7 +1,6 @@
-from decimal import Decimal
 from pathlib import Path
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Request, Form, Depends
+from fastapi import APIRouter, Request, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from balance360.dependencies import get_db
@@ -27,10 +26,9 @@ def app_config_page(
 def update_app_config(
     request: Request,
     db: Session = Depends(get_db),
-    import_rule_tolerance_pct: str = Form(...),
 ):
     data = AppconfigUpdate(
-        import_rule_tolerance_pct=Decimal(import_rule_tolerance_pct)
+
     )
     app_config_crud.save(db, data)
     response = HTMLResponse("")

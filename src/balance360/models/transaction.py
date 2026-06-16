@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 import uuid
 import datetime
 import decimal
-from sqlalchemy import Uuid, Date, String, Numeric, Enum, ForeignKey, UniqueConstraint
+from sqlalchemy import Uuid, Date, String, Numeric, Enum, ForeignKey, UniqueConstraint, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
 from balance360.enums import TransactionType, ClassificationStatus
@@ -21,7 +21,7 @@ from balance360.enums import TransactionType, ClassificationStatus
 class Transaction(Base, TimestampMixin):
     __tablename__ = "transactions"
     __table_args__ = (
-        UniqueConstraint("account_id", "date", "description", "amount", "type", name="uq_transaction"),
+        UniqueConstraint("source_file", "source_row", "type", name="uq_transaction"),
     )
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -62,6 +62,12 @@ class Transaction(Base, TimestampMixin):
     applied_rule_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("import_rules.id", ondelete="SET NULL")
     )
+    source_file: Mapped[str|None] = mapped_column(
+        String
+    )
+    source_row: Mapped[int|None] = mapped_column(
+        Integer
+    )
     applied_rule: Mapped["ImportRule|None"] = relationship(
         back_populates="transactions"
     )
@@ -87,7 +93,7 @@ class Transaction(Base, TimestampMixin):
 
     @property
     def classification_status(self) -> ClassificationStatus:
-        match (self.is_manual, self.applied_rule == None):
+        match (self.is_manual, self.applied_rule is None):
             case (False, True):
                 return ClassificationStatus.unclassified
             case (False, False):

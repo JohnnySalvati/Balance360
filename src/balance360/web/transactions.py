@@ -10,17 +10,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.crud import import_rule as import_rule_crud
-from balance360.crud import app_config as app_config_crud
 from balance360.crud import transaction as transaction_crud
 from balance360.crud import entity as entity_crud
 from balance360.crud import contact as contact_crud
 from balance360.crud import category as category_crud
 from balance360.crud import account as account_crud
 from balance360.schemas.transaction import TransactionUpdate, TransactionCreate
-from balance360.schemas.import_rule import ImportRuleUpdate, ImportRuleCreate
 from balance360.models.transaction import Transaction
 from balance360.enums import TransactionType, ClassificationStatus
-from balance360.services.import_rule import find_best_rule
+from balance360.services.import_rule import find_best_rule, resolve_rule_for_classification, RuleConflictError
 
 router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
@@ -36,7 +34,6 @@ templates.env.filters["amount"] = format_amount
 
 @router.get("/transactions")
 def transaction_list(request: Request, db: Session = Depends(get_db)):
-    transactions = transaction_crud.get_all(db)
     entities = entity_crud.get_all(db)
     contacts = contact_crud.get_all(db)
     categories = category_crud.get_all(db)
@@ -46,8 +43,6 @@ def transaction_list(request: Request, db: Session = Depends(get_db)):
         request=request,
         name="transactions/list.html",
         context={
-            "transactions": transactions,
-            "total_count": len(transactions),
             "entities": entities,
             "contacts": contacts,
             "categories": categories,
@@ -198,15 +193,7 @@ def classify_transaction(
     contacts = contact_crud.get_all(db)
     categories = category_crud.get_all(db)
 
-    transaction_data = TransactionUpdate(
-        entity_id=entity_id,
-        contact_id=contact_id,
-        category_id=category_id,
-        is_manual=True,
-        is_transfer=is_transfer,
-    )
-    transaction = transaction_crud.update(db=db, transaction=transaction, data=transaction_data)
-
+    
     def row_response(extra_trigger: dict | None = None):
         resp = templates.TemplateResponse(
             request=request,
@@ -215,75 +202,33 @@ def classify_transaction(
         )
         if extra_trigger:
             resp.headers["HX-Trigger"] = json.dumps(extra_trigger)
+            resp.headers["HX-Reswap"] = "none"
         return resp
 
+    rule = None
     if create_rule:
-        config = app_config_crud.get(db)
-        tolerance = config.import_rule_tolerance_pct / Decimal(100)
-        amount = transaction.amount
-        all_rules = import_rule_crud.get_all(db)
-        matched_rule = find_best_rule(transaction.description, transaction.type, all_rules, amount)
+        try:
+            rule = resolve_rule_for_classification(db, transaction.description, transaction.type,entity_id, contact_id, category_id, is_transfer, force)
+        except RuleConflictError as e:
+            return row_response({"showRuleConflict": 
+                                    {"row_id": f"row-{transaction_id}",
+                                    "pattern": e.pattern,
+                                    "count": e.count
+                                    }})
+    data = {
+        "entity_id": entity_id,
+        "contact_id": contact_id,
+        "category_id": category_id,
+        "is_manual": True,
+        "is_transfer": is_transfer,
+        "applied_rule_id": rule.id if rule else None
+    }
 
-        rule = None
-
-        if matched_rule is None:
-            # Caso 1: sin match — crear regla nueva
-            rule = import_rule_crud.create(db, ImportRuleCreate(
-                pattern=transaction.description.lower(),
-                entity_id=entity_id, contact_id=contact_id, category_id=category_id,
-                transaction_type=transaction.type, is_transfer=is_transfer,
-                min_amount=(amount * (1 - tolerance)).quantize(Decimal("0.01")),
-                max_amount=(amount * (1 + tolerance)).quantize(Decimal("0.01")),
-            ))
-
-        else:
-            ecc_match = (
-                matched_rule.entity_id == entity_id and
-                matched_rule.contact_id == contact_id and
-                matched_rule.category_id == category_id and
-                matched_rule.is_transfer == is_transfer
-            )
-
-            if ecc_match:
-                # Caso 2: ECC coincide — expandir rango si el monto cae afuera
-                new_min = matched_rule.min_amount
-                new_max = matched_rule.max_amount
-                if amount < matched_rule.min_amount:
-                    new_min = (amount * (1 - tolerance)).quantize(Decimal("0.01"))
-                elif amount > matched_rule.max_amount:
-                    new_max = (amount * (1 + tolerance)).quantize(Decimal("0.01"))
-
-                if new_min != matched_rule.min_amount or new_max != matched_rule.max_amount:
-                    siblings = [r for r in all_rules if r.pattern == matched_rule.pattern and r.id != matched_rule.id]
-                    overlap = next((r for r in siblings if new_min <= r.max_amount and r.min_amount <= new_max), None)
-                    if overlap:
-                        return row_response({"showToast": {"message": f"El rango solapa con la regla '{overlap.pattern}'.", "type": "error"}})
-                    import_rule_crud.update(db, ImportRuleUpdate(min_amount=new_min, max_amount=new_max), matched_rule)
-                rule = matched_rule
-
-            else:
-                if not force:
-                    # Caso 3: ECC difiere — pedir confirmación
-                    return row_response({"showRuleConflict": {"row_id": f"row-{transaction_id}"}})
-                else:
-                    # Caso 3 confirmado — crear regla nueva validando solapamiento
-                    new_min = (amount * (1 - tolerance)).quantize(Decimal("0.01"))
-                    new_max = (amount * (1 + tolerance)).quantize(Decimal("0.01"))
-                    siblings = [r for r in all_rules if r.pattern == matched_rule.pattern]
-                    overlap = next((r for r in siblings if new_min <= r.max_amount and r.min_amount <= new_max), None)
-                    if overlap:
-                        return row_response({"showToast": {"message": f"El rango solapa con la regla '{overlap.pattern}'.", "type": "error"}})
-                    rule = import_rule_crud.create(db, ImportRuleCreate(
-                        pattern=transaction.description.lower(),
-                        entity_id=entity_id, contact_id=contact_id, category_id=category_id,
-                        transaction_type=transaction.type, is_transfer=is_transfer,
-                        min_amount=new_min, max_amount=new_max,
-                    ))
-
-        if rule:
-            transaction = transaction_crud.update(db=db, transaction=transaction, data=TransactionUpdate(applied_rule_id=rule.id))
+    transaction = transaction_crud.update(db=db, transaction=transaction, data=TransactionUpdate(**data))
 
     return row_response()
+
+
 
 @router.post("/transactions/apply-rules")
 def apply_rules(
@@ -302,7 +247,7 @@ def apply_rules(
     all_transactions = [t for t in transaction_crud.get_all(db) if not t.is_manual]
     import_rules = import_rule_crud.get_all(db)
     for transaction in all_transactions:
-        import_rule = find_best_rule(transaction.description, transaction.type, import_rules, transaction.amount)
+        import_rule = find_best_rule(transaction.description, transaction.type, import_rules)
         if import_rule:
             transaction_data = TransactionUpdate(
                 entity_id=import_rule.entity_id,

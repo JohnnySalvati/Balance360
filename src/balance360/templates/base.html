@@ -35,14 +35,14 @@
             toast.className = toast.className.replace(/bg-\w+-\d+/g, "");
             toast.classList.add(type === "error" ? "bg-red-600" : "bg-green-600");
             toast.classList.remove("hidden");
-            setTimeout(() => toast.classList.add("hidden"), 4000);
+            setTimeout(() => toast.classList.add("hidden"), 5000);
         }
 
         document.body.addEventListener("showToast", (e) => {
             showToast(e.detail.message, e.detail.type || "error");
         });
 
-        // Caso 3: regla existente con ECC diferente — confirmar antes de crear nueva
+        // Caso 3: regla existente con ECC diferente — confirmar antes de modificarla
         document.body.addEventListener("showRuleConflict", (e) => {
             const btn = document.querySelector(`#${e.detail.row_id} [id^="create-rule-btn"]`);
             if (!btn || btn._conflictMode) return;
@@ -50,7 +50,11 @@
             const originalText = btn.textContent;
             const originalVals = btn.getAttribute("hx-vals");
             const originalClass = btn.className;
-            btn.textContent = "⚠️ ¿Crear nueva regla?";
+            showToast(
+                `Estás modificando la regla "${e.detail.pattern}", aplicada en ${e.detail.count} transacciones. Su clasificación cambiará en futuras importaciones. Hacé clic de nuevo para confirmar.`,
+                "error"
+            );
+            btn.textContent = "⚠️ ¿Modificar regla existente?";
             btn.classList.add("text-orange-600", "border-orange-400", "bg-orange-50");
             btn.setAttribute("hx-vals", '{"create_rule": "true", "force": "true"}');
             btn._conflictTimer = setTimeout(() => {

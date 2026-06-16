@@ -1,7 +1,5 @@
 import uuid
 from typing import TYPE_CHECKING
-from decimal import Decimal
-
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
     from balance360.models.entity import Entity
@@ -9,11 +7,12 @@ if TYPE_CHECKING:
     from balance360.models.category import Category
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Uuid, ForeignKey, String, Enum, Boolean, UniqueConstraint, Numeric
+from sqlalchemy import Uuid, ForeignKey, String, Enum, Boolean, UniqueConstraint
 from balance360.models.base import Base, TimestampMixin
 from balance360.enums import TransactionType
 class ImportRule(Base, TimestampMixin):
     __tablename__ = "import_rules"
+    __table_args__ = (UniqueConstraint("pattern", "transaction_type", name="uq_import_rule_pattern_type"),)
     
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -35,12 +34,6 @@ class ImportRule(Base, TimestampMixin):
     )
     pattern: Mapped[str] = mapped_column(
         String(200)
-    )
-    min_amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2)
-    )
-    max_amount: Mapped[Decimal] = mapped_column(
-        Numeric(precision=15, scale=2)
     )
     
     transactions: Mapped[list["Transaction"]] = relationship(

@@ -12,5 +12,5 @@ with SessionLocal() as db:
 
     valid_rows, skipped_rows, cash_rows, visa_rows = parse_sheet(wb, "Efectivo")
 
-    import_sheet(db, valid_rows, cash_account, cash_account.currency, rules)
+    import_sheet(db, valid_rows, cash_account, rules)
     

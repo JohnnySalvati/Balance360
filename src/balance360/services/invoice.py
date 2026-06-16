@@ -162,7 +162,7 @@ def validate_confirmation(db: Session, invoice: Invoice):
                     raise InvoiceConfirmationError("El serial no corresponde a este producto")
                 if serial.status != SerialStatus.reserved:
                     raise InvoiceConfirmationError("El serial no esta reservado")
-                if serial.purchase_line.invoice.entity.id != invoice.entity_id:
+                if serial.purchase_line.invoice.entity_id != invoice.entity_id:
                     raise InvoiceConfirmationError("El serial no fue comprado por esta entidad")
         else:
             if not invoice_line.product.track_serial:

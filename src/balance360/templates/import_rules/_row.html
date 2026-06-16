@@ -12,8 +12,6 @@
     <td class="px-4 py-3 text-gray-500">{{ r.entity.name if r.entity else '—' }}</td>
     <td class="px-4 py-3 text-gray-500">{{ r.contact.name if r.contact else '—' }}</td>
     <td class="px-4 py-3 text-center text-gray-500">{{ '✓' if r.is_transfer else '—' }}</td>
-    <td class="px-4 py-3 text-right text-gray-500 font-mono text-xs">{{ r.min_amount }}</td>
-    <td class="px-4 py-3 text-right text-gray-500 font-mono text-xs">{{ r.max_amount }}</td>
     <td class="px-4 py-3 text-right">
         <div class="flex justify-end gap-3">
             <button hx-get="/import-rules/{{ r.id }}/edit-form"
