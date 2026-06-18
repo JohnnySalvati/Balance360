@@ -1,11 +1,9 @@
-from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from balance360.web.config import exchange_rates, categories, accounts, entities, contacts, products, currencies, users, app_config
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/config")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 router.include_router(exchange_rates.router)
 router.include_router(categories.router)

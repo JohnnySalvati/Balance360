@@ -11,6 +11,10 @@ def get_by_entity(db: Session, entity_id: uuid.UUID) -> list[EntityMembership]:
     entity_memberships =  db.execute(select(EntityMembership).where(EntityMembership.entity_id == entity_id)).scalars().all()
     return list(entity_memberships)
 
+def get_by_user(db: Session, user_id: uuid.UUID) -> list[EntityMembership]:
+    entity_memberships =  db.execute(select(EntityMembership).where(EntityMembership.user_id == user_id)).scalars().all()
+    return list(entity_memberships)
+
 def create(db: Session, data: EntityMembershipCreate) -> EntityMembership:
     entity_membership = EntityMembership(**data.model_dump())
     db.add(entity_membership)

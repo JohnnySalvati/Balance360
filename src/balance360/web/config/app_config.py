@@ -1,13 +1,12 @@
-from pathlib import Path
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Request, Depends
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from balance360.dependencies import get_db
 from balance360.crud import app_config as app_config_crud
 from balance360.schemas.app_config import AppconfigUpdate
+from balance360.web.templating import templates
+
 router = APIRouter(prefix="/app-config")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 @router.get("/", response_class=HTMLResponse)
 def app_config_page(

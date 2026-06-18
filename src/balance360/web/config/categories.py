@@ -1,17 +1,14 @@
 import uuid
-from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.models.category import Category
 from balance360.crud import category as category_crud
 from balance360.schemas.category import CategoryCreate, CategoryUpdate
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/categories")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
-
 
 @router.get("/", response_class=HTMLResponse)
 def categories_page(request: Request, db: Session = Depends(get_db)):

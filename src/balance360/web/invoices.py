@@ -3,9 +3,7 @@ import datetime
 import json
 from decimal import Decimal
 from pydantic import ValidationError
-from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File, Response
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
@@ -33,11 +31,9 @@ from balance360.models.invoice_line import InvoiceLine
 from balance360.models.product import Product
 from balance360.models.serial_number import SerialNumber
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/invoices")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
-
-templates.env.filters["currency"] = lambda v: f"${v:,.2f}"
 
 
 def get_invoice_or_404(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> Invoice:

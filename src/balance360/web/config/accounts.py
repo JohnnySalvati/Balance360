@@ -1,17 +1,15 @@
 import uuid
-from pathlib import Path
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from balance360.dependencies import get_db
 from balance360.enums import AccountType
 from balance360.crud import account as account_crud
 from balance360.crud import currency as currency_crud
 from balance360.schemas.account import AccountCreate, AccountUpdate
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/accounts")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 @router.get("/", response_class=HTMLResponse)
 def accounts_page(request: Request, db: Session = Depends(get_db)):

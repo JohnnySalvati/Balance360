@@ -56,7 +56,7 @@ def test_import_rule_no_match(db):
         contact_id=contact.id
     )
     
-    assert no_match != None
+    assert no_match is not None
     assert no_match != rule
     assert no_match.pattern == no_match_description
 

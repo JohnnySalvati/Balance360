@@ -1,17 +1,15 @@
 import uuid
-from pathlib import Path
 from decimal import Decimal
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.services import product as product_service
 from balance360.crud import product as product_crud
 from balance360.schemas.product import ProductCreate, ProductUpdate
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/products")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 @router.get("/", response_class=HTMLResponse)
 def product_page(request: Request, db: Session = Depends(get_db)):

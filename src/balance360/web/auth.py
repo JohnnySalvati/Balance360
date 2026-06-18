@@ -1,14 +1,12 @@
-from pathlib import Path
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.crud import user as user_crud
 from balance360.services.auth import create_access_token
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/login")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 @router.get("/", response_class=HTMLResponse)
 def login_form(

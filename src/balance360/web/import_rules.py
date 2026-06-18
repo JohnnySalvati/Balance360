@@ -1,9 +1,7 @@
 import uuid
 import json
-from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from balance360.enums import TransactionType
@@ -13,10 +11,9 @@ from balance360.crud import entity as entity_crud
 from balance360.crud import contact as contact_crud
 from balance360.crud import category as category_crud
 from balance360.schemas.import_rule import ImportRuleUpdate
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/import-rules")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
-
 
 @router.get("/", response_class=HTMLResponse)
 def import_rules_page(request: Request, db: Session = Depends(get_db)):

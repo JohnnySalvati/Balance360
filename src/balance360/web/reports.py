@@ -1,6 +1,4 @@
-from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Query
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, extract
 from balance360.dependencies import get_db
@@ -11,6 +9,8 @@ from balance360.enums import TransactionType
 from balance360.reports import build_category_tree
 from balance360.crud import entity as entity_crud
 from balance360.services.exchange_rate import ars_rate_subquery
+from balance360.reports import get_account_balances
+from balance360.web.templating import templates
 
 MONTH_NAMES = {
     1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
@@ -19,14 +19,6 @@ MONTH_NAMES = {
 }
 
 router = APIRouter(prefix="/reports")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
-
-
-def format_amount(value):
-    return f"{value:,.2f}"
-
-templates.env.filters["amount"] = format_amount
-
 
 @router.get("")
 def reports_index(request: Request):
@@ -258,43 +250,10 @@ def report_net_worth(
     db: Session = Depends(get_db),
 
 ):
-    stmt = (
-        select(
-            Account,
-            func.coalesce(
-                func.sum(Transaction.amount).
-                filter(
-                    Transaction.type == TransactionType.income,
-                    Transaction.is_transfer == False
-                ), 0
-            ).label("total_income"),
-            func.coalesce(
-                func.sum(Transaction.amount)
-                .filter(
-                    Transaction.type == TransactionType.expense,
-                    Transaction.is_transfer == False
-                ), 0
-            ).label("total_expense"),
-            func.coalesce(ars_rate_subquery(Account.currency_id, func.current_date()), 1)
-            .label("exchange_rate")
-        )
-        .outerjoin(Transaction, Transaction.account_id == Account.id)
-        .group_by(Account.id)
-        .order_by(Account.name)
-    )
-    rows = db.execute(stmt).all()
-
-    rows_data = []
-    for row in rows:
-        
-        rows_data.append({
-            "account": row.Account,
-            "balance": row.total_income - row.total_expense,
-            "ars_balance": (row.total_income - row.total_expense) * row.exchange_rate,
-            "exchange_rate": row.exchange_rate,
-        })
+    rows_data = get_account_balances(db)
 
     total_ars = sum(r["ars_balance"] for r in rows_data)
+    
     return templates.TemplateResponse(
         request=request,
         name="reports/net_worth.html",
@@ -303,3 +262,5 @@ def report_net_worth(
             "total_ars": total_ars
             }
     )
+
+

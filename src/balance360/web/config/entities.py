@@ -1,9 +1,7 @@
 import uuid
-from pathlib import Path
 from decimal import Decimal
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from balance360.enums import CondicionIva, Role
 from balance360.dependencies import get_db
@@ -14,9 +12,9 @@ from balance360.schemas.entity_membership import EntityMembershipCreate, EntityM
 from balance360.crud import entity as entity_crud
 from balance360.crud import entity_membership as entity_membership_crud
 from balance360.crud import user as user_crud
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/entities")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 @router.get("/", response_class=HTMLResponse)
 def entities_page(request: Request, db: Session = Depends(get_db)):

@@ -86,7 +86,7 @@ def get_all(
             selectinload(Transaction.category),
         )
     
-    stmt = stmt.order_by(Transaction.date.desc(), Transaction.id)
+    stmt = stmt.order_by(Transaction.date, Transaction.id)
 
     if limit:
         stmt = stmt.limit(limit).offset(offset)

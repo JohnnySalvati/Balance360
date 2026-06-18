@@ -1,7 +1,5 @@
 import uuid
-from pathlib import Path
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.enums import SerialStatus
@@ -11,10 +9,9 @@ from balance360.crud import product as product_crud
 from balance360.crud import entity as entity_crud
 from balance360.models.serial_number import SerialNumber
 from balance360.services.stock import get_stock_summary
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/stock")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
-
 
 @router.get("/serials", response_class=HTMLResponse)
 def serials_page(

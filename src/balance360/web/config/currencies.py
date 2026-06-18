@@ -1,15 +1,13 @@
 import uuid
-from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
 from balance360.crud import currency as currency_crud
 from balance360.schemas.currency import CurrencyCreate, CurrencyUpdate
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/currencies")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 
 def get_currency_or_404(currency_id: uuid.UUID, db: Session = Depends(get_db)):

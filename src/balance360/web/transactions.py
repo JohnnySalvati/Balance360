@@ -1,10 +1,8 @@
 import json
 from uuid import UUID
-from pathlib import Path
 from datetime import date
 from decimal import Decimal
 from fastapi import APIRouter, Request, Depends, Query, Form, HTTPException
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -19,18 +17,11 @@ from balance360.schemas.transaction import TransactionUpdate, TransactionCreate
 from balance360.models.transaction import Transaction
 from balance360.enums import TransactionType, ClassificationStatus
 from balance360.services.import_rule import find_best_rule, resolve_rule_for_classification, RuleConflictError
+from balance360.web.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 
 PAGE_SIZE = 50
-
-def format_amount(value):
-    return f"{value:,.2f}"
-
-
-templates.env.filters["amount"] = format_amount
-
 
 @router.get("/transactions")
 def transaction_list(request: Request, db: Session = Depends(get_db)):

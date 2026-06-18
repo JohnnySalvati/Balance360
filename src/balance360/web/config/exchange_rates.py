@@ -1,10 +1,8 @@
 import uuid
 from decimal import Decimal
 import datetime
-from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from balance360.dependencies import get_db
@@ -12,17 +10,9 @@ from balance360.crud import currency as currency_crud
 from balance360.crud import exchange_rate as exchange_rate_crud
 from balance360.schemas.exchange_rate import ExchangeRateCreate
 from balance360.models.exchange_rate import ExchangeRate
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/exchange-rates")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
-
-
-def format_amount(value):
-    return f"{value:,.2f}"
-
-
-templates.env.filters["amount"] = format_amount
-
 
 def _get_rates_by_currency(db: Session) -> list[dict]:
     currencies = currency_crud.get_all(db)

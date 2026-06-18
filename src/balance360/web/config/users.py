@@ -1,17 +1,15 @@
 import uuid
-from pathlib import Path
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from balance360.dependencies import get_db
 from balance360.crud import user as user_crud
 from balance360.schemas.user import UserCreate, UserUpdate
 from balance360.dependencies import get_current_user
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/users")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 @router.get("/", response_class=HTMLResponse)
 def user_page(request: Request, db: Session = Depends(get_db)):

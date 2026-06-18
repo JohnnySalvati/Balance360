@@ -1,16 +1,14 @@
 import uuid
-from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from balance360.enums import ContactType, CondicionIva, DocType
 from balance360.dependencies import get_db
 from balance360.crud import contact as contact_crud
 from balance360.schemas.contact import ContactCreate, ContactUpdate
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/contacts")
-templates = Jinja2Templates(directory=Path(__file__).parent.parent.parent / "templates")
 
 @router.get("/", response_class=HTMLResponse)
 def contacts_page(request: Request, db: Session = Depends(get_db)):
