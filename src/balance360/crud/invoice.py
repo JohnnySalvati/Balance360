@@ -38,4 +38,5 @@ def update(db: Session, data: InvoiceUpdate, invoice: Invoice) -> Invoice:
 
 def delete(db: Session, invoice: Invoice):
     db.delete(invoice)
+    db.flush()
 

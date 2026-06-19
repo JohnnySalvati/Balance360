@@ -23,6 +23,9 @@ class ImportRule(Base, TimestampMixin):
     contact_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("contacts.id")
     )
+    account_id: Mapped[uuid.UUID|None] = mapped_column(
+        ForeignKey("accounts.id")
+    )
     category_id: Mapped[uuid.UUID|None] = mapped_column(
         ForeignKey("categories.id")
     )

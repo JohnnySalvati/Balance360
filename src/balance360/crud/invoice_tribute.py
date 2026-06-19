@@ -19,3 +19,4 @@ def create(db: Session, data: InvoiceTributeCreate) -> InvoiceTribute:
 
 def delete(db: Session, tribute: InvoiceTribute):
     db.delete(tribute)
+    db.flush()

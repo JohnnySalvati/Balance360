@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
     from balance360.models.currency import Currency
-
+    from balance360.models.import_row import ImportRow
 import uuid
 import sqlalchemy
 from sqlalchemy import Uuid, String, Boolean, ForeignKey
@@ -31,4 +31,7 @@ class Account(Base, TimestampMixin):
     )
     currency: Mapped["Currency"] = relationship(
         back_populates="accounts"
+    )
+    import_rows: Mapped[list["ImportRow"]] = relationship(
+        back_populates="account"
     )

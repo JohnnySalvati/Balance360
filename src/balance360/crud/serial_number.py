@@ -51,6 +51,7 @@ def create(db: Session, data: SerialNumberCreate) -> SerialNumber:
 
 def delete(db: Session, serial_number: SerialNumber):
     db.delete(serial_number)
+    db.flush()
     
 def update(db: Session, serial_number: SerialNumber, data: SerialNumberUpdate) -> SerialNumber:
     for field, value in data.model_dump(exclude_unset=True).items():

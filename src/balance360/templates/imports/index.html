@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Importaciones</h1>
+</div>
+
+<div class="flex-1 overflow-y-auto space-y-6 pr-1">
+
+    {# ---- Upload ---- #}
+    <div class="bg-white rounded shadow p-5">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">Importar Excel</h2>
+        <form hx-post="/imports/" hx-encoding="multipart/form-data" class="flex items-center gap-3 flex-wrap">
+            <input type="file" name="file" accept=".xlsx" required
+                   class="text-sm text-gray-600 file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 file:text-sm hover:file:bg-blue-100 file:cursor-pointer">
+            <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                Importar
+            </button>
+            <span class="htmx-indicator text-sm text-gray-400">Procesando…</span>
+        </form>
+    </div>
+
+    {# ---- Batches ---- #}
+    <div class="bg-white rounded shadow">
+        <div class="px-4 py-3 border-b border-gray-100">
+            <h2 class="text-sm font-semibold text-gray-700">Importaciones recientes</h2>
+        </div>
+
+        {% if batches %}
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Archivo</th>
+                    <th class="px-4 py-3">Fecha</th>
+                    <th class="px-4 py-3 text-right">Transacciones</th>
+                    <th class="px-4 py-3 text-right">A revisar</th>
+                    <th class="px-4 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for batch in batches %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 font-medium">{{ batch.filename }}</td>
+                    <td class="px-4 py-3 text-gray-500">{{ batch.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ batch.transactions | length }}</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ batch.import_rows | length }}</td>
+                    <td class="px-4 py-3 text-right">
+                        <a href="/imports/{{ batch.id }}" class="text-blue-600 hover:underline text-xs">Ver →</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="px-4 py-10 text-center text-gray-400 text-sm">Todavía no importaste nada.</div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

@@ -75,3 +75,8 @@ class ClassificationStatus(enum.Enum):
     auto_classified = "auto_classified"
     manual_no_rule = "manual_no_rule"
     manual_with_rule = "manual_with_rule"
+
+class ImportRowStatus(enum.Enum):
+    needs_review = "needs_review"
+    imported = "imported"
+    discarded = "discarded"

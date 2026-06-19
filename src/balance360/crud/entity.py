@@ -22,6 +22,7 @@ def create(db: Session, data: EntityCreate) -> Entity:
 
 def delete(db: Session, entity: Entity):
     db.delete(entity)
+    db.flush()
 
 def update(db: Session, entity: Entity, data: EntityUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():

@@ -15,6 +15,7 @@ from balance360.crud import category as category_crud
 from balance360.crud import account as account_crud
 from balance360.schemas.transaction import TransactionUpdate, TransactionCreate
 from balance360.models.transaction import Transaction
+from balance360.services.import_rule import Classification
 from balance360.enums import TransactionType, ClassificationStatus
 from balance360.services.import_rule import find_best_rule, resolve_rule_for_classification, RuleConflictError
 from balance360.web.templating import templates
@@ -199,7 +200,20 @@ def classify_transaction(
     rule = None
     if create_rule:
         try:
-            rule = resolve_rule_for_classification(db, transaction.description, transaction.type,entity_id, contact_id, category_id, is_transfer, force)
+            classification = Classification(
+                entity_id=entity_id,
+                contact_id=contact_id,
+                category_id=category_id,
+                is_transfer=is_transfer,
+                account_id=None
+            )
+            rule = resolve_rule_for_classification(
+                    db=db,
+                    description=transaction.description,
+                    transaction_type=transaction.type,
+                    classification=classification,
+                    force=force
+                )
         except RuleConflictError as e:
             return row_response({"showRuleConflict": 
                                     {"row_id": f"row-{transaction_id}",

@@ -138,6 +138,7 @@ def create(db: Session, data: TransactionCreate) -> Transaction:
 
 def delete(db: Session, transaction: Transaction):
     db.delete(transaction)
+    db.flush()
 
 def update(db: Session, transaction: Transaction, data: TransactionUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():

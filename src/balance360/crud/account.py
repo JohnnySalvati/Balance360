@@ -21,6 +21,7 @@ def create(db: Session, data: AccountCreate) -> Account:
 
 def delete(db: Session, account: Account):
     db.delete(account)
+    db.flush()
 
 def update(db: Session, account: Account, data: AccountUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():

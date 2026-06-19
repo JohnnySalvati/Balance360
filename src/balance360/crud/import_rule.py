@@ -40,3 +40,4 @@ def get_by_exact_pattern(db: Session, pattern: str, transaction_type: Transactio
 
 def delete(db: Session, import_rule: ImportRule):
     db.delete(import_rule)
+    db.flush()

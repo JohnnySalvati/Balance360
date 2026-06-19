@@ -9,7 +9,8 @@ if TYPE_CHECKING:
     from balance360.models.attachment import Attachment
     from balance360.models.import_rule import ImportRule
     from balance360.models.invoice import Invoice
-
+    from balance360.models.import_row import ImportRow
+    from balance360.models.import_batch import ImportBatch
 import uuid
 import datetime
 import decimal
@@ -21,7 +22,7 @@ from balance360.enums import TransactionType, ClassificationStatus
 class Transaction(Base, TimestampMixin):
     __tablename__ = "transactions"
     __table_args__ = (
-        UniqueConstraint("source_file", "source_row", "type", name="uq_transaction"),
+        UniqueConstraint("source_file", "account_id", "source_row", "type", name="uq_transaction"),
     )
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -68,6 +69,12 @@ class Transaction(Base, TimestampMixin):
     source_row: Mapped[int|None] = mapped_column(
         Integer
     )
+    import_batch_id: Mapped[uuid.UUID|None] = mapped_column(
+        ForeignKey("import_batches.id"), nullable=True
+    )
+    import_row_id: Mapped[uuid.UUID|None] = mapped_column(
+        ForeignKey("import_rows.id"), nullable=True
+    )
     applied_rule: Mapped["ImportRule|None"] = relationship(
         back_populates="transactions"
     )
@@ -87,6 +94,12 @@ class Transaction(Base, TimestampMixin):
         back_populates="transactions"
     )
     account: Mapped["Account"] = relationship(
+        back_populates="transactions"
+    )
+    import_row: Mapped["ImportRow|None"] = relationship(
+        back_populates="transactions"
+    )
+    import_batch: Mapped["ImportBatch|None"] = relationship(
         back_populates="transactions"
     )
 

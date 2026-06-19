@@ -21,6 +21,7 @@ def create(db: Session, data: ExchangeRateCreate):
 
 def delete(db: Session, exchange_rate: ExchangeRate):
     db.delete(exchange_rate)
+    db.flush()
 
 def update(db: Session, exchange_rate: ExchangeRate, data: ExchangeRateUpdate) -> ExchangeRate:
     for field, value in data.model_dump(exclude_unset=True).items():

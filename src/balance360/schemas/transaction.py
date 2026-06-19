@@ -21,6 +21,10 @@ class TransactionCreate(BaseModel):
     is_manual: bool=False
     is_transfer: bool=False
     applied_rule_id: uuid.UUID|None=None
+    source_file: str|None=None
+    source_row: int|None=None
+    import_batch_id: uuid.UUID|None=None
+    import_row_id: uuid.UUID|None=None
 class TransactionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -36,6 +40,10 @@ class TransactionRead(BaseModel):
     is_manual: bool
     is_transfer: bool
     applied_rule: ImportRuleShort|None=None
+    source_file: str|None=None
+    source_row: int|None=None
+    import_batch_id: uuid.UUID|None=None
+    import_row_id: uuid.UUID|None=None
     created_at: datetime.datetime
     updated_at: datetime.datetime
     
@@ -52,3 +60,7 @@ class TransactionUpdate(BaseModel):
     is_manual: bool|None = None
     is_transfer: bool|None = None
     applied_rule_id: uuid.UUID|None=None
+    source_file: str|None=None
+    source_row: int|None=None
+    import_batch_id: uuid.UUID|None=None
+    import_row_id: uuid.UUID|None=None

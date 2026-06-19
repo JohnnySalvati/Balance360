@@ -22,6 +22,7 @@ def create(db: Session, data: CurrencyCreate) -> Currency:
 
 def delete(db: Session, currency: Currency):
     db.delete(currency)
+    db.flush()
 
 def update(db: Session, currency: Currency, data: CurrencyUpdate) -> Currency:
     for field, value in data.model_dump(exclude_unset=True).items():

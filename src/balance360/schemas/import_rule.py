@@ -9,6 +9,7 @@ class ImportRuleRead(BaseModel):
     entity_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
+    account_id: uuid.UUID|None = None
     transaction_type: TransactionType
     is_transfer: bool
     created_at: datetime
@@ -19,12 +20,13 @@ class ImportRuleCreate(BaseModel):
     entity_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
+    account_id: uuid.UUID|None = None
     transaction_type: TransactionType
     is_transfer: bool
 
     @model_validator(mode='after')
     def check_one_required(self) -> 'ImportRuleCreate':
-        if not self.entity_id and not self.contact_id and not self.category_id and not self.is_transfer:
+        if not any([self.entity_id, self.contact_id, self.category_id, self.account_id, self.is_transfer]):
             raise ValueError('One attribute is required')
         return self
 class ImportRuleUpdate(BaseModel):
@@ -32,9 +34,9 @@ class ImportRuleUpdate(BaseModel):
     entity_id: uuid.UUID|None = None
     contact_id: uuid.UUID|None = None
     category_id: uuid.UUID|None = None
+    account_id: uuid.UUID|None = None
     transaction_type: TransactionType|None = None
     is_transfer: bool|None = None
-
 
 
 class ImportRuleShort(BaseModel):

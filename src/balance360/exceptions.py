@@ -11,3 +11,7 @@ class InvoiceConfirmationError(Exception):
 class InvoiceDeleteError(Exception):
     pass
 
+class RuleConflictError(Exception):
+    def __init__(self, pattern: str, count: int) -> None:
+        self.pattern = pattern
+        self.count = count

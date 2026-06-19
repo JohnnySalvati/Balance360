@@ -18,18 +18,18 @@ def get_by_tax_id(db: Session, tax_id: str) -> Contact | None:
 def create(db: Session, data: ContactCreate) -> Contact:
     db_contact = Contact(**data.model_dump())
     db.add(db_contact)
-    db.commit()
+    db.flush()
     db.refresh(db_contact)
     return db_contact
 
 def delete(db: Session, contact: Contact):
     db.delete(contact)
-    db.commit()
+    db.flush()
 
 def update(db: Session, contact: Contact, data: ContactUpdate) -> Contact:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(contact, field, value)
-    db.commit()
+    db.flush()
     db.refresh(contact)
     return contact
 

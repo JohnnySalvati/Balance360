@@ -1,5 +1,6 @@
 import uuid
 import datetime
+import dataclasses
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from balance360.models.entity import Entity
@@ -10,6 +11,7 @@ from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.currency import Currency
 from balance360.models.import_rule import ImportRule
+from balance360.services.import_rule import Classification
 from balance360.enums import ContactType, AccountType, InvoiceType, IvaAliquot, CondicionIva, DocType, TransactionType
 
 def make_entity(db: Session, name="Test", condicion_iva=CondicionIva.INSCRIPTO):
@@ -134,20 +136,14 @@ def make_invoice_line(
 def make_import_rule(
         db: Session,
         pattern: str,
+        classification: Classification,
         transaction_type: TransactionType=TransactionType.expense,
-        entity_id: uuid.UUID|None=None,
-        contact_id: uuid.UUID|None=None,
-        category_id: uuid.UUID|None=None,
-        is_transfer: bool=False,
 ):
     import_rule = ImportRule(
         id=uuid.uuid4(),
         pattern=pattern,
+        **dataclasses.asdict(classification),
         transaction_type=transaction_type,
-        entity_id=entity_id,
-        contact_id=contact_id,
-        category_id=category_id,
-        is_transfer=is_transfer
     )
     db.add(import_rule)
     db.commit()

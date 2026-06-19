@@ -5,7 +5,6 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
-from balance360 import models
 from balance360.models import Account, ImportRule, Transaction
 from balance360.enums import TransactionType
 from balance360.database import SessionLocal
@@ -121,7 +120,9 @@ def load_accounts(db: Session) -> list[Account]:
 def import_sheet(db: Session, rows: list[dict], account: Account, rules: list[ImportRule], source_file: str):
     for row in rows:
         amount = row['amount']
+        
         import_rule = find_best_rule(row['description'], row['transaction_type'], rules)
+        
         transaction_dict = {
             'id': uuid.uuid4(),
             'date': row['date'],

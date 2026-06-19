@@ -37,6 +37,7 @@ def create(db: Session, data: UserCreate) -> User:
 
 def delete(db: Session, user: User):
     db.delete(user)
+    db.flush()
 
 def update(db: Session, user: User, data: UserUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():

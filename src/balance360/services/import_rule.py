@@ -1,5 +1,7 @@
 import uuid
 import re
+import dataclasses
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from rapidfuzz import process, fuzz
 from sqlalchemy.orm import Session
@@ -7,11 +9,23 @@ from balance360.models.import_rule import ImportRule
 from balance360.schemas.import_rule import ImportRuleCreate, ImportRuleUpdate
 from balance360.crud import import_rule as import_rule_crud
 from balance360.enums import TransactionType
+from balance360.exceptions import RuleConflictError
+@dataclass(frozen=True)
+class Classification():
+    entity_id: uuid.UUID|None = None
+    contact_id: uuid.UUID|None = None
+    category_id: uuid.UUID|None = None
+    account_id:  uuid.UUID|None = None
+    is_transfer: bool|None = False
 
-class RuleConflictError(Exception):
-    def __init__(self, pattern: str, count: int) -> None:
-        self.pattern = pattern
-        self.count = count
+def classification_of(rule: ImportRule) -> Classification:
+    return Classification(
+        entity_id=rule.entity_id,
+        contact_id=rule.contact_id, 
+        category_id=rule.category_id,
+        account_id=rule.account_id,
+        is_transfer=rule.is_transfer
+    )
 
 def extract_amount(description: str) -> Decimal | None:
     """Extract a monetary amount from a description string containing $ amounts."""
@@ -48,7 +62,9 @@ def extract_amount(description: str) -> Decimal | None:
         return None
 
 def find_best_rule(pattern: str, transaction_type: TransactionType, rules: list[ImportRule]) -> ImportRule | None:
+
     filtered_rules = [r for r in rules if r.transaction_type == transaction_type]
+    
     if not filtered_rules:
         return None
     
@@ -71,10 +87,7 @@ def resolve_rule_for_classification(
         db: Session,
         description: str,
         transaction_type: TransactionType,
-        entity_id: uuid.UUID|None=None,
-        contact_id: uuid.UUID|None=None,
-        category_id: uuid.UUID|None=None,
-        is_transfer: bool=False,
+        classification: Classification,
         force: bool=False) -> ImportRule:
     
     all_rules = import_rule_crud.get_all(db)
@@ -83,32 +96,31 @@ def resolve_rule_for_classification(
     rule = None
 
     if matched_rule is None:
-        # Caso 1: sin match — crear regla nueva
-        rule = import_rule_crud.create(db, ImportRuleCreate(
-            pattern=description.lower(),
-            entity_id=entity_id, contact_id=contact_id, category_id=category_id,
-            transaction_type=transaction_type, is_transfer=is_transfer,
-        ))
-    else:
-        ecc_match = (
-            matched_rule.entity_id == entity_id and
-            matched_rule.contact_id == contact_id and
-            matched_rule.category_id == category_id and
-            matched_rule.transaction_type == transaction_type and
-            matched_rule.is_transfer == is_transfer
+        # Case 1: without match — create new rule
+        rule = import_rule_crud.create(
+            db,
+            ImportRuleCreate(
+                pattern=description.lower(),
+                **dataclasses.asdict(classification),
+                transaction_type=transaction_type,
+            )
         )
-
-        if ecc_match:
-            # Caso 2: ECC coincide
+    else:
+        if classification_of(matched_rule) == classification:
+            # Case 2: match and same classification
             rule = matched_rule
         else:
             if not force:
-                # Caso 3: ECC difiere — pedir confirmación
+                # Case 3 match and different classification
                 raise RuleConflictError(pattern=matched_rule.pattern, count=len(matched_rule.transactions))
             else:
-                # Caso 3 confirmado — actualizar regla
-                rule = import_rule_crud.update(db, ImportRuleUpdate(
-                    entity_id=entity_id, contact_id=contact_id, category_id=category_id,
-                    transaction_type=transaction_type, is_transfer=is_transfer,
-                ), matched_rule)
+                # Case 3 match and different classification
+                rule = import_rule_crud.update(
+                    db,
+                    ImportRuleUpdate(
+                        **dataclasses.asdict(classification),
+                        transaction_type=transaction_type
+                    ),
+                    matched_rule
+                )
     return rule

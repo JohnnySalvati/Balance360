@@ -27,4 +27,5 @@ def update(db: Session, data: InvoiceLineUpdate, invoice_line: InvoiceLine) -> I
 
 def delete(db: Session, invoice_line: InvoiceLine):
     db.delete(invoice_line)
+    db.flush()
 

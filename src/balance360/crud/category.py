@@ -34,6 +34,8 @@ def create(db: Session, data: CategoryCreate) -> Category:
 
 def delete(db: Session, category: Category):
     db.delete(category)
+    db.flush()
+
 
 def update(db: Session, category: Category, data: CategoryUpdate) -> Category:
     for field, value in data.model_dump(exclude_unset=True).items():

@@ -28,5 +28,6 @@ def  update(db: Session, product: Product, data: ProductUpdate) -> Product:
 
 def delete(db: Session, product: Product):
     db.delete(product)
+    db.flush()
 
 
