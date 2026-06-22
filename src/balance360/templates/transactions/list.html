@@ -53,6 +53,17 @@
         </div>
 
         <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Descripción</label>
+            <input type="text" name="description"
+                class="border rounded px-3 py-2 text-sm"
+                hx-get="/transactions/rows"
+                hx-target="#tbody"
+                hx-trigger="keyup changed delay:400ms"
+                hx-include="form"
+                hx-disinherit="*">
+        </div>
+
+        <div class="flex flex-col gap-1">
             <label class="text-xs text-gray-500">Tipo</label>
             <select name="transaction_type" class="border rounded px-3 py-2 text-sm">
                 <option value="">Todos</option>
@@ -72,25 +83,13 @@
         </div>
 
         <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-500">Estado</label>
-            <select name="classification_status" class="border rounded px-3 py-2 text-sm">
-                <option value="">Todos</option>
-                <option value="unclassified">🟡 Pendiente</option>
-                <option value="auto_classified">🔵 Automática</option>
-                <option value="manual_no_rule">🟣 Manual sin regla</option>
-                <option value="manual_with_rule">🟢 Completa</option>
+            <label class="text-xs text-gray-500">Entidad</label>
+            <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todas</option>
+                {% for e in entities %}
+                <option value="{{ e.id }}">{{ e.name }}</option>
+                {% endfor %}
             </select>
-        </div>
-
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-500">Descripción</label>
-            <input type="text" name="description"
-                class="border rounded px-3 py-2 text-sm"
-                hx-get="/transactions/rows"
-                hx-target="#tbody"
-                hx-trigger="keyup changed delay:400ms"
-                hx-include="form"
-                hx-disinherit="*">
         </div>
 
         <div class="flex flex-col gap-1">
@@ -104,12 +103,13 @@
         </div>
 
         <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-500">Entidad</label>
-            <select name="entity_id" class="border rounded px-3 py-2 text-sm">
-                <option value="">Todas</option>
-                {% for e in entities %}
-                <option value="{{ e.id }}">{{ e.name }}</option>
-                {% endfor %}
+            <label class="text-xs text-gray-500">Estado</label>
+            <select name="classification_status" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todos</option>
+                <option value="unclassified">🟡 Pendiente</option>
+                <option value="auto_classified">🔵 Automática</option>
+                <option value="manual_no_rule">🟣 Manual sin regla</option>
+                <option value="manual_with_rule">🟢 Completa</option>
             </select>
         </div>
 
@@ -133,6 +133,8 @@
                     <th class="px-4 py-3">Entidad</th>
                     <th class="px-4 py-3">Contacto</th>
                     <th class="px-4 py-3">Categoría</th>
+                    <th class="px-4 py-3">Estado</th>
+                    <th class="px-4 py-3 text-center">Transf.</th>
                     <th class="px-4 py-3"></th>
                 </tr>
             </thead>

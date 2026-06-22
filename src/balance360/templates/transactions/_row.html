@@ -58,11 +58,15 @@
         </select>
     </td>
     <td class="px-4 py-3">
-        <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-xs font-medium {{ status_badges[status][1] }}">
-                {{ status_badges[status][0] }}
-            </span>
-            <input type="checkbox" name="is_transfer" value="true" {% if t.is_transfer %}checked{% endif %} title="Es transferencia">
+        <span class="px-2 py-0.5 rounded text-xs font-medium {{ status_badges[status][1] }}">
+            {{ status_badges[status][0] }}
+        </span>
+    </td>
+    <td class="px-4 py-3 text-center">
+        <input type="checkbox" name="is_transfer" value="true" {% if t.is_transfer %}checked{% endif %} title="Marcar como transferencia">
+    </td>
+    <td class="px-4 py-3">
+        <div class="flex items-center gap-2 justify-end">
             <button type="button"
                     id="create-rule-btn-{{ t.id }}"
                     hx-patch="/transactions/{{ t.id }}/classify"
