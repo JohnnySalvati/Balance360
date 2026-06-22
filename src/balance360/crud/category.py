@@ -4,21 +4,34 @@ from sqlalchemy.orm import Session
 from balance360.models.category import Category
 from balance360.schemas.category import CategoryCreate, CategoryUpdate
 
-def get_all(db: Session) -> list[Category]:
-    def flatten(node: Category, all_categories: list[Category]):
+def get_all(db: Session, search: str|None=None) -> list[Category]:
+
+    search = search.lower() if search else None
+    
+    def flatten(node: Category, all_categories: list[Category], search: str|None = None):
         result = [node]
         children = [c for c in all_categories if c.parent_id == node.id]
+        
         for child in children:
-            result.extend(flatten(child, all_categories))
+            result.extend(flatten(child, all_categories, search))
+        
+        if search and len(result) == 1 and search not in node.name.lower():
+            return []
+        
         return result
     
-    categories = db.execute(select(Category)
-                            .order_by(Category.name)
-                            ).scalars().all()
+    stmt = select(Category).order_by(Category.name)
+    categories = list(db.execute(stmt).scalars().all())
+
     root_categories = [cat for cat in categories if not cat.parent_id]
+    
     result = []
+
     for root_category in root_categories:
-        result.extend(flatten(root_category, list(categories)))
+        children = flatten(root_category, categories, search)
+
+        result.extend(children)
+    
     return result
     
 def get_by_id(db: Session, category_id: uuid.UUID) -> Category | None:

@@ -1,7 +1,7 @@
 import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from balance360.dependencies import get_db
 from balance360.crud import user as user_crud
@@ -26,12 +26,16 @@ def close_modl():
     return HTMLResponse('<div id="modal"></div>')
 
 @router.get("/rows")
-def product_rows(request: Request, db: Session = Depends(get_db)):
+def user_rows(
+    request: Request,
+    search: str|None = Query(default=""),
+    db: Session = Depends(get_db)
+):
     return templates.TemplateResponse(
         request=request,
         name="users/_rows.html",
         context={
-            "users": user_crud.get_all(db)
+            "users": user_crud.get_all(db, search)
         }
     )
 

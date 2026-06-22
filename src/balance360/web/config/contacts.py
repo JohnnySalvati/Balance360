@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.enums import ContactType, CondicionIva, DocType
@@ -24,8 +24,13 @@ def close_modal():
     return HTMLResponse('<div id="modal"></div>')
 
 @router.get("/rows")
-def contacts_rows(request: Request, db: Session = Depends(get_db)):
-    contacts = contact_crud.get_all(db)
+def contacts_rows(
+    request: Request,
+    search: str = Query(default=""),
+    db: Session = Depends(get_db)
+):
+    contacts = contact_crud.get_all(db, search)
+    
     return templates.TemplateResponse(
         request=request,
         name="config/contacts/_rows.html",

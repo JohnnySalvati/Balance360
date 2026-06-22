@@ -1,0 +1,10 @@
+{# Buscador reutilizable. Espera la variable `rows_url` (endpoint /rows a consultar). #}
+<div class="shrink-0 mb-4">
+    <input type="search" name="search" autocomplete="off"
+           placeholder="Buscar por nombre…"
+           hx-get="{{ rows_url }}"
+           hx-target="#tbody"
+           hx-swap="innerHTML"
+           hx-trigger="input changed delay:300ms, search"
+           class="border rounded px-3 py-2 text-sm w-full max-w-md">
+</div>

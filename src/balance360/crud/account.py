@@ -4,8 +4,15 @@ from sqlalchemy import select
 from balance360.schemas.account import AccountCreate, AccountUpdate
 from balance360.models.account import Account
 
-def get_all(db: Session) -> list[Account]:
-    accounts = db.execute(select(Account)).scalars().all()
+def get_all(db: Session, search: str|None=None) -> list[Account]:
+    
+    stmt = select(Account)
+    
+    if search:
+        stmt = stmt.where(Account.name.ilike(f"%{search}%"))
+    
+    accounts = db.execute(stmt.order_by(Account.name)).scalars().all()
+    
     return list(accounts)
 
 def get_by_id(db: Session, account_id: uuid.UUID) -> Account|None:

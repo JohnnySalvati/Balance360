@@ -5,8 +5,15 @@ from balance360.models.entity import Entity
 from balance360.schemas.entity import EntityCreate, EntityUpdate
 
 
-def get_all(db: Session) -> list[Entity]:
-    entities = db.execute(select(Entity)).scalars().all()
+def get_all(db: Session, search: str|None=None) -> list[Entity]:
+    stmt = select(Entity)
+
+    if search:
+        stmt = stmt.where(Entity.name.ilike(f"%{search.strip()}%"))
+    
+    stmt = stmt.order_by(Entity.name)
+    entities = db.execute(stmt).scalars().all()
+    
     return list(entities)
 
 def get_by_id(db: Session, entity_id: uuid.UUID) -> Entity | None:

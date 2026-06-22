@@ -5,8 +5,15 @@ from balance360.models.currency import Currency
 from balance360.models.exchange_rate import ExchangeRate
 from balance360.schemas.currency import CurrencyCreate, CurrencyUpdate
 
-def get_all(db: Session) -> list[Currency]:
-    currencies = db.execute(select(Currency)).scalars().all()
+def get_all(db: Session, search: str|None=None) -> list[Currency]:
+    stmt = select(Currency)
+
+    if search:
+        stmt = stmt.where(Currency.name.ilike(f"%{search}%"))
+
+    stmt = stmt.order_by(Currency.name)
+    
+    currencies = db.execute(stmt).scalars().all()
     return list(currencies)
 
 def get_by_id(db: Session, currency_id: uuid.UUID) -> Currency | None:

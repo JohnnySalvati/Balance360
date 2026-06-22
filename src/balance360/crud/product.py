@@ -4,9 +4,14 @@ from sqlalchemy.orm import Session
 from balance360.models.product import Product
 from balance360.schemas.product import ProductCreate, ProductUpdate
 
-def get_all(db: Session) -> list[Product]:
-    products = db.execute(select(Product)).scalars().all()
-    return list(products)
+def get_all(db: Session, search: str|None=None) -> list[Product]:
+    stmt = select(Product)
+
+    if search:
+        stmt = stmt.where(Product.name.ilike(f"%{search}%"))
+    
+    products = db.execute(stmt).scalars().all()
+    return sorted(list(products), key=lambda x: x.name)
 
 def get_by_id(db: Session, product_id: uuid.UUID) -> Product|None:
     product = db.execute(select(Product).where(Product.id == product_id)).scalars().first()

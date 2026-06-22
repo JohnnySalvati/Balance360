@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
@@ -32,11 +32,15 @@ def close_modal():
 
 
 @router.get("/rows")
-def currency_rows(request: Request, db: Session = Depends(get_db)):
+def currency_rows(
+    request: Request,
+    search: str|None = Query(default=""),
+    db: Session = Depends(get_db)
+):
     return templates.TemplateResponse(
         request=request,
         name="currencies/_rows.html",
-        context={"currencies": currency_crud.get_all(db)},
+        context={"currencies": currency_crud.get_all(db, search)},
     )
 
 

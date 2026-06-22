@@ -1,6 +1,6 @@
 import uuid
 from decimal import Decimal
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.enums import CondicionIva, Role
@@ -30,8 +30,13 @@ def close_modal():
     return HTMLResponse('<div id="modal"></div>')
 
 @router.get("/rows")
-def entities_rows(request: Request, db: Session = Depends(get_db)):
-    entities = entity_crud.get_all(db)
+def entities_rows(
+    request: Request,
+    search: str = Query(default=""),
+    db: Session = Depends(get_db)):
+
+    entities = entity_crud.get_all(db, search)
+    
     return templates.TemplateResponse(
         request=request,
         name="config/entities/_rows.html",

@@ -4,8 +4,12 @@ from sqlalchemy.orm import Session
 from balance360.models.contact import Contact
 from balance360.schemas.contact import ContactCreate, ContactUpdate
 
-def get_all(db: Session) -> list[Contact]:
-    contacts = db.execute(select(Contact)).scalars().all()
+def get_all(db: Session, search: str|None = None) -> list[Contact]:
+    stmt = (select(Contact))
+    if search:
+        stmt = stmt.where(Contact.name.ilike(f"%{search}%"))
+
+    contacts = db.execute(stmt.order_by(Contact.name)).scalars().all()
     return list(contacts)
 
 def get_by_id(db: Session, contact_id: uuid.UUID) -> Contact | None:

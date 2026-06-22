@@ -14,6 +14,9 @@
     </div>
 </div>
 
+{% set rows_url = "/config/contacts/rows" %}
+{% include "config/_search_box.html" %}
+
 <div class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
         <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
@@ -27,6 +30,7 @@
         <tbody id="tbody" class="divide-y divide-gray-100"
                hx-trigger="refreshRows from:body"
                hx-get="/config/contacts/rows"
+               hx-include="[name='search']"
                hx-target="#tbody"
                hx-swap="innerHTML">
             {% for c in contacts %}

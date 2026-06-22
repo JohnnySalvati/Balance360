@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
@@ -24,8 +24,13 @@ def close_modal():
     return HTMLResponse('<div id="modal"></div>')
 
 @router.get("/rows")
-def categories_rows(request: Request, db: Session = Depends(get_db)):
-    categories = category_crud.get_all(db)
+def categories_rows(
+    request: Request,
+    search: str = Query(default=""),
+    db: Session = Depends(get_db)
+):
+    categories = category_crud.get_all(db, search)
+    
     return templates.TemplateResponse(
         request=request,
         name="config/categories/_rows.html",

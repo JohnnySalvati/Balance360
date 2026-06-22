@@ -10,9 +10,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated= "auto")
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-def get_all(db: Session) -> list[User]:
-    users = db.execute(select(User)).scalars().all()
-    return list(users)
+def get_all(db: Session, search: str|None=None) -> list[User]:
+    stmt = select(User)
+
+    if search:
+        stmt = stmt.where(User.full_name.ilike(f"%{search}%"))
+        
+    users = db.execute(stmt).scalars().all()
+    return sorted(list(users), key=lambda x: x.email)
 
 def get_by_id(db: Session, user_id: uuid.UUID) -> User|None:
     user = db.execute(select(User).where(User.id == user_id)).scalars().first()

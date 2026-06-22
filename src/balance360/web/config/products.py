@@ -1,6 +1,6 @@
 import uuid
 from decimal import Decimal
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from balance360.dependencies import get_db
@@ -26,12 +26,17 @@ def close_modal():
     return HTMLResponse('<div id="modal"></div>')
 
 @router.get("/rows")
-def product_rows(request: Request, db: Session = Depends(get_db)):
+def product_rows(
+    request: Request,
+    search: str|None = Query(default=""),
+    db: Session = Depends(get_db)
+):
+    
     return templates.TemplateResponse(
         request=request,
         name="products/_rows.html",
         context={
-            "products": product_crud.get_all(db)
+            "products": product_crud.get_all(db, search)
         }
     )
 
