@@ -6,7 +6,6 @@ if TYPE_CHECKING:
     from balance360.models.contact import Contact
     from balance360.models.entity import Entity
     from balance360.models.account import Account
-    from balance360.models.attachment import Attachment
     from balance360.models.import_rule import ImportRule
     from balance360.models.invoice import Invoice
     from balance360.models.import_row import ImportRow
@@ -22,7 +21,7 @@ from balance360.enums import TransactionType, ClassificationStatus
 class Transaction(Base, TimestampMixin):
     __tablename__ = "transactions"
     __table_args__ = (
-        UniqueConstraint("source_file", "account_id", "source_row", "type", name="uq_transaction"),
+        UniqueConstraint("source_file", "source_sheet", "source_row", "type", name="uq_transaction"),
     )
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -66,20 +65,20 @@ class Transaction(Base, TimestampMixin):
     source_file: Mapped[str|None] = mapped_column(
         String
     )
+    source_sheet: Mapped[str|None] = mapped_column(
+        String
+    )
     source_row: Mapped[int|None] = mapped_column(
         Integer
     )
     import_batch_id: Mapped[uuid.UUID|None] = mapped_column(
-        ForeignKey("import_batches.id"), nullable=True
+        ForeignKey("import_batches.id", ondelete="CASCADE"), nullable=True
     )
     import_row_id: Mapped[uuid.UUID|None] = mapped_column(
-        ForeignKey("import_rows.id"), nullable=True
+        ForeignKey("import_rows.id", ondelete="CASCADE"), nullable=True
     )
     applied_rule: Mapped["ImportRule|None"] = relationship(
         back_populates="transactions"
-    )
-    attachments: Mapped[list[Attachment]] = relationship(
-        back_populates="transaction"
     )
     invoice: Mapped["Invoice|None"] = relationship(
         back_populates="transaction"

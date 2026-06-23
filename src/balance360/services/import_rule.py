@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from balance360.models.import_rule import ImportRule
 from balance360.schemas.import_rule import ImportRuleCreate, ImportRuleUpdate
 from balance360.crud import import_rule as import_rule_crud
+from balance360.services.text import normalize_pattern
 from balance360.enums import TransactionType
 from balance360.exceptions import RuleConflictError
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ def extract_amount(description: str) -> Decimal | None:
     except InvalidOperation:
         return None
 
+
 def find_best_rule(pattern: str, transaction_type: TransactionType, rules: list[ImportRule]) -> ImportRule | None:
 
     filtered_rules = [r for r in rules if r.transaction_type == transaction_type]
@@ -69,11 +71,9 @@ def find_best_rule(pattern: str, transaction_type: TransactionType, rules: list[
         return None
     
     patterns = [rule.pattern for rule in filtered_rules]
-    query = pattern.lower()
+    query = normalize_pattern(pattern)
 
-    result = process.extractOne(query, patterns, score_cutoff=80)
-    if result is None:
-        result = process.extractOne(query, patterns, scorer=fuzz.partial_ratio, score_cutoff=85)
+    result = process.extractOne(query, patterns, scorer=fuzz.token_set_ratio, score_cutoff=85)
     if result is None:
         return None
     
@@ -88,7 +88,7 @@ def resolve_rule_for_classification(
         description: str,
         transaction_type: TransactionType,
         classification: Classification,
-        force: bool=False) -> ImportRule:
+        force: bool=False) -> ImportRule|None:
     
     all_rules = import_rule_crud.get_all(db)
     matched_rule = find_best_rule(description, transaction_type, all_rules)
@@ -97,14 +97,16 @@ def resolve_rule_for_classification(
 
     if matched_rule is None:
         # Case 1: without match — create new rule
-        rule = import_rule_crud.create(
-            db,
-            ImportRuleCreate(
-                pattern=description.lower(),
-                **dataclasses.asdict(classification),
-                transaction_type=transaction_type,
+        pattern = normalize_pattern(description)
+        if pattern: 
+            rule = import_rule_crud.create(
+                db,
+                ImportRuleCreate(
+                    pattern=pattern,
+                    **dataclasses.asdict(classification),
+                    transaction_type=transaction_type,
+                )
             )
-        )
     else:
         if classification_of(matched_rule) == classification:
             # Case 2: match and same classification

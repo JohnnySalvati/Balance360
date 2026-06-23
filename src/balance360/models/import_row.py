@@ -18,7 +18,8 @@ class ImportRow(Base, TimestampMixin):
         Uuid, primary_key=True, default=uuid.uuid4
     )
     batch_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("import_batches.id")
+        ForeignKey("import_batches.id", ondelete="CASCADE"), 
+        
     )
     account_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("accounts.id")
@@ -51,5 +52,5 @@ class ImportRow(Base, TimestampMixin):
         back_populates="import_rows"
     )
     transactions: Mapped[list["Transaction"]] = relationship(
-        back_populates="import_row"
+        back_populates="import_row", passive_deletes=True
     )

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .bulk-bar { display: none; }
+    #review-content:has(.row-check:checked) .bulk-bar { display: flex; }
+</style>
+
+<div id="review-content" class="flex-1 flex flex-col overflow-hidden">
+
+    <div class="shrink-0 flex justify-between items-center mb-4">
+        <div>
+            <h1 class="text-2xl font-bold">Revisión de importación</h1>
+            <p class="text-sm text-gray-500">{{ batch.filename }} · {{ rows | length }} fila(s) a revisar</p>
+        </div>
+        <a href="/imports/" class="text-sm text-blue-600 hover:underline">← Importaciones</a>
+    </div>
+
+    {# Buscar y tildar por descripción #}
+    <div class="shrink-0 mb-4">
+        <input type="search" oninput="tildarPorDescripcion(this.value)"
+               placeholder="Buscar y tildar por descripción…"
+               class="border rounded px-3 py-2 text-sm w-full max-w-md">
+    </div>
+
+    {# Acción masiva — aparece sola cuando hay alguna fila tildada (CSS :has) #}
+    <div class="bulk-bar shrink-0 mb-4 bg-blue-50 border border-blue-100 rounded p-3 items-center gap-3 flex-wrap">
+        <span class="text-sm text-gray-600">Aplicar a las seleccionadas:</span>
+        <select id="bulk-type" name="type" class="border rounded px-2 py-1 text-xs">
+            <option value="expense">Egreso</option>
+            <option value="income">Ingreso</option>
+        </select>
+        <select id="bulk-account" name="account_id" class="border rounded px-2 py-1 text-xs">
+            {% for acc in accounts %}
+            <option value="{{ acc.id }}">{{ acc.name }}</option>
+            {% endfor %}
+        </select>
+        <button hx-post="/imports/rows/bulk-import"
+                hx-include="[name='row_ids']:checked, #bulk-type, #bulk-account"
+                hx-target="#rows-body"
+                hx-swap="innerHTML"
+                class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+            Importar seleccionadas
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto bg-white rounded shadow">
+        <table class="w-full text-sm">
+            <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-3 py-3 w-8"></th>
+                    <th class="px-3 py-3">Fecha</th>
+                    <th class="px-3 py-3">Descripción</th>
+                    <th class="px-3 py-3 text-right">Monto</th>
+                    <th class="px-3 py-3">Tipo</th>
+                    <th class="px-3 py-3">Cuenta</th>
+                    <th class="px-3 py-3">Motivo</th>
+                    <th class="px-3 py-3"></th>
+                </tr>
+            </thead>
+            <tbody id="rows-body" class="divide-y divide-gray-100">
+                {% include "imports/_rows.html" %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    function tildarPorDescripcion(query) {
+        const q = query.trim().toLowerCase();
+        document.querySelectorAll('#rows-body tr').forEach(tr => {
+            const desc = tr.querySelector('[name="description"]');
+            const check = tr.querySelector('.row-check');
+            if (!desc || !check) return;
+            check.checked = q !== '' && desc.value.toLowerCase().includes(q);
+        });
+    }
+</script>
+{% endblock %}

@@ -108,6 +108,7 @@ def import_workbook(
                         type=valid_row["transaction_type"],
                         account_id=account.id,
                         source_file=filename,
+                        source_sheet=account.name,
                         source_row=valid_row["source_row"],
                         import_batch_id=import_batch.id
                     )

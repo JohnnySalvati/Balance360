@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot
 from balance360.models.base import Base, TimestampMixin
 if TYPE_CHECKING:
+    from balance360.models.attachment import Attachment
     from balance360.models.entity import Entity
     from balance360.models.contact import Contact
     from balance360.models.invoice_line import InvoiceLine
@@ -81,6 +82,9 @@ class Invoice(Base, TimestampMixin):
     )
     transaction: Mapped['Transaction|None'] = relationship(
         back_populates="invoice"
+    )
+    attachments: Mapped[list['Attachment']] = relationship(
+        back_populates="invoice", cascade="all, delete-orphan"
     )
 
     @dataclass

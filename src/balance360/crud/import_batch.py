@@ -1,3 +1,4 @@
+from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from balance360.models.import_batch import ImportBatch
@@ -24,3 +25,6 @@ def update(db: Session, data: ImportBatchUpdate, import_batch: ImportBatch) -> I
 def get_all(db: Session) -> list[ImportBatch]:
     import_baches = db.execute(select(ImportBatch)).scalars().all()
     return list(import_baches)
+
+def get_by_id(db: Session, import_batch_id: UUID) -> ImportBatch|None:
+    return db.execute(select(ImportBatch).where(ImportBatch.id == import_batch_id)).scalars().first()

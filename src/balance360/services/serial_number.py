@@ -4,10 +4,7 @@ from balance360.models.invoice_line import InvoiceLine
 from balance360.models.serial_number import SerialNumber
 from balance360.schemas.serial_number import SerialNumberCreate, SerialNumberUpdate
 from balance360.enums import InvoiceType, SerialStatus
-
-
-class SerialValidationError(Exception):
-    pass
+from balance360.exceptions import SerialValidationError
 
 
 def add_serial_to_line(db: Session, serial_str: str, invoice_line: InvoiceLine) -> SerialNumber:

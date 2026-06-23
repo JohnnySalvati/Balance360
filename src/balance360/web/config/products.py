@@ -8,6 +8,7 @@ from balance360.services import product as product_service
 from balance360.crud import product as product_crud
 from balance360.schemas.product import ProductCreate, ProductUpdate
 from balance360.web.templating import templates
+from balance360.exceptions import ProductDeleteError
 
 router = APIRouter(prefix="/products")
 
@@ -109,6 +110,6 @@ def delete_product(
         raise HTTPException(status_code=404, detail="Product not found")
     try:
         product_service.delete_product(db, product)
-    except product_service.ProductDeleteError as e:
+    except ProductDeleteError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return HTMLResponse("")

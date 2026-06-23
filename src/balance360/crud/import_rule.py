@@ -7,8 +7,13 @@ from balance360.enums import TransactionType
 
 def get_all(db: Session, pattern: str = "") -> list[ImportRule]:
     stmt = select(ImportRule)
-    if pattern: stmt = stmt.where(ImportRule.pattern.ilike(f"%{pattern}%"))
-    import_rules = db.execute(stmt.order_by(ImportRule.pattern)).scalars().all()
+    
+    if pattern: 
+        stmt = stmt.where(ImportRule.pattern.ilike(f"%{pattern}%"))
+    
+    stmt = stmt.order_by(ImportRule.pattern)
+
+    import_rules = db.execute(stmt).scalars().all()
     return list(import_rules)
 
 def get_by_id(db: Session, import_rule_id:UUID) ->ImportRule|None:
@@ -31,10 +36,14 @@ def update(db: Session, data: ImportRuleUpdate, import_rule: ImportRule) -> Impo
 
 def get_by_exact_pattern(db: Session, pattern: str, transaction_type: TransactionType) -> list[ImportRule]:
     pattern_lower = pattern.lower()
+    
     stmt = select(ImportRule).where(
         ImportRule.pattern == pattern_lower,
         ImportRule.transaction_type == transaction_type
-    )
+        )
+
+    stmt = stmt.order_by(ImportRule.pattern)
+
     import_rules = db.execute(stmt).scalars().all()
     return list(import_rules)
 

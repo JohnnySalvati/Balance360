@@ -6,10 +6,14 @@ from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
 from balance360.enums import InvoiceType
 
 def get_all(db: Session, invoice_type: InvoiceType|None=None) -> list[Invoice]:
-    q = select(Invoice)
+    stmt = select(Invoice)
+    
     if invoice_type:
-        q = q.where(Invoice.invoice_type == invoice_type)
-    invoices = db.execute(q).scalars().all()
+        stmt = stmt.where(Invoice.invoice_type == invoice_type)
+    
+    stmt = stmt.order_by(Invoice.date)
+    
+    invoices = db.execute(stmt).scalars().all()
     return list(invoices)
 
 def get_by_id(db: Session, invoice_id: uuid.UUID) -> Invoice|None:

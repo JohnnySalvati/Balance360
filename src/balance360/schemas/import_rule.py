@@ -1,7 +1,8 @@
 import uuid
-from pydantic import BaseModel, model_validator, ConfigDict
-from balance360.enums import TransactionType
 from datetime import datetime
+from pydantic import BaseModel, model_validator, ConfigDict, field_validator
+from balance360.services.text import normalize_pattern
+from balance360.enums import TransactionType
 class ImportRuleRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -24,6 +25,12 @@ class ImportRuleCreate(BaseModel):
     transaction_type: TransactionType
     is_transfer: bool
 
+    @field_validator("pattern")
+    @classmethod
+    def validate_pattern(cls, v: str) ->str:
+        pattern = normalize_pattern(v)
+        return pattern
+    
     @model_validator(mode='after')
     def check_one_required(self) -> 'ImportRuleCreate':
         if not any([self.entity_id, self.contact_id, self.category_id, self.account_id, self.is_transfer]):
@@ -38,6 +45,10 @@ class ImportRuleUpdate(BaseModel):
     transaction_type: TransactionType|None = None
     is_transfer: bool|None = None
 
+    @field_validator("pattern")
+    @classmethod
+    def validate_pattern(cls, v: str|None) ->str|None:
+        return normalize_pattern(v) if v else None
 
 class ImportRuleShort(BaseModel):
     model_config = ConfigDict(from_attributes=True)

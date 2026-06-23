@@ -1,7 +1,8 @@
-{# Buscador reutilizable. Espera la variable `rows_url` (endpoint /rows a consultar). #}
+{# Buscador reutilizable. Variables: `rows_url` (endpoint /rows, requerida);
+   `search_placeholder` (texto del input, opcional). #}
 <div class="shrink-0 mb-4">
     <input type="search" name="search" autocomplete="off"
-           placeholder="Buscar por nombre…"
+           placeholder="{{ search_placeholder | default('Buscar por nombre…') }}"
            hx-get="{{ rows_url }}"
            hx-target="#tbody"
            hx-swap="innerHTML"

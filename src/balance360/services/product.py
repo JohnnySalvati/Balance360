@@ -2,9 +2,8 @@ from sqlalchemy.orm import Session
 from balance360.models.product import Product
 from balance360.schemas.product import ProductCreate, ProductUpdate
 from balance360.crud import product as product_crud
+from balance360.exceptions import ProductDeleteError
 
-class ProductDeleteError(Exception):
-    pass
 
 def delete_product(db: Session, product: Product):
     if product.serial_numbers:

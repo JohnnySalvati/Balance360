@@ -192,6 +192,9 @@ def classify_transaction(
             name="transactions/row.html",
             context={"t": transaction, "entities": entities, "contacts": contacts, "categories": categories},
         )
+
+        resp.headers["HX-Trigger"] = "refreshChart"
+
         if extra_trigger:
             resp.headers["HX-Trigger"] = json.dumps(extra_trigger)
             resp.headers["HX-Reswap"] = "none"

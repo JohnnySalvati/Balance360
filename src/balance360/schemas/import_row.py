@@ -15,3 +15,14 @@ class ImportRowCreate(BaseModel):
     status: ImportRowStatus
     reason: str
     
+class ImportRowUpdate(BaseModel):
+    batch_id: uuid.UUID|None=None
+    account_id: uuid.UUID|None=None
+    source_row: int|None=None
+    date: datetime.date|None=None
+    description: str|None=None
+    debit: Decimal|None=None
+    credit: Decimal|None=None
+    status: ImportRowStatus|None=None
+    reason: str|None=None
+    

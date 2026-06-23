@@ -17,8 +17,8 @@ class ImportBatch(Base, TimestampMixin):
         String(255)
     )
     import_rows: Mapped[list["ImportRow"]] = relationship(
-        back_populates="import_batch"
+        back_populates="import_batch", passive_deletes=True
     )
     transactions: Mapped[list["Transaction"]] = relationship(
-        back_populates="import_batch"
+        back_populates="import_batch", passive_deletes=True
     )

@@ -22,6 +22,7 @@ class TransactionCreate(BaseModel):
     is_transfer: bool=False
     applied_rule_id: uuid.UUID|None=None
     source_file: str|None=None
+    source_sheet: str|None=None
     source_row: int|None=None
     import_batch_id: uuid.UUID|None=None
     import_row_id: uuid.UUID|None=None
@@ -41,6 +42,7 @@ class TransactionRead(BaseModel):
     is_transfer: bool
     applied_rule: ImportRuleShort|None=None
     source_file: str|None=None
+    source_sheet: str|None=None
     source_row: int|None=None
     import_batch_id: uuid.UUID|None=None
     import_row_id: uuid.UUID|None=None
@@ -61,6 +63,7 @@ class TransactionUpdate(BaseModel):
     is_transfer: bool|None = None
     applied_rule_id: uuid.UUID|None=None
     source_file: str|None=None
+    source_sheet: str|None=None
     source_row: int|None=None
     import_batch_id: uuid.UUID|None=None
     import_row_id: uuid.UUID|None=None

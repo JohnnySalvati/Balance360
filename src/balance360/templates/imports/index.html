@@ -40,13 +40,20 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 {% for batch in batches %}
-                <tr class="hover:bg-gray-50">
+                <tr id="batch-row-{{ batch.id }}" class="hover:bg-gray-50">
                     <td class="px-4 py-3 font-medium">{{ batch.filename }}</td>
                     <td class="px-4 py-3 text-gray-500">{{ batch.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td class="px-4 py-3 text-right font-mono">{{ batch.transactions | length }}</td>
-                    <td class="px-4 py-3 text-right font-mono">{{ batch.import_rows | length }}</td>
-                    <td class="px-4 py-3 text-right">
+                    <td class="px-4 py-3 text-right font-mono">{{ batch.import_rows | selectattr('status.value', 'equalto', 'needs_review') | list | length }}</td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
                         <a href="/imports/{{ batch.id }}" class="text-blue-600 hover:underline text-xs">Ver →</a>
+                        <button type="button"
+                                hx-delete="/imports/{{ batch.id }}"
+                                hx-trigger="confirmedDelete"
+                                data-confirm-delete
+                                hx-target="#batch-row-{{ batch.id }}"
+                                hx-swap="outerHTML"
+                                class="ml-3 text-red-400 hover:text-red-600 text-xs">Eliminar</button>
                     </td>
                 </tr>
                 {% endfor %}

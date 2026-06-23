@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from balance360.models.transaction import Transaction
+    from balance360.models.invoice import Invoice
 import uuid
 from sqlalchemy import Uuid, ForeignKey, String, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -15,8 +15,8 @@ class Attachment(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
-    transaction_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("transactions.id")
+    invoice_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("invoices.id")
     )
     filename: Mapped[str] = mapped_column(
         String(255)
@@ -30,6 +30,6 @@ class Attachment(Base, TimestampMixin):
     file_size: Mapped[int] = mapped_column(
         Integer
     )
-    transaction: Mapped[Transaction] = relationship(
+    invoice: Mapped['Invoice'] = relationship(
         back_populates="attachments"
     )

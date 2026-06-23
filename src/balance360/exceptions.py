@@ -15,3 +15,9 @@ class RuleConflictError(Exception):
     def __init__(self, pattern: str, count: int) -> None:
         self.pattern = pattern
         self.count = count
+
+class ProductDeleteError(Exception):
+    pass
+
+class SerialValidationError(Exception):
+    pass
