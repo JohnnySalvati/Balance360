@@ -99,7 +99,7 @@ class Invoice(Base, TimestampMixin):
         for line in self.invoice_lines:
             current = iva_aliquots.get(line.iva_aliquot, (Decimal(0), Decimal(0)))
             iva_aliquots[line.iva_aliquot] = (
-                current[0] + line.iva_aliquot.rate * line.net_amount / 100,
+                current[0] + line.iva_rate * line.net_amount / 100,
                 current[1] + line.net_amount
             )
         return [self.IvaBreakdown(

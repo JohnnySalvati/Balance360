@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">IVA — posición del período</h1>
+    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+</div>
+
+<form method="get" action="/reports/iva"
+      hx-get="/reports/iva" hx-trigger="change" hx-target="#iva-result"
+      hx-select="#iva-result" hx-swap="outerHTML" hx-push-url="true"
+      class="bg-white rounded shadow p-4 mb-6 flex flex-wrap items-end gap-4">
+    <div>
+        <label class="block text-xs text-gray-500 mb-1">Entidad</label>
+        <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+            <option value="">Todas</option>
+            {% for entity in entities %}
+            <option value="{{ entity.id }}" {% if selected_entity_id == entity.id|string %}selected{% endif %}>{{ entity.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% include "_period_filter.html" %}
+</form>
+
+<div id="iva-result">
+    <p class="text-sm text-gray-500 mb-4">
+        Período: {{ start.strftime('%d/%m/%Y') }} — {{ end.strftime('%d/%m/%Y') }}
+    </p>
+
+    <div class="bg-white rounded shadow max-w-2xl">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Entidad</th>
+                    <th class="px-4 py-3 text-right">Débito (ventas)</th>
+                    <th class="px-4 py-3 text-right">Crédito (compras)</th>
+                    <th class="px-4 py-3 text-right">Posición</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for e in iva.by_entity %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-gray-700">{{ e.entity_name }}</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ e.debit | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ e.credit | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold {% if e.position > 0 %}text-red-600{% elif e.position < 0 %}text-green-600{% endif %}">{{ e.position | currency }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="px-4 py-6 text-center text-gray-400">Sin comprobantes en el período.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if iva.by_entity %}
+            <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-semibold">
+                <tr>
+                    <td class="px-4 py-3 uppercase text-xs text-gray-600">
+                        Total{% if iva.total.position > 0 %} <span class="text-red-600 text-xs font-normal normal-case">a pagar</span>{% elif iva.total.position < 0 %} <span class="text-green-600 text-xs font-normal normal-case">saldo a favor</span>{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono">{{ iva.total.total_debits | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ iva.total.total_credits | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono {% if iva.total.position > 0 %}text-red-600{% elif iva.total.position < 0 %}text-green-600{% endif %}">{{ iva.total.position | currency }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+{% endblock %}

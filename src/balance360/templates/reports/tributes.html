@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Tributos e IIBB</h1>
+    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+</div>
+
+{# ---- Filtros ---- #}
+<form hx-get="/reports/tributes" hx-target="#tributes-result" hx-select="#tributes-result"
+      hx-trigger="change" hx-push-url="true"
+      class="bg-white rounded shadow p-4 mb-6 flex flex-wrap items-end gap-4">
+    <div>
+        <label class="block text-xs text-gray-500 mb-1">Entidad</label>
+        <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+            <option value="">Todas</option>
+            {% for e in entities %}
+            <option value="{{ e.id }}" {% if selected_entity_id == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% include "_period_filter.html" %}
+</form>
+
+<div id="tributes-result">
+    <p class="text-sm text-gray-500 mb-4">
+        Período: {{ start.strftime('%d/%m/%Y') }} — {{ end.strftime('%d/%m/%Y') }}
+    </p>
+
+    {% set tributo_labels = {"national": "Nacional", "provincial": "Provincial", "municipal": "Municipal", "domestic": "Interno", "iibb": "Ingresos Brutos", "iva_perception": "Percepción IVA", "other": "Otro"} %}
+
+    {% for ent in tributes.by_entity %}
+    <div class="bg-white rounded shadow mb-4 max-w-md">
+        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <span class="font-semibold text-gray-700">{{ ent.entity_name }}</span>
+            <span class="font-mono text-gray-600">{{ ent.entity_total | currency }}</span>
+        </div>
+        <table class="w-full text-sm">
+            <tbody class="divide-y divide-gray-100">
+                {% for t in ent.tributes_by_entity %}
+                <tr>
+                    <td class="px-4 py-2 text-gray-600">{{ tributo_labels.get(t.tribute_type.name, t.tribute_type.name) }}</td>
+                    <td class="px-4 py-2 text-right font-mono">{{ t.total_invoice | currency }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-gray-400 text-sm">Sin tributos en el período.</p>
+    {% endfor %}
+
+    {% if tributes.by_entity %}
+    <div class="max-w-md flex justify-between items-center px-4 py-3 font-semibold border-t-2 border-gray-200">
+        <span class="uppercase text-xs text-gray-600">Total general</span>
+        <span class="font-mono">{{ tributes.total | currency }}</span>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

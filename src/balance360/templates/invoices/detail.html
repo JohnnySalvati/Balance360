@@ -30,7 +30,7 @@
         {% elif invoice.confirmed %}
             <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pendiente de pago</span>
         {% endif %}
-        <a href="/invoices/" class="text-sm text-blue-600 hover:underline">← Volver</a>
+        <a href="/invoices/?invoice_type={{ invoice.invoice_type.value }}" class="text-sm text-blue-600 hover:underline">← Volver</a>
     </div>
 </div>
 
@@ -265,7 +265,7 @@
         <button hx-delete="/invoices/{{ invoice.id }}"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
-                hx-on::after-request="window.location='/invoices/'"
+                hx-on::after-request="window.location='/invoices/?invoice_type={{ invoice.invoice_type.value }}'"
                 class="text-sm text-red-500 hover:text-red-700">
             Eliminar borrador
         </button>
@@ -279,6 +279,20 @@
                     data-confirm-delete
                     class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
                 Confirmar comprobante
+            </button>
+        </div>
+    </div>
+    {% elif not invoice.authorized and not invoice.paid %}
+    <div class="bg-white rounded shadow p-6 flex justify-end items-center">
+        <div class="flex items-center gap-3">
+            <span id="unconfirm-error" class="text-sm text-red-600"></span>
+            <button hx-post="/invoices/{{ invoice.id }}/unconfirm"
+                    hx-target="#unconfirm-error"
+                    hx-swap="innerHTML"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
+                    class="text-sm text-orange-600 border border-orange-300 px-4 py-2 rounded hover:bg-orange-50">
+                Des-confirmar
             </button>
         </div>
     </div>

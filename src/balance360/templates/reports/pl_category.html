@@ -22,32 +22,7 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-500">Año</label>
-            <select name="year" class="border rounded px-3 py-2 text-sm">
-                <option value="">Todos</option>
-                {% for y in available_years %}
-                <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-500">Mes</label>
-            <select name="month" class="border rounded px-3 py-2 text-sm">
-                <option value="">Todos</option>
-                {% for num, name in month_names.items() %}
-                <option value="{{ num }}" {% if num == selected_month %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-500">Desde</label>
-            <input type="date" name="date_from" value="{{ date_from }}" class="border rounded px-3 py-2 text-sm">
-        </div>
-        <div class="flex flex-col gap-1">
-            <label class="text-xs text-gray-500">Hasta</label>
-            <input type="date" name="date_to" value="{{ date_to }}" class="border rounded px-3 py-2 text-sm">
-        </div>
+        {% include "_period_filter.html" %}
     </form>
 </div>
 
@@ -86,6 +61,7 @@
 {% endmacro %}
 
 <div id="pl-cat-table" class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <p class="px-4 pt-3 text-sm text-gray-500">Período: {{ start.strftime('%d/%m/%Y') }} — {{ end.strftime('%d/%m/%Y') }}</p>
     <table class="w-full text-sm">
         <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
             <tr>

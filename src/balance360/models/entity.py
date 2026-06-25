@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from decimal import Decimal
 
 if TYPE_CHECKING:
     from balance360.models.transaction import Transaction
@@ -8,7 +9,7 @@ if TYPE_CHECKING:
     from balance360.models.import_rule import ImportRule
 
 import uuid 
-from sqlalchemy import Uuid, String, Enum
+from sqlalchemy import Uuid, String, Enum, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.enums import CondicionIva
 from balance360.models.base import Base, TimestampMixin
@@ -26,6 +27,9 @@ class Entity(Base, TimestampMixin):
     )
     tax_id: Mapped[str|None] = mapped_column(
         String(13)
+    )
+    iibb_rate: Mapped[Decimal] = mapped_column(
+        Numeric(5, 2), server_default="0", nullable=False
     )
     transactions: Mapped[list[Transaction]] = relationship(
         back_populates="entity"

@@ -3,12 +3,17 @@ from decimal import Decimal
 from dataclasses import dataclass, field
 from sqlalchemy.engine import Row
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, extract, desc, true
+from sqlalchemy import select, func, extract, desc, true, or_, case, not_
 from balance360.models.category import Category
 from balance360.models.account import Account
 from balance360.models.transaction import Transaction
-from balance360.enums import TransactionType
+from balance360.models.invoice import Invoice
+from balance360.models.invoice_line import InvoiceLine
+from balance360.models.invoice_tribute import InvoiceTribute
+from balance360.models.entity import Entity
+from balance360.enums import TransactionType, InvoiceType, VoucherType
 from balance360.services.exchange_rate import ars_rate_subquery
+from balance360.services.period import resolve_period
 
 @dataclass
 class CategoryNode:
@@ -28,6 +33,7 @@ def get_children(node: CategoryNode, nodes: list[CategoryNode]) -> list[Category
     node.subtotal_income += node.income
     node.subtotal_expense += node.expense
     return node_children
+
 
 def build_category_tree(rows: list[Row]) -> list[CategoryNode]:
     """
@@ -226,4 +232,227 @@ def get_expenses_by_category(
     
     return rows_data
 
+
+def get_iva_position(db: Session, start: date, end: date, entity_ids: list|None=None) -> dict:
+
+    entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
+
+    nc_case = case((Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_= 1)
+
+    stmt = (
+        select(
+            Entity.id.label("entity_id"),
+            Entity.name.label("entity_name"),
+            func.coalesce(
+                func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * InvoiceLine.iva_rate / 100 * nc_case)
+                .filter(
+                    Invoice.invoice_type == InvoiceType.sale,
+                ), 0
+            ).label("debit"),
+            func.coalesce(
+                func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * InvoiceLine.iva_rate / 100 * nc_case)
+                .filter(
+                    Invoice.invoice_type == InvoiceType.purchase,
+                ), 0
+            ).label("credit")
+        )
+        .where(Invoice.date.between(start, end))
+        .where(Invoice.confirmed)
+        .where(or_(Invoice.formal, Invoice.tax_only))
+        .where(entity_filter)
+        .join_from(Entity, Invoice)
+        .join_from(Invoice, InvoiceLine)
+        .group_by(Entity.id)
+        .order_by(Entity.name)
+    )
+    rows = db.execute(stmt).all()
+
+    by_entity = [{
+        "entity_id": row.entity_id,
+        "entity_name": row.entity_name,
+        "debit": row.debit,
+        "credit": row.credit,
+        "position": row.debit - row.credit
+        } for row in rows
+    ]
+
+    total_debits = sum(entity["debit"] for entity in by_entity)
+
+    total_credits = sum(entity["credit"] for entity in by_entity)
+
+    return {
+        "by_entity": by_entity,
+        "total": {
+            "total_debits": total_debits,
+            "total_credits": total_credits,
+            "position": total_debits - total_credits
+        }
+        
+    }
     
+
+def get_tributes(db: Session, start: date, end: date, entity_ids: list|None=None) -> dict:
+
+    entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
+
+    stmt = (
+        select(
+            Entity.id.label("entity_id"),
+            Entity.name.label("entity_name"),
+            InvoiceTribute.tribute_type.label("tribute_type"),
+            func.coalesce(
+                func.sum(InvoiceTribute.base_amount * InvoiceTribute.rate / 100), 0
+            ).label("total_invoice")
+        )
+        .where(Invoice.date.between(start, end))
+        .where(Invoice.confirmed)
+        .where(or_(Invoice.formal, Invoice.tax_only))
+        .where(entity_filter)
+        .join_from(Entity, Invoice)
+        .join_from(Invoice, InvoiceTribute)
+        .group_by(Entity.id, InvoiceTribute.tribute_type)
+        .order_by(Entity.name, InvoiceTribute.tribute_type)
+    )
+
+    rows = db.execute(stmt).all()
+
+    entity_id = rows[0].entity_id if rows else None
+    entity_name = rows[0].entity_name if rows else None
+    entity_total = 0
+    tributes_by_entity = []
+    total = 0
+    by_entity = []
+
+    for row in rows:
+        if row.entity_id == entity_id:
+            entity_total += row.total_invoice
+            tributes_by_entity.append({"tribute_type": row.tribute_type, "total_invoice": row.total_invoice})
+        else:
+            by_entity.append({"entity_id": entity_id, "entity_name": entity_name, "tributes_by_entity": tributes_by_entity, "entity_total": entity_total})
+            total += entity_total
+            entity_id = row.entity_id
+            entity_name = row.entity_name
+            entity_total = row.total_invoice
+            tributes_by_entity = [{"tribute_type": row.tribute_type, "total_invoice": row.total_invoice}]
+
+    by_entity.append({"entity_id": entity_id, "entity_name": entity_name, "tributes_by_entity": tributes_by_entity, "entity_total": entity_total})
+    total += entity_total
+           
+    return {"by_entity": by_entity, "total": total}
+
+
+
+def get_iibb_on_sales(db: Session, start: date, end: date, entity_ids: list|None=None) -> dict:
+    
+    entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
+
+    nc_case = case((Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_= 1)
+
+    stmt = (
+        select(
+            Entity.id.label("entity_id"), 
+            Entity.name.label("entity_name"),
+            Entity.iibb_rate.label("iibb_rate"),
+            func.coalesce(
+                func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * Entity.iibb_rate / 100 * nc_case), 0
+            ).label("entity_total"),
+        )
+        .where(Invoice.date.between(start, end))
+        .where(Invoice.confirmed)
+        .where(Invoice.formal)
+        .where(entity_filter)
+        .where(Invoice.invoice_type == InvoiceType.sale)
+        .join_from(Entity, Invoice)
+        .join_from(Invoice, InvoiceLine)
+        .group_by(Entity.id)
+        .order_by(Entity.name)
+    )
+
+    rows = db.execute(stmt).all()
+
+    by_entity = [{"entity_id": row.entity_id, "entity_name": row.entity_name, "iibb_rate": row.iibb_rate, "entity_total": row.entity_total} for row in rows]
+
+    total = sum(entity["entity_total"] for entity in by_entity)
+
+    return {"by_entity": by_entity, "total": total}
+
+
+
+def get_invoice_profit(db: Session, start: date, end: date, entity_ids: list|None=None) -> dict:
+    
+    entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
+
+    nc_case = case((Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_= 1)
+
+    stmt = (
+        select(
+            Entity.id.label("entity_id"),
+            Entity.name.label("entity_name"),
+            func.coalesce(
+                func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * nc_case)
+                .filter(Invoice.invoice_type == InvoiceType.sale), 0
+            ).label("net_sales"),
+            func.coalesce(
+                func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * nc_case)
+                .filter(Invoice.invoice_type == InvoiceType.purchase), 0
+            ).label("net_purchases")
+        )
+        .where(Invoice.date.between(start, end))
+        .where(Invoice.confirmed)
+        .where(entity_filter)
+        .where(not_(Invoice.tax_only))
+        .join_from(Entity, Invoice)
+        .join_from(Invoice, InvoiceLine)
+        .group_by(Entity.id)
+        .order_by(Entity.id)
+
+    )
+
+    rows = db.execute(stmt).all()
+
+    entities_profit = [{
+        "entity_id": row.entity_id,
+        "entity_name": row.entity_name,
+        "net_sales": row.net_sales,
+        "net_purchases": row.net_purchases
+        } for row in rows
+    ]
+
+    iibb_by_entity = get_iibb_on_sales(db, start=start, end=end, entity_ids=entity_ids)
+
+    tributes_by_entity = get_tributes(db, start=start, end=end, entity_ids=entity_ids)
+
+    iva_by_entity = get_iva_position(db, start=start, end=end, entity_ids=entity_ids)
+
+    profit_idx = {e["entity_id"]: e for e in entities_profit}
+    iva_idx = {e["entity_id"]: e for e in iva_by_entity["by_entity"]}
+    trib_idx = {e["entity_id"]: e for e in tributes_by_entity["by_entity"]}
+    iibb_idx = {e["entity_id"]: e for e in iibb_by_entity["by_entity"]}
+
+    ids = profit_idx.keys() | iva_idx.keys() | trib_idx.keys() | iibb_idx.keys()
+    
+    by_entity = []
+    total = 0
+    for eid in ids:
+        p = profit_idx.get(eid, {})
+        iva = iva_idx.get(eid, {})
+        trib = trib_idx.get(eid, {})
+        iibb = iibb_idx.get(eid, {})
+
+        entity_name = (p or iva or trib or iibb).get("entity_name")
+ 
+        profit = p.get("net_sales", 0) - p.get("net_purchases", 0)
+
+        taxes = iva.get("position", 0) + trib.get("entity_total", 0) + iibb.get("entity_total", 0)
+
+        by_entity.append({
+            "entity_id": eid,
+            "entity_name": entity_name,
+            "profit": profit,
+            "taxes": taxes,
+            "result": profit - taxes 
+        })
+        total += (profit - taxes)
+
+    return {"by_entity": by_entity, "total": total}
+

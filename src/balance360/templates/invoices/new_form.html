@@ -74,8 +74,8 @@
                            onchange="toggleFormal(this.checked)" checked>
                     Comprobante formal
                 </label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" name="tax_only" value="true">
+                <label id="tax-only-field" class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" name="tax_only" id="tax-only-check" value="true">
                     Solo impositivo
                 </label>
             </div>
@@ -125,8 +125,8 @@
     </div>
 </div>
 
-<!-- Botón PDF — solo visible en compras -->
-<div id="pdf-upload-row" class="hidden">
+<!-- Botón PDF — disponible para compras y ventas -->
+<div id="pdf-upload-row">
     <button type="button" onclick="document.getElementById('pdf-modal').showModal()"
             class="text-sm text-blue-600 hover:underline">
         📄 Cargar desde PDF
@@ -203,8 +203,10 @@ function toggleNumberField(invoiceType) {
     const show = invoiceType === 'purchase';
     field.style.display = show ? 'flex' : 'none';
     input.required = show;
-    // mostrar/ocultar botón PDF
-    document.getElementById('pdf-upload-row').classList.toggle('hidden', !show);
+    // "Solo impositivo" solo aplica a compras
+    const taxOnlyField = document.getElementById('tax-only-field');
+    taxOnlyField.style.display = show ? 'flex' : 'none';
+    if (!show) document.getElementById('tax-only-check').checked = false;
 }
 
 async function uploadPdf() {

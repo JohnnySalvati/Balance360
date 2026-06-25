@@ -1,12 +1,18 @@
-import uuid
 import datetime
 import json
+from uuid import UUID
+from datetime import date
 from decimal import Decimal
 from pydantic import ValidationError
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File, Response
+from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File, Response, Query
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from balance360.dependencies import get_db
+from balance360.models.invoice import Invoice
+from balance360.models.invoice_tribute import InvoiceTribute
+from balance360.models.invoice_line import InvoiceLine
+from balance360.models.product import Product
+from balance360.models.serial_number import SerialNumber
+from balance360.models.user import User
 from balance360.crud import invoice as invoice_crud
 from balance360.crud import entity as entity_crud
 from balance360.crud import contact as contact_crud
@@ -24,19 +30,16 @@ from balance360.services import invoice as invoice_service
 from balance360.services import serial_number as serial_number_service
 from balance360.services.serial_number import SerialValidationError
 from balance360.services import product_match as product_match_service
+from balance360.services.period import resolve_period
 from balance360.exceptions import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError
-from balance360.models.invoice import Invoice
-from balance360.models.invoice_tribute import InvoiceTribute
-from balance360.models.invoice_line import InvoiceLine
-from balance360.models.product import Product
-from balance360.models.serial_number import SerialNumber
+from balance360.dependencies import get_db, get_current_user
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/invoices")
 
 
-def get_invoice_or_404(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> Invoice:
+def get_invoice_or_404(invoice_id: UUID, db: Session = Depends(get_db)) -> Invoice:
     invoice =invoice_crud.get_by_id(db, invoice_id)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -44,13 +47,49 @@ def get_invoice_or_404(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> 
 
 
 @router.get("/", response_class=HTMLResponse)
-def invoice_page(request: Request, db: Session = Depends(get_db), invoice_type: InvoiceType|None = None):
+def invoice_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    year: str = Query(default=""),
+    month: str = Query(default=""),
+    date_from: str = Query(default=""),
+    date_to: str = Query(default=""),
+    entity_id: str = Query(default=""),
+    current_user: User = Depends(get_current_user),
+    invoice_type: InvoiceType|None = None
+):
+    start, end = resolve_period(
+        year=int(year) if year else None,
+        month=int(month) if month else None,
+        date_from=date.fromisoformat(date_from) if date_from else None,
+        date_to=date.fromisoformat(date_to) if date_to else None,
+    )
+    user_entities = entity_crud.get_by_user(db, current_user.id)
+
+    entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
+
+    filtered_invoices = invoice_crud.get_all(
+        db=db,
+        invoice_type=invoice_type,
+        start=start,
+        end=end,
+        entity_ids=entity_ids
+    )
+    
     return templates.TemplateResponse(
         request=request,
         name="invoices/list.html",
         context={
-            "invoices": invoice_crud.get_all(db, invoice_type),
+            "invoices": filtered_invoices,
             "current_type": invoice_type.value if invoice_type else None,
+            "start": start,
+            "end": end,
+            "entities": user_entities,
+            "selected_entity_id": entity_id,
+            "year": year,
+            "month": month,
+            "date_from": date_from,
+            "date_to": date_to
         }
     )
 
@@ -98,9 +137,9 @@ def create_invoice(
     try:
         data = InvoiceCreate(
             invoice_type=InvoiceType(invoice_type),
-            entity_id=uuid.UUID(entity_id),
-            contact_id=uuid.UUID(contact_id),
-            category_id=uuid.UUID(category_id) if category_id else None,
+            entity_id=UUID(entity_id),
+            contact_id=UUID(contact_id),
+            category_id=UUID(category_id) if category_id else None,
             date=datetime.date.fromisoformat(date),
             formal=formal if formal else False,
             tax_only=tax_only if tax_only else False,
@@ -163,9 +202,9 @@ def update_invoice(
 ):
     data = InvoiceUpdate(
         invoice_type=InvoiceType(invoice_type) if invoice_type else None,
-        entity_id=uuid.UUID(entity_id) if entity_id else None,
-        contact_id=uuid.UUID(contact_id) if contact_id else None,
-        category_id=uuid.UUID(category_id) if category_id else None,
+        entity_id=UUID(entity_id) if entity_id else None,
+        contact_id=UUID(contact_id) if contact_id else None,
+        category_id=UUID(category_id) if category_id else None,
         date=datetime.date.fromisoformat(date) if date else None,
         formal=bool(formal),
         tax_only=bool(tax_only),
@@ -200,7 +239,7 @@ def new_line_form(
         }
     )
 
-def get_invoice_line_or_404(invoice_line_id: uuid.UUID, db: Session = Depends(get_db)) -> InvoiceLine:
+def get_invoice_line_or_404(invoice_line_id: UUID, db: Session = Depends(get_db)) -> InvoiceLine:
     invoice_line = invoice_line_crud.get_by_id(db, invoice_line_id)
     if not invoice_line:
         raise HTTPException(status_code=404, detail="Invoice line not found")
@@ -216,7 +255,11 @@ def delete_invoice_line(
         raise HTTPException(status_code=404, detail="Invoice line mistmach invoice")
     
     invoice_line_crud.delete(db, invoice_line)
-    return HTMLResponse("")
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    )
+
 
 @router.post("/{invoice_id}/confirm", response_class=HTMLResponse)
 def confirm_invoice(
@@ -233,6 +276,22 @@ def confirm_invoice(
         headers={"HX-Redirect": f"/invoices/{invoice.id}"}
     )
 
+@router.post("/{invoice_id}/unconfirm", response_class=HTMLResponse)
+def unconfirm_invoice(
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db),
+):
+    try:
+        invoice_service.unconfirm_invoice(db, invoice)
+    except (InvoiceConfirmationError, InvoicePaymentError) as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    )
+
+
 @router.post("/{invoice_id}/pay", response_class=HTMLResponse)
 def pay_invoice(
     invoice: Invoice = Depends(get_invoice_or_404),
@@ -241,7 +300,7 @@ def pay_invoice(
     payment_date: str = Form(...),
 ):
 
-    account = account_crud.get_by_id(db, uuid.UUID(account_id))
+    account = account_crud.get_by_id(db, UUID(account_id))
     if not account:
         return HTMLResponse('<p class="text-red-600 text-sm">Cuenta no encontrada</p>')
 
@@ -267,7 +326,7 @@ def create_invoice_line(
     unit_price: str = Form(...),
     iva_aliquot: str = Form(...),
 ):
-    product_id_parsed = uuid.UUID(product_id) if product_id else None
+    product_id_parsed = UUID(product_id) if product_id else None
     quantity_parsed = int(quantity)
     unit_price_parsed = Decimal(unit_price)
 
@@ -306,12 +365,12 @@ def authorize_invoice(
 
 
 @router.get("/{invoice_id}/lines/close-form", response_class=HTMLResponse)
-def close_line_form(invoice_id: uuid.UUID):
+def close_line_form(invoice_id: UUID):
     return HTMLResponse("")
 
 
 
-def get_tribute_or_404(tribute_id: uuid.UUID, db: Session = Depends(get_db)) -> InvoiceTribute:
+def get_tribute_or_404(tribute_id: UUID, db: Session = Depends(get_db)) -> InvoiceTribute:
     invoice_tribute = invoice_tribute_crud.get_by_id(db, tribute_id)
     if not invoice_tribute:
         raise HTTPException(status_code=404, detail="Invoice tribute not found")
@@ -372,11 +431,13 @@ def delete_invoice_tribute(
         raise HTTPException(status_code=404, detail="Invoice tribute mistmach invoice")
     
     invoice_tribute_crud.delete(db, tribute)
-    return HTMLResponse("")
-
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    )
 
 @router.get("/{invoice_id}/tributes/close-form", response_class=HTMLResponse)
-def close_tribute_form(invoice_id: uuid.UUID):
+def close_tribute_form(invoice_id: UUID):
     return HTMLResponse("")
 
 
@@ -486,7 +547,7 @@ def match_product_suggestions(
         }
     )
 
-def get_product_or_404(product_id: uuid.UUID, db: Session = Depends(get_db)) -> Product:
+def get_product_or_404(product_id: UUID, db: Session = Depends(get_db)) -> Product:
     product = product_crud.get_by_id(db, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -508,7 +569,7 @@ def product_link(
     if not product_id:
         product = product_crud.create(db, ProductCreate(name=new_product_name))
     else:
-        product = get_product_or_404(uuid.UUID(product_id), db)
+        product = get_product_or_404(UUID(product_id), db)
 
     invoice_line_crud.update(db, InvoiceLineUpdate(product_id=product.id), invoice_line)
     
@@ -521,7 +582,7 @@ def product_link(
         }
     )        
 
-def get_serial_number_or_404(serial_number_id: uuid.UUID, db: Session = Depends(get_db)) -> SerialNumber:
+def get_serial_number_or_404(serial_number_id: UUID, db: Session = Depends(get_db)) -> SerialNumber:
     serial_number =serial_number_crud.get_by_id(db, serial_number_id)
     if not serial_number:
         raise HTTPException(status_code=404, detail="Serial number not found")
@@ -543,7 +604,7 @@ def toast_error(message: str) -> HTMLResponse:
 @router.get("/{invoice_id}/lines/{invoice_line_id}/serials")
 def serial_rows(
     request: Request,
-    invoice_id: uuid.UUID, 
+    invoice_id: UUID, 
     invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
 ):
 
@@ -585,7 +646,7 @@ def create_serial(
 @router.delete("/{invoice_id}/lines/{invoice_line_id}/serials/{serial_id}")    
 def delete_serial(
     request: Request,
-    serial_id: uuid.UUID,
+    serial_id: UUID,
     db: Session = Depends(get_db),
     invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
 ):

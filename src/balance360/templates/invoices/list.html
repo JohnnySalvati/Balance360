@@ -23,6 +23,24 @@
     </a>
 </div>
 
+{# Filtros #}
+<form method="get" action="/invoices/"
+      hx-get="/invoices/" hx-trigger="change" hx-target="#invoice-tbody"
+      hx-select="#invoice-tbody" hx-swap="outerHTML" hx-push-url="true"
+      class="shrink-0 flex flex-wrap items-end gap-3 mb-4">
+    <input type="hidden" name="invoice_type" value="{{ current_type or '' }}">
+    {% include "_period_filter.html" %}
+    <div>
+        <label class="block text-xs text-gray-500 mb-1">Entidad</label>
+        <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+            <option value="">Todas</option>
+            {% for e in entities | default([]) %}
+            <option value="{{ e.id }}" {% if selected_entity_id == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
 <div class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
         <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
@@ -35,7 +53,7 @@
                 <th class="px-4 py-3">Estado</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody id="invoice-tbody" class="divide-y divide-gray-100">
             {% for inv in invoices %}
             <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='/invoices/{{ inv.id }}'">
                 <td class="px-4 py-3 text-gray-700">{{ inv.date }}</td>

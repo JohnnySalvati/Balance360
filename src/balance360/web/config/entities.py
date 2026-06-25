@@ -58,11 +58,13 @@ def create_entity(
     name: str = Form(...),
     tax_id: str = Form(default=""),
     condicion_iva: str = Form(...),
+    iibb_rate: str = Form(...)
 ):
     entity_crud.create(db, EntityCreate(
         name=name,
         tax_id=tax_id or None,
         condicion_iva=CondicionIva[condicion_iva],
+        iibb_rate=Decimal(iibb_rate)
     ))
     response = HTMLResponse('<div id="modal"></div>')
     response.headers['HX-Trigger'] = "refreshRows"
@@ -97,11 +99,13 @@ def update_entity(
     name: str = Form(...),
     tax_id: str = Form(default=""),
     condicion_iva: str = Form(...),
+    iibb_rate: Decimal = Form(...)
 ):
     entity_crud.update(db, entity, EntityUpdate(
         name=name,
         tax_id=tax_id or None,
         condicion_iva=CondicionIva[condicion_iva],
+        iibb_rate=iibb_rate
     ))
     response = HTMLResponse('<div id="modal"></div>')
     response.headers['HX-Trigger'] = "refreshRows"

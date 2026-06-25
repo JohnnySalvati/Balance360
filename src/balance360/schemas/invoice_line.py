@@ -17,7 +17,7 @@ class InvoiceLineCreate(BaseModel):
         if not self.product_id and not self.description:
             raise ValueError("Debe existir un producto o una descripcion")
         return self
-
+    
 class InvoiceLineUpdate(BaseModel):
     invoice_id: uuid.UUID|None=None
     product_id: uuid.UUID|None=None
@@ -26,6 +26,7 @@ class InvoiceLineUpdate(BaseModel):
     unit_price: Decimal|None=None
     iva_aliquot: IvaAliquot|None=None
 
+    
 class InvoiceLineRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -35,5 +36,6 @@ class InvoiceLineRead(BaseModel):
     quantity: int
     unit_price: Decimal
     iva_aliquot: IvaAliquot
+    iva_rate: Decimal
     created_at: datetime
     updated_at: datetime

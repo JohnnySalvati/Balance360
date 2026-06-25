@@ -29,6 +29,23 @@ def confirm_invoice(db: Session, invoice: Invoice):
 
     db.flush()
 
+def unconfirm_invoice(db: Session, invoice: Invoice):
+    validate_unconfirmation(invoice)
+    invoice.confirmed = False
+
+    for invoice_line in invoice.invoice_lines:
+        if not invoice_line.product or not invoice_line.product.track_serial:
+            continue
+        if invoice.invoice_type == InvoiceType.purchase:
+            for serial in invoice_line.purchased_serials:
+                serial.status = SerialStatus.pending
+        else:
+            for serial in invoice_line.sold_serials:
+                serial.status = SerialStatus.reserved
+
+    db.flush()
+
+
 def register_payment(db: Session, invoice: Invoice, account: Account, payment_date: date):
     
     validate_payment(invoice)
@@ -185,3 +202,19 @@ def validate_payment(invoice: Invoice):
 def validate_delete(invoice: Invoice):
     if invoice.confirmed:
         raise InvoiceDeleteError("El comprobante esta confirmado")
+    
+def validate_unconfirmation(invoice: Invoice):
+    if not invoice.confirmed:
+        raise InvoiceConfirmationError("El comprobante no esta confirmado")
+    if invoice.paid:
+        raise InvoiceConfirmationError("El comprobante tiene pago asociado")
+    if invoice.authorized:
+        raise InvoiceConfirmationError("El comprobante esta autorizado CAE")
+
+    if invoice.invoice_type == InvoiceType.purchase:
+        for invoice_line in invoice.invoice_lines:
+            if invoice_line.product and invoice_line.product.track_serial:
+                for serial in invoice_line.purchased_serials:
+                    if serial.status != SerialStatus.available:
+                        raise InvoiceConfirmationError(f"El serial {serial} ha sido vendido o reservado")
+            

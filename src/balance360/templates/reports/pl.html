@@ -7,10 +7,24 @@
 </div>
 
 <div class="shrink-0 mb-4">
-    {% include "reports/_period_filters.html" %}
+    <form hx-get="/reports/pl" hx-target="#pl-table" hx-select="#pl-table"
+          hx-trigger="change" hx-push-url="true"
+          class="bg-white rounded shadow p-4 flex flex-wrap gap-4 items-end">
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Entidad</label>
+            <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todas</option>
+                {% for e in entities %}
+                <option value="{{ e.id }}" {% if e.id|string == selected_entity_id %}selected{% endif %}>{{ e.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% include "_period_filter.html" %}
+    </form>
 </div>
 
 <div id="pl-table" class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <p class="px-4 pt-3 text-sm text-gray-500">Período: {{ start.strftime('%d/%m/%Y') }} — {{ end.strftime('%d/%m/%Y') }}</p>
     <table class="w-full text-sm">
         <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
             <tr>

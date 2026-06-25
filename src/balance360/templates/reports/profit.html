@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Resultado (ganancia − impuestos)</h1>
+    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+</div>
+
+<form hx-get="/reports/profit" hx-target="#profit-result" hx-select="#profit-result"
+      hx-trigger="change" hx-push-url="true"
+      class="bg-white rounded shadow p-4 mb-6 flex flex-wrap items-end gap-4">
+    <div>
+        <label class="block text-xs text-gray-500 mb-1">Entidad</label>
+        <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+            <option value="">Todas</option>
+            {% for e in entities %}
+            <option value="{{ e.id }}" {% if selected_entity_id == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% include "_period_filter.html" %}
+</form>
+
+<div id="profit-result">
+    <p class="text-sm text-gray-500 mb-4">
+        Período: {{ start.strftime('%d/%m/%Y') }} — {{ end.strftime('%d/%m/%Y') }}
+    </p>
+
+    {% set t_profit = namespace(v=0) %}
+    {% set t_taxes = namespace(v=0) %}
+    {% set t_result = namespace(v=0) %}
+    {% for e in profit.by_entity %}
+        {% set t_profit.v = t_profit.v + e.profit %}
+        {% set t_taxes.v = t_taxes.v + e.taxes %}
+        {% set t_result.v = t_result.v + e.result %}
+    {% endfor %}
+
+    {# Resumen #}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 max-w-3xl">
+        <div class="bg-white rounded shadow p-5">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Ganancia</p>
+            <p class="text-2xl font-bold text-green-700 font-mono">{{ t_profit.v | currency }}</p>
+        </div>
+        <div class="bg-white rounded shadow p-5">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Impuestos</p>
+            <p class="text-2xl font-bold text-red-600 font-mono">{{ t_taxes.v | currency }}</p>
+        </div>
+        <div class="bg-white rounded shadow p-5">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Resultado</p>
+            <p class="text-2xl font-bold font-mono {% if t_result.v >= 0 %}text-blue-700{% else %}text-red-600{% endif %}">{{ t_result.v | currency }}</p>
+        </div>
+    </div>
+
+    {% if profit.by_entity %}
+    <div class="bg-white rounded shadow p-5 mb-6 max-w-3xl">
+        <canvas id="profitChart" height="120"></canvas>
+    </div>
+    {% endif %}
+
+    {# Detalle por entidad #}
+    <div class="bg-white rounded shadow max-w-3xl">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Entidad</th>
+                    <th class="px-4 py-3 text-right">Ganancia</th>
+                    <th class="px-4 py-3 text-right">Impuestos</th>
+                    <th class="px-4 py-3 text-right">Resultado</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for e in profit.by_entity %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-gray-700">{{ e.entity_name }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-green-700">{{ e.profit | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-red-600">{{ e.taxes | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold {% if e.result >= 0 %}text-blue-700{% else %}text-red-600{% endif %}">{{ e.result | currency }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="px-4 py-6 text-center text-gray-400">Sin datos en el período.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if profit.by_entity %}
+            <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-semibold">
+                <tr>
+                    <td class="px-4 py-3 uppercase text-xs text-gray-600">Total</td>
+                    <td class="px-4 py-3 text-right font-mono text-green-700">{{ t_profit.v | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-red-600">{{ t_taxes.v | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono {% if t_result.v >= 0 %}text-blue-700{% else %}text-red-600{% endif %}">{{ t_result.v | currency }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    {% if profit.by_entity %}
+    <script>
+        (function () {
+            const ctx = document.getElementById('profitChart');
+            if (!ctx || typeof Chart === 'undefined') return;
+            const prev = Chart.getChart(ctx);
+            if (prev) prev.destroy();
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [{% for e in profit.by_entity %}{{ e.entity_name | tojson }}, {% endfor %}],
+                    datasets: [
+                        { label: 'Ganancia',  backgroundColor: '#15803d', data: [{% for e in profit.by_entity %}{{ e.profit }}, {% endfor %}] },
+                        { label: 'Impuestos', backgroundColor: '#dc2626', data: [{% for e in profit.by_entity %}{{ e.taxes }}, {% endfor %}] },
+                        { label: 'Resultado', backgroundColor: '#1d4ed8', data: [{% for e in profit.by_entity %}{{ e.result }}, {% endfor %}] }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        })();
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

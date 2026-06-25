@@ -43,6 +43,13 @@
                 </select>
             </div>
 
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Alícuota IIBB (%)</label>
+                <input type="number" name="iibb_rate" step="0.01" min="0"
+                       value="{{ entity.iibb_rate if is_edit else '0' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"
                         hx-get="/config/entities/close-modal"

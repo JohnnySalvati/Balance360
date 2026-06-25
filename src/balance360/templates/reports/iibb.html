@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">IIBB sobre ventas</h1>
+    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+</div>
+
+{# ---- Filtros ---- #}
+<form hx-get="/reports/iibb" hx-target="#iibb-result" hx-select="#iibb-result"
+      hx-trigger="change" hx-push-url="true"
+      class="bg-white rounded shadow p-4 mb-6 flex flex-wrap items-end gap-4">
+    <div>
+        <label class="block text-xs text-gray-500 mb-1">Entidad</label>
+        <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+            <option value="">Todas</option>
+            {% for e in entities %}
+            <option value="{{ e.id }}" {% if selected_entity_id == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% include "_period_filter.html" %}
+</form>
+
+<div id="iibb-result">
+    <p class="text-sm text-gray-500 mb-4">
+        Período: {{ start.strftime('%d/%m/%Y') }} — {{ end.strftime('%d/%m/%Y') }}
+    </p>
+
+    <div class="bg-white rounded shadow max-w-2xl">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Entidad</th>
+                    <th class="px-4 py-3 text-right">Alícuota</th>
+                    <th class="px-4 py-3 text-right">IIBB a pagar</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for r in iibb_by_entity.by_entity %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-gray-700">{{ r.entity_name }}</td>
+                    <td class="px-4 py-3 text-right text-gray-500">{{ r.iibb_rate }}%</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ r.entity_total | currency }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400">Sin ventas en el período.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if iibb_by_entity.by_entity %}
+            <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-semibold">
+                <tr>
+                    <td class="px-4 py-3 uppercase text-xs text-gray-600" colspan="2">Total a pagar</td>
+                    <td class="px-4 py-3 text-right font-mono">{{ iibb_by_entity.total | currency }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+{% endblock %}

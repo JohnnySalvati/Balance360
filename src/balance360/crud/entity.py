@@ -2,8 +2,9 @@ import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from balance360.models.entity import Entity
+from balance360.models.entity_membership import EntityMembership
 from balance360.schemas.entity import EntityCreate, EntityUpdate
-
+from balance360.crud import entity_membership as entity_membership_crud
 
 def get_all(db: Session, search: str|None=None) -> list[Entity]:
     stmt = select(Entity)
@@ -14,6 +15,12 @@ def get_all(db: Session, search: str|None=None) -> list[Entity]:
     stmt = stmt.order_by(Entity.name)
     entities = db.execute(stmt).scalars().all()
     
+    return list(entities)
+
+def get_by_user(db: Session, user_id: uuid.UUID) -> list[Entity]:
+    stmt = select(Entity).join(EntityMembership, EntityMembership.entity_id == Entity.id).where(EntityMembership.user_id == user_id)
+    entities = db.execute(stmt).scalars().all()
+
     return list(entities)
 
 def get_by_id(db: Session, entity_id: uuid.UUID) -> Entity | None:

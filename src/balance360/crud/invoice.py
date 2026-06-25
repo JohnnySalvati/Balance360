@@ -1,12 +1,26 @@
 import uuid
-from sqlalchemy import select
+from datetime import date
+from sqlalchemy import select, true
 from sqlalchemy.orm import Session
 from balance360.models.invoice import Invoice
 from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
 from balance360.enums import InvoiceType
 
-def get_all(db: Session, invoice_type: InvoiceType|None=None) -> list[Invoice]:
-    stmt = select(Invoice)
+def get_all(
+        db: Session,
+        invoice_type: InvoiceType|None=None,
+        start: date|None=None,
+        end: date|None=None,
+        entity_ids: list[uuid.UUID]|None=[]
+    ) -> list[Invoice]:
+    
+    entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
+    
+    stmt = (
+        select(Invoice)
+        .where(entity_filter)
+        .where(Invoice.date.between(start, end))
+        )
     
     if invoice_type:
         stmt = stmt.where(Invoice.invoice_type == invoice_type)
