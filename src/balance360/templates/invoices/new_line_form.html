@@ -1,82 +1,59 @@
-<div class="border-b px-4 py-4 bg-gray-50">
-    <form hx-post="/invoices/{{ invoice.id }}/lines"
-          hx-target="body"
-          hx-swap="outerHTML"
-          class="flex flex-col gap-3">
-
-        <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Producto (opcional)</label>
-                <select name="product_id"
-                        onchange="toggleDescription(this.value)"
-                        class="border rounded px-3 py-2 text-sm">
-                    <option value="">— Sin producto —</option>
-                    {% for p in products %}
-                    <option value="{{ p.id }}">{{ p.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="flex flex-col gap-1" id="description-field">
-                <label class="text-xs text-gray-500">Descripción</label>
-                <input type="text" name="description" maxlength="200"
-                       class="border rounded px-3 py-2 text-sm"
-                       placeholder="Requerida si no hay producto">
-            </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-4">
-            <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Cantidad</label>
-                <input type="number" name="quantity" min="1" required
-                       class="border rounded px-3 py-2 text-sm">
-            </div>
-
-            <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Precio unitario (neto)</label>
-                <input type="number" name="unit_price" step="0.01" min="0" required
-                       class="border rounded px-3 py-2 text-sm">
-            </div>
-
-            <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Alícuota IVA</label>
-                <select name="iva_aliquot" required class="border rounded px-3 py-2 text-sm">
-                    {% for aliquot in iva_aliquots %}
-                    <option value="{{ aliquot.name }}"
-                            {% if aliquot.name == 'standard' %}selected{% endif %}>
-                        {{ aliquot.name | capitalize }} ({{ aliquot.rate }}%)
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-
-        <div class="flex justify-end gap-2">
-            <button type="button"
-                    hx-get="/invoices/{{ invoice.id }}/lines/close-form"
-                    hx-target="#line-form-area"
-                    hx-swap="innerHTML"
-                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
-                Cancelar
-            </button>
-            <button type="submit"
-                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-                Agregar ítem
-            </button>
-        </div>
-    </form>
-</div>
-
-<script>
-function toggleDescription(productId) {
-    const field = document.getElementById('description-field');
-    const input = field.querySelector('input');
-    if (productId) {
-        field.style.opacity = '0.4';
-        input.required = false;
-    } else {
-        field.style.opacity = '1';
-        input.required = true;
-    }
-}
-</script>
+<td class="px-4 py-3 align-top bg-blue-50/40">
+    <select name="product_id" form="new-line-form"
+            onchange="toggleNewLineDescription(this.value); suggestNewLinePrice(this)"
+            class="w-full border rounded px-2 py-1 text-sm">
+        <option value="">— Sin producto —</option>
+        {% for p in products %}
+        <option value="{{ p.id }}"
+                {% if p.id in suggestions %}
+                data-price="{{ suggestions[p.id].price }}"
+                data-iva="{{ suggestions[p.id].iva }}"
+                {% endif %}>{{ p.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="description" maxlength="200" form="new-line-form" required
+           placeholder="Descripción (requerida si no hay producto)"
+           id="new-line-description"
+           class="w-full border rounded px-2 py-1 text-sm mt-1">
+</td>
+<td class="px-4 py-3 text-right align-top bg-blue-50/40">
+    <input type="number" name="quantity" min="1" required form="new-line-form"
+           oninput="recalcNewLineSubtotal()"
+           class="w-full border rounded px-2 py-1 text-right text-sm">
+</td>
+<td class="px-4 py-3 text-right align-top bg-blue-50/40">
+    <div class="flex items-center gap-1">
+        <span class="text-gray-400 text-xs shrink-0">Neto</span>
+        <input id="unit-price-net" type="number" name="unit_price" step="0.01" min="0" required form="new-line-form"
+               oninput="recalcFromNet()"
+               class="flex-1 w-full border rounded px-2 py-1 text-right text-sm">
+    </div>
+    <div class="flex items-center gap-1 mt-1">
+        <span class="text-gray-400 text-xs shrink-0">c/IVA</span>
+        <input id="unit-price-gross" type="number" step="0.01" min="0"
+               oninput="recalcFromGross()"
+               class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-50">
+    </div>
+</td>
+<td class="px-4 py-3 text-right align-top bg-blue-50/40">
+    <select id="iva-aliquot" name="iva_aliquot" required form="new-line-form"
+            onchange="recalcFromNet(); recalcNewLineSubtotal();"
+            class="w-full border rounded px-1 py-1 text-xs text-gray-600">
+        {% for aliquot in iva_aliquots %}
+        <option value="{{ aliquot.name }}" data-rate="{{ aliquot.rate }}"
+                {% if aliquot.name == 'reduced' %}selected{% endif %}>{{ aliquot.rate }}%</option>
+        {% endfor %}
+    </select>
+</td>
+<td class="px-4 py-3 text-right align-top font-medium bg-blue-50/40">
+    <span id="new-line-subtotal" class="text-gray-700">—</span>
+</td>
+<td class="px-4 py-3 text-right align-top bg-blue-50/40 whitespace-nowrap">
+    <button type="submit" form="new-line-form"
+            class="text-green-600 hover:text-green-800 text-xs">Agregar</button>
+    <button type="button"
+            hx-get="/invoices/{{ invoice.id }}/lines/close-form"
+            hx-target="#line-form-row"
+            hx-swap="innerHTML"
+            class="ml-2 text-gray-400 hover:text-gray-600 text-xs">✕</button>
+</td>

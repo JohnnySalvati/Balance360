@@ -77,112 +77,43 @@
     </div>
 
     {# Lines #}
+    {% set is_sale = invoice.invoice_type.value == "sale" %}
     <div class="bg-white rounded shadow">
-        <div class="flex justify-between items-center px-4 py-3 border-b">
+        <div class="flex justify-between items-center px-4 py-3 border-b gap-3">
             <h2 class="text-sm font-semibold text-gray-700">Ítems</h2>
-            {% if not invoice.confirmed %}
-            <button hx-get="/invoices/{{ invoice.id }}/lines/new-form"
-                    hx-target="#line-form-area"
-                    hx-swap="innerHTML"
-                    class="text-xs text-green-600 hover:text-green-800">+ Agregar ítem</button>
-            {% endif %}
+            <div class="flex items-center gap-3">
+                {% if is_sale and not invoice.confirmed %}
+                <form hx-post="/invoices/{{ invoice.id }}/scan-serial"
+                      hx-target="#items-table"
+                      hx-swap="innerHTML"
+                      hx-on::after-request="if (event.detail.successful) { this.querySelector('#scan-serial-input').value = ''; this.querySelector('#scan-serial-input').focus(); }"
+                      class="flex items-center gap-1">
+                    <input type="text" name="serial" id="scan-serial-input" autocomplete="off"
+                           placeholder="Escanear S/N…"
+                           class="border rounded px-2 py-1 text-xs font-mono w-44">
+                    <input type="file" id="scan-serial-file" accept="image/*" capture="environment"
+                           class="hidden" onchange="scanSaleSerial(this)">
+                    <button type="button" onclick="document.getElementById('scan-serial-file').click()"
+                            class="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
+                            title="Escanear">📷</button>
+                    <button type="submit"
+                            class="bg-purple-600 text-white px-2 py-1 rounded text-xs hover:bg-purple-700">+ Unidad</button>
+                </form>
+                {% endif %}
+            </div>
         </div>
 
-        <div id="line-form-area"></div>
+        {# Form vacío y persistente: los inputs de la fila de alta se asocian
+           con form="new-line-form". Vive fuera de la tabla para no romper el
+           parseo de filas. El submit dispara HX-Redirect → recarga. #}
+        <form id="new-line-form"
+              hx-post="/invoices/{{ invoice.id }}/lines"
+              hx-target="#items-table"
+              hx-swap="innerHTML"></form>
 
-        <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
-                <tr>
-                    <th class="px-4 py-3">Descripción</th>
-                    <th class="px-4 py-3 text-right">Cantidad</th>
-                    <th class="px-4 py-3 text-right">Precio unit.</th>
-                    <th class="px-4 py-3 text-right">IVA</th>
-                    <th class="px-4 py-3 text-right">Subtotal</th>
-                    {% if not invoice.confirmed %}
-                    <th class="px-4 py-3"></th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody id="lines-tbody" class="divide-y divide-gray-100">
-                {% for line in invoice.invoice_lines %}
-                <tr>
-                    <td class="px-4 py-3 text-gray-800">
-                        {% if not line.product and not invoice.confirmed %}
-                            <span class="text-gray-500">{{ line.description }}</span>
-                            <button hx-get="/invoices/{{ invoice.id }}/lines/{{ line.id }}/match-form"
-                                    hx-target="closest td"
-                                    hx-swap="innerHTML"
-                                    class="ml-2 text-xs text-blue-500 hover:text-blue-700">Vincular producto</button>
-                        {% else %}
-                            {{ line.product.name if line.product else line.description }}
-                            {% if line.product and line.product.track_serial %}
-                            <button hx-get="/invoices/{{ invoice.id }}/lines/{{ line.id }}/serials"
-                                    hx-target="#serial-row-{{ line.id }}"
-                                    hx-swap="innerHTML"
-                                    class="ml-2 text-xs text-purple-500 hover:text-purple-700">S/N</button>
-                            {% endif %}
-                        {% endif %}
-                    </td>
-                    <td class="px-4 py-3 text-right text-gray-600">{{ line.quantity }}</td>
-                    <td class="px-4 py-3 text-right text-gray-600">{{ line.unit_price | currency }}</td>
-                    <td class="px-4 py-3 text-right text-gray-400 text-xs">{{ line.iva_aliquot.rate }}%</td>
-                    <td class="px-4 py-3 text-right font-medium">{{ (line.quantity * line.unit_price) | currency }}</td>
-                    {% if not invoice.confirmed %}
-                    <td class="px-4 py-3 text-right">
-                        <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
-                    hx-trigger="confirmedDelete"
-                    data-confirm-delete
-                                hx-target="closest tr"
-                                hx-swap="outerHTML"
-                                class="text-red-400 hover:text-red-600 text-xs">✕</button>
-                    </td>
-                    {% endif %}
-                </tr>
-                <tr id="serial-row-{{ line.id }}"></tr>
-                {% else %}
-                <tr id="empty-row">
-                    <td colspan="6" class="px-4 py-6 text-center text-gray-400">Sin ítems.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot class="border-t text-sm">
-                <tr>
-                    <td colspan="4" class="px-4 py-2 text-right text-gray-500">Subtotal neto</td>
-                    <td class="px-4 py-2 text-right text-gray-600">{{ invoice.net_total | currency }}</td>
-                    {% if not invoice.confirmed %}<td></td>{% endif %}
-                </tr>
-                {% for item in invoice.iva_breakdown %}
-                <tr>
-                    <td colspan="4" class="px-4 py-2 text-right text-gray-500">IVA {{ item.aliquot.rate }}%</td>
-                    <td class="px-4 py-2 text-right text-gray-600">{{ item.iva_amount | currency }}</td>
-                    {% if not invoice.confirmed %}<td></td>{% endif %}
-                </tr>
-                {% endfor %}
-                {% for tribute in invoice.invoice_tributes %}
-                <tr>
-                    <td colspan="3" class="px-4 py-2 text-right text-gray-500">
-                        {{ tribute.description }}
-                        {% if not invoice.confirmed %}
-                        <button hx-delete="/invoices/{{ invoice.id }}/tributes/{{ tribute.id }}"
-                    hx-trigger="confirmedDelete"
-                    data-confirm-delete
-                                hx-target="closest tr"
-                                hx-swap="outerHTML"
-                                class="ml-2 text-red-400 hover:text-red-600 text-xs">✕</button>
-                        {% endif %}
-                    </td>
-                    <td class="px-4 py-2 text-right text-gray-500 text-xs">{{ tribute.rate }}%</td>
-                    <td class="px-4 py-2 text-right text-gray-600">{{ tribute.amount | currency }}</td>
-                    {% if not invoice.confirmed %}<td></td>{% endif %}
-                </tr>
-                {% endfor %}
-                <tr class="border-t">
-                    <td colspan="4" class="px-4 py-3 text-right text-gray-700 font-semibold">Total</td>
-                    <td class="px-4 py-3 text-right font-bold text-gray-800">{{ invoice.total | currency }}</td>
-                    {% if not invoice.confirmed %}<td></td>{% endif %}
-                </tr>
-            </tfoot>
-        </table>
+        <div id="items-table">
+            {% include "invoices/partials/items_table.html" %}
+        </div>
 
         {% if not invoice.confirmed %}
         <div id="tribute-form-area"></div>
@@ -190,6 +121,7 @@
             <button hx-get="/invoices/{{ invoice.id }}/tributes/new-form"
                     hx-target="#tribute-form-area"
                     hx-swap="innerHTML"
+                    onclick="closeSerialPanels()"
                     class="text-xs text-green-600 hover:text-green-800">+ Agregar tributo</button>
         </div>
         {% endif %}
@@ -306,5 +238,155 @@
     document.querySelectorAll('input[name="payment_date"]').forEach(input => {
         if (!input.value) input.value = _today;
     });
+
+    // Escaneo de S/N por foto en el panel de seriales de cada línea.
+    // Global único: recibe lineId, así no necesita closure ni redefinirse por fila.
+    window.decodeFromPhoto = function (lineId, input) {
+        const file = input.files[0];
+        if (!file) return;
+        input.value = '';  // reset: permite re-escanear la misma foto
+        if (!('BarcodeDetector' in window)) {
+            alert('BarcodeDetector no soportado. Usá Chrome en Android.');
+            return;
+        }
+        const detector = new BarcodeDetector({ formats: ['code_128', 'qr_code', 'ean_13', 'ean_8'] });
+        createImageBitmap(file).then(b => detector.detect(b)).then(codes => {
+            if (codes.length > 0) {
+                const raw = codes[0].rawValue.replace(/^\][A-Za-z]\d/, '');
+                document.getElementById('serial-input-' + lineId).value = raw;
+                htmx.trigger(document.getElementById('serial-form-' + lineId), 'submit');
+            } else {
+                alert('No se detectó código — intentá con mejor luz o más cerca.');
+            }
+        }).catch(e => alert('Error: ' + e.message));
+    };
+
+    // ---- Precio neto/con-IVA en líneas editables de venta ----
+    function lineIvaFactor(lineId) {
+        const s = document.getElementById('iva-' + lineId);
+        if (!s) return 1;
+        return 1 + (parseFloat(s.selectedOptions[0].dataset.rate) || 0) / 100;
+    }
+    function lineFromNet(lineId) {
+        const n = document.getElementById('net-' + lineId);
+        const g = document.getElementById('gross-' + lineId);
+        if (!n || !g) return;
+        g.value = n.value === '' ? '' : (parseFloat(n.value) * lineIvaFactor(lineId)).toFixed(2);
+    }
+    function lineFromGross(lineId) {
+        const n = document.getElementById('net-' + lineId);
+        const g = document.getElementById('gross-' + lineId);
+        if (!n || !g) return;
+        n.value = g.value === '' ? '' : (parseFloat(g.value) / lineIvaFactor(lineId)).toFixed(2);
+    }
+    // Rellena los "con IVA" desde el neto. Se llama al cargar y tras cada
+    // swap del fragmento de la tabla (los inputs se recrean).
+    function initLineGross() {
+        document.querySelectorAll('[id^="net-"]').forEach(n => lineFromNet(n.id.slice(4)));
+    }
+    initLineGross();
+    document.body.addEventListener('htmx:afterSwap', e => {
+        if (e.target.id === 'items-table') initLineGross();
+    });
+
+    // Cierra los paneles de seriales abiertos (vaciando sus filas).
+    // Se usa como "popover": al pasar a otra acción dejan de ser necesarios.
+    function closeSerialPanels() {
+        document.querySelectorAll('tr[id^="serial-row-"]').forEach(tr => tr.innerHTML = '');
+    }
+
+    // Toggle del panel S/N: si ya está abierto lo cierra; si no, cierra los
+    // demás (uno por vez) y carga el suyo vía htmx.ajax.
+    function toggleSerialPanel(lineId, url) {
+        const row = document.getElementById('serial-row-' + lineId);
+        const wasOpen = row && row.innerHTML.trim() !== '';
+        closeSerialPanels();
+        if (!wasOpen) {
+            htmx.ajax('GET', url, { target: '#serial-row-' + lineId, swap: 'innerHTML' })
+                .then(() => document.getElementById('serial-input-' + lineId)?.focus());
+        }
+    }
+
+    // ---- Fila de alta de ítem (inyectada en la tabla) ----
+    function currentIvaFactor() {
+        const select = document.getElementById('iva-aliquot');
+        if (!select) return 1;
+        const rate = parseFloat(select.selectedOptions[0].dataset.rate) || 0;
+        return 1 + rate / 100;
+    }
+    // Neto es lo que se envía (name="unit_price"); "con IVA" es solo ayuda.
+    function recalcFromNet() {
+        const net = document.getElementById('unit-price-net');
+        const gross = document.getElementById('unit-price-gross');
+        if (!net || !gross) return;
+        gross.value = net.value === '' ? '' : (parseFloat(net.value) * currentIvaFactor()).toFixed(2);
+        recalcNewLineSubtotal();
+    }
+    function recalcFromGross() {
+        const net = document.getElementById('unit-price-net');
+        const gross = document.getElementById('unit-price-gross');
+        if (!net || !gross) return;
+        net.value = gross.value === '' ? '' : (parseFloat(gross.value) / currentIvaFactor()).toFixed(2);
+        recalcNewLineSubtotal();
+    }
+    // Subtotal neto = cantidad × precio neto (igual criterio que la columna Subtotal).
+    function recalcNewLineSubtotal() {
+        const out = document.getElementById('new-line-subtotal');
+        if (!out) return;
+        const qty = parseFloat(document.querySelector('[name="quantity"][form="new-line-form"]')?.value);
+        const net = parseFloat(document.getElementById('unit-price-net')?.value);
+        out.textContent = (qty > 0 && net >= 0) ? (qty * net).toFixed(2) : '—';
+    }
+    // Producto elegido → sugerir precio neto y alícuota (último costo × margen).
+    function suggestNewLinePrice(select) {
+        const opt = select.selectedOptions[0];
+        const iva = opt.dataset.iva;
+        const price = opt.dataset.price;
+        if (iva) { const s = document.getElementById('iva-aliquot'); if (s) s.value = iva; }
+        if (price) {
+            const net = document.getElementById('unit-price-net');
+            if (net) { net.value = price; recalcFromNet(); }
+        }
+    }
+
+    // Producto elegido → ocultar input manual de descripción (mismo lugar).
+    function toggleNewLineDescription(productId) {
+        const input = document.getElementById('new-line-description');
+        if (!input) return;
+        input.classList.toggle('hidden', !!productId);
+        input.required = !productId;
+        if (productId) input.value = '';
+    }
 </script>
+
+{% if is_sale and not invoice.confirmed %}
+<script>
+    // Decodificar el S/N desde una foto y enviar el form de escaneo.
+    function scanSaleSerial(input) {
+        const file = input.files[0];
+        if (!file) return;
+        input.value = '';
+        if (!('BarcodeDetector' in window)) {
+            alert('BarcodeDetector no soportado. Usá Chrome en Android.');
+            return;
+        }
+        const detector = new BarcodeDetector({ formats: ['code_128', 'qr_code', 'ean_13', 'ean_8'] });
+        createImageBitmap(file).then(b => detector.detect(b)).then(codes => {
+            if (codes.length > 0) {
+                const raw = codes[0].rawValue.replace(/^\][A-Za-z]\d/, '');
+                const inp = document.getElementById('scan-serial-input');
+                inp.value = raw;
+                htmx.trigger(inp.form, 'submit');
+            } else {
+                alert('No se detectó código — intentá con mejor luz o más cerca.');
+            }
+        }).catch(e => alert('Error: ' + e.message));
+    }
+    // Tras cada recarga, dejar el cursor listo para el próximo escaneo.
+    document.addEventListener('DOMContentLoaded', () => {
+        const i = document.getElementById('scan-serial-input');
+        if (i) i.focus();
+    });
+</script>
+{% endif %}
 {% endblock %}

@@ -1,3 +1,5 @@
+{% set is_sale = invoice.invoice_type.value == "sale" %}
+{% set panel_target = "#items-table" if is_sale else "#serial-row-" ~ invoice_line.id %}
 <td colspan="6" class="px-4 py-2 bg-gray-50">
 <div id="serial-panel-{{ invoice_line.id }}" class="mt-2">
 
@@ -8,7 +10,7 @@
             <span class="font-mono">{{ s.serial }}</span>
             {% if not invoice.confirmed %}
             <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ invoice_line.id }}/serials/{{ s.id }}"
-                    hx-target="#serial-row-{{ invoice_line.id }}"
+                    hx-target="{{ panel_target }}"
                     hx-swap="innerHTML"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
@@ -22,7 +24,7 @@
     {% if not invoice.confirmed %}
     <form id="serial-form-{{ invoice_line.id }}"
           hx-post="/invoices/{{ invoice.id }}/lines/{{ invoice_line.id }}/serials"
-          hx-target="#serial-row-{{ invoice_line.id }}"
+          hx-target="{{ panel_target }}"
           hx-swap="innerHTML"
           class="flex gap-2 items-center">
         <input id="serial-input-{{ invoice_line.id }}"
@@ -43,45 +45,6 @@
             + Agregar
         </button>
     </form>
-
-    <script>
-    (function() {
-        const LINE_ID = '{{ invoice_line.id }}';
-
-        window.decodeFromPhoto = function(lineId, input) {
-            if (lineId !== LINE_ID) return;
-            const file = input.files[0];
-            if (!file) return;
-            input.value = '';  // reset so same photo puede re-triggerar
-
-            if (!('BarcodeDetector' in window)) {
-                alert('BarcodeDetector no soportado. Usá Chrome en Android.');
-                return;
-            }
-
-            const detector = new BarcodeDetector({
-                formats: ['code_128', 'qr_code', 'ean_13', 'ean_8']
-            });
-
-            createImageBitmap(file).then(function(bitmap) {
-                return detector.detect(bitmap);
-            }).then(function(barcodes) {
-                if (barcodes.length > 0) {
-                    const serialInput = document.getElementById('serial-input-' + lineId);
-                    const form        = document.getElementById('serial-form-' + lineId);
-                    // strip AIM symbology identifier prefix (e.g. ]C1 for Code128)
-                    const raw = barcodes[0].rawValue.replace(/^\][A-Za-z]\d/, '');
-                    serialInput.value = raw;
-                    htmx.trigger(form, 'submit');
-                } else {
-                    alert('No se detectó código — intentá con mejor luz o más cerca.');
-                }
-            }).catch(function(err) {
-                alert('Error: ' + err.message);
-            });
-        };
-    })();
-    </script>
     {% endif %}
 
 </div>

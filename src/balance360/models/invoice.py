@@ -66,22 +66,28 @@ class Invoice(Base, TimestampMixin):
         Date
     )
     entity: Mapped['Entity'] = relationship(
-        back_populates="invoices"
+        back_populates="invoices",
+        order_by="Entity.name"
+
     )
     contact: Mapped['Contact'] = relationship(
-        back_populates="invoices"
+        back_populates="invoices",
+        order_by="Contact.name"
     )
     category: Mapped['Category|None'] = relationship(
-        back_populates='invoices'
+        back_populates='invoices',
+        order_by="Category.name"
     )
     invoice_lines: Mapped[list['InvoiceLine']] = relationship(
-        back_populates="invoice", cascade="all, delete-orphan"
+        back_populates="invoice", cascade="all, delete-orphan",
+        order_by="InvoiceLine.created_at"
     )
     invoice_tributes: Mapped[list['InvoiceTribute']] = relationship(
         back_populates='invoice', cascade="all, delete-orphan"
     )
     transaction: Mapped['Transaction|None'] = relationship(
-        back_populates="invoice"
+        back_populates="invoice",
+        order_by="Transaction.date"
     )
     attachments: Mapped[list['Attachment']] = relationship(
         back_populates="invoice", cascade="all, delete-orphan"

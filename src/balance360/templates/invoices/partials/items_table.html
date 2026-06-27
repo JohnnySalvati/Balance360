@@ -1,0 +1,163 @@
+{% set is_sale = invoice.invoice_type.value == "sale" %}
+<table class="w-full text-sm table-fixed">
+    <colgroup>
+        <col class="w-2/5">
+        <col class="w-1/12">
+        <col class="w-1/6">
+        <col class="w-1/12">
+        <col class="w-1/6">
+        {% if not invoice.confirmed %}<col class="w-1/12">{% endif %}
+    </colgroup>
+    <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+        <tr>
+            <th class="px-4 py-3">Descripción</th>
+            <th class="px-4 py-3 text-right">Cantidad</th>
+            <th class="px-4 py-3 text-right">Precio unit.</th>
+            <th class="px-4 py-3 text-right">IVA</th>
+            <th class="px-4 py-3 text-right">Subtotal</th>
+            {% if not invoice.confirmed %}
+            <th class="px-4 py-3"></th>
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody id="lines-tbody" class="divide-y divide-gray-100">
+        {% for line in invoice.invoice_lines %}
+        {% set sale_edit = is_sale and not invoice.confirmed and line.product %}
+        <tr>
+            <td class="px-4 py-3 text-gray-800">
+                {% if not line.product and not invoice.confirmed %}
+                    <span class="text-gray-500">{{ line.description }}</span>
+                    <button hx-get="/invoices/{{ invoice.id }}/lines/{{ line.id }}/match-form"
+                            hx-target="closest td"
+                            hx-swap="innerHTML"
+                            class="ml-2 text-xs text-blue-500 hover:text-blue-700">Vincular producto</button>
+                {% else %}
+                    {{ line.product.name if line.product else line.description }}
+                    {% if line.product and line.product.track_serial %}
+                    <button type="button"
+                            onclick="toggleSerialPanel('{{ line.id }}', '/invoices/{{ invoice.id }}/lines/{{ line.id }}/serials')"
+                            class="ml-2 text-xs text-purple-500 hover:text-purple-700">S/N</button>
+                    {% endif %}
+                {% endif %}
+                {% if is_sale and line.product and line.product.track_serial %}
+                <div class="mt-1 flex flex-wrap gap-1">
+                    {% for s in line.sold_serials %}
+                    <span class="inline-flex items-center text-xs font-mono bg-gray-100 text-gray-600 rounded px-2 py-0.5">
+                        {{ s.serial }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </td>
+            <td class="px-4 py-3 text-right text-gray-600">{{ line.quantity }}</td>
+            <td class="px-4 py-3 text-right text-gray-600">
+                {% if sale_edit %}
+                <div class="flex items-center gap-1">
+                    <span class="text-gray-400 text-xs shrink-0">Neto</span>
+                    <input id="net-{{ line.id }}" type="number" name="unit_price" value="{{ line.unit_price }}" step="0.01" min="0"
+                           hx-patch="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
+                           hx-trigger="change"
+                           hx-target="#items-table"
+                           hx-swap="innerHTML"
+                           oninput="lineFromNet('{{ line.id }}')"
+                           class="flex-1 w-full border rounded px-2 py-1 text-right text-sm">
+                </div>
+                <div class="flex items-center gap-1 mt-1">
+                    <span class="text-gray-400 text-xs shrink-0">c/IVA</span>
+                    <input id="gross-{{ line.id }}" type="number" step="0.01" min="0"
+                           oninput="lineFromGross('{{ line.id }}')"
+                           onchange="document.getElementById('net-{{ line.id }}').dispatchEvent(new Event('change'))"
+                           class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-50">
+                </div>
+                {% else %}
+                {{ line.unit_price | currency }}
+                {% endif %}
+            </td>
+            <td class="px-4 py-3 text-right text-gray-400 text-xs">
+                {% if sale_edit %}
+                <select id="iva-{{ line.id }}" name="iva_aliquot"
+                        hx-patch="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
+                        hx-trigger="change"
+                        hx-target="#items-table"
+                        hx-swap="innerHTML"
+                        onchange="lineFromNet('{{ line.id }}')"
+                        class="w-full border rounded px-1 py-1 text-xs text-gray-600">
+                    {% for a in iva_aliquots %}
+                    <option value="{{ a.name }}" data-rate="{{ a.rate }}" {% if a == line.iva_aliquot %}selected{% endif %}>{{ a.rate }}%</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                {{ line.iva_aliquot.rate }}%
+                {% endif %}
+            </td>
+            <td class="px-4 py-3 text-right font-medium">{{ (line.quantity * line.unit_price) | currency }}</td>
+            {% if not invoice.confirmed %}
+            <td class="px-4 py-3 text-right">
+                <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
+            hx-trigger="confirmedDelete"
+            data-confirm-delete
+                        hx-target="#items-table"
+                        hx-swap="innerHTML"
+                        class="text-red-400 hover:text-red-600 text-xs">✕</button>
+            </td>
+            {% endif %}
+        </tr>
+        <tr id="serial-row-{{ line.id }}"></tr>
+        {% else %}
+        <tr id="empty-row">
+            <td colspan="6" class="px-4 py-6 text-center text-gray-400">Sin ítems.</td>
+        </tr>
+        {% endfor %}
+
+        {% if not invoice.confirmed %}
+        {# Fila donde se inyecta el form de alta (entre ítems y subtotales). #}
+        <tr id="line-form-row"></tr>
+        <tr id="add-line-trigger">
+            <td colspan="6" class="px-4 py-2">
+                <button hx-get="/invoices/{{ invoice.id }}/lines/new-form"
+                        hx-target="#line-form-row"
+                        hx-swap="innerHTML"
+                        onclick="closeSerialPanels()"
+                        class="text-xs text-green-600 hover:text-green-800">+ Agregar ítem</button>
+            </td>
+        </tr>
+        {% endif %}
+    </tbody>
+    <tfoot class="border-t text-sm">
+        <tr>
+            <td colspan="4" class="px-4 py-2 text-right text-gray-500">Subtotal neto</td>
+            <td class="px-4 py-2 text-right text-gray-600">{{ invoice.net_total | currency }}</td>
+            {% if not invoice.confirmed %}<td></td>{% endif %}
+        </tr>
+        {% for item in invoice.iva_breakdown %}
+        <tr>
+            <td colspan="4" class="px-4 py-2 text-right text-gray-500">IVA {{ item.aliquot.rate }}%</td>
+            <td class="px-4 py-2 text-right text-gray-600">{{ item.iva_amount | currency }}</td>
+            {% if not invoice.confirmed %}<td></td>{% endif %}
+        </tr>
+        {% endfor %}
+        {% for tribute in invoice.invoice_tributes %}
+        <tr>
+            <td colspan="3" class="px-4 py-2 text-right text-gray-500">
+                {{ tribute.description }}
+                {% if not invoice.confirmed %}
+                <button hx-delete="/invoices/{{ invoice.id }}/tributes/{{ tribute.id }}"
+            hx-trigger="confirmedDelete"
+            data-confirm-delete
+                        hx-target="#items-table"
+                        hx-swap="innerHTML"
+                        class="ml-2 text-red-400 hover:text-red-600 text-xs">✕</button>
+                {% endif %}
+            </td>
+            <td class="px-4 py-2 text-right text-gray-500 text-xs">{{ tribute.rate }}%</td>
+            <td class="px-4 py-2 text-right text-gray-600">{{ tribute.amount | currency }}</td>
+            {% if not invoice.confirmed %}<td></td>{% endif %}
+        </tr>
+        {% endfor %}
+        <tr class="border-t">
+            <td colspan="4" class="px-4 py-3 text-right text-gray-700 font-semibold">Total</td>
+            <td class="px-4 py-3 text-right font-bold text-gray-800">{{ invoice.total | currency }}</td>
+            {% if not invoice.confirmed %}<td></td>{% endif %}
+        </tr>
+    </tfoot>
+</table>

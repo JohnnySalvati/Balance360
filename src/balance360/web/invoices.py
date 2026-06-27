@@ -26,6 +26,8 @@ from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
 from balance360.schemas.invoice_line import InvoiceLineCreate, InvoiceLineUpdate
 from balance360.schemas.invoice_tribute import InvoiceTributeCreate
 from balance360.schemas.product import ProductCreate
+from balance360.schemas.serial_number import SerialNumberUpdate
+from balance360.services import product_match
 from balance360.services import invoice as invoice_service
 from balance360.services import serial_number as serial_number_service
 from balance360.services.serial_number import SerialValidationError
@@ -33,7 +35,7 @@ from balance360.services import product_match as product_match_service
 from balance360.services.period import resolve_period
 from balance360.exceptions import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError
 from balance360.dependencies import get_db, get_current_user
-from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType
+from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType, SerialStatus
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/invoices")
@@ -44,6 +46,49 @@ def get_invoice_or_404(invoice_id: UUID, db: Session = Depends(get_db)) -> Invoi
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return invoice
+
+def get_invoice_line_or_404(invoice_line_id: UUID, db: Session = Depends(get_db)) -> InvoiceLine:
+    invoice_line = invoice_line_crud.get_by_id(db, invoice_line_id)
+    if not invoice_line:
+        raise HTTPException(status_code=404, detail="Invoice line not found")
+    return invoice_line
+
+def get_serial_number_or_404(serial_number_id: UUID, db: Session = Depends(get_db)) -> SerialNumber:
+    serial_number =serial_number_crud.get_by_id(db, serial_number_id)
+    if not serial_number:
+        raise HTTPException(status_code=404, detail="Serial number not found")
+    return serial_number
+
+def get_tribute_or_404(tribute_id: UUID, db: Session = Depends(get_db)) -> InvoiceTribute:
+    invoice_tribute = invoice_tribute_crud.get_by_id(db, tribute_id)
+    if not invoice_tribute:
+        raise HTTPException(status_code=404, detail="Invoice tribute not found")
+    return invoice_tribute
+
+def get_product_or_404(product_id: UUID, db: Session = Depends(get_db)) -> Product:
+    product = product_crud.get_by_id(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+def get_invoice_line_serial_or_404(
+        invoice: Invoice = Depends(get_invoice_or_404),
+        invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
+        serial_number: SerialNumber = Depends(get_serial_number_or_404),
+        db: Session = Depends(get_db)
+) -> SerialNumber:
+    
+    if invoice.invoice_type == InvoiceType.purchase:
+        if serial_number.purchase_line_id != invoice_line.id:
+            raise HTTPException(status_code=404, detail="Serial / invoice mismatch")
+    else:
+        if serial_number.sale_line_id != invoice_line.id:
+            raise HTTPException(status_code=404, detail="Serial / invoice mismatch")
+    if invoice_line.invoice_id != invoice.id:
+        raise HTTPException(status_code=404, detail="Invoice / invoice line mismatch")
+    
+    return serial_number
+
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -115,6 +160,7 @@ def invoice_edit_form(request: Request, invoice: Invoice = Depends(get_invoice_o
         context={
             "invoice": invoice,
             "accounts": account_crud.get_all(db),
+            "iva_aliquots": IvaAliquot,
             "tribute_types": TributeType,
         }
     )
@@ -150,9 +196,6 @@ def create_invoice(
         invoice = invoice_crud.create(db, data)
 
         if pdf_lines:
-            import json
-            from balance360.enums import IvaAliquot
-            from balance360.services import product_match
             products = product_crud.get_all(db)   # cargar el catálogo una sola vez
             for line in json.loads(pdf_lines):
                 iva_rate = Decimal(line["iva_rate"])
@@ -229,24 +272,32 @@ def new_line_form(
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     ):
+
+    suggestions = {}
+    products = product_crud.get_all(db)
+
+    for product in products:
+        invoice_line = invoice_line_crud.get_by_last_product_purchase(db, product.id, invoice.entity_id)
+        if invoice_line:
+            suggestions[invoice_line.product_id] = {
+                "price": invoice_line.unit_price * (1 + product.margin / 100),
+                "iva": invoice_line.iva_aliquot.name
+                }
+
     return templates.TemplateResponse(
         request=request,
         name="invoices/new_line_form.html",
         context={
             "invoice": invoice,
-            "products": product_crud.get_all(db),
+            "products": products,
             "iva_aliquots": IvaAliquot,
+            "suggestions": suggestions
         }
     )
 
-def get_invoice_line_or_404(invoice_line_id: UUID, db: Session = Depends(get_db)) -> InvoiceLine:
-    invoice_line = invoice_line_crud.get_by_id(db, invoice_line_id)
-    if not invoice_line:
-        raise HTTPException(status_code=404, detail="Invoice line not found")
-    return invoice_line
-
 @router.delete("/{invoice_id}/lines/{invoice_line_id}", response_class=HTMLResponse)
 def delete_invoice_line(
+    request: Request,
     invoice: Invoice = Depends(get_invoice_or_404),
     invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
     db: Session = Depends(get_db)
@@ -255,10 +306,12 @@ def delete_invoice_line(
         raise HTTPException(status_code=404, detail="Invoice line mistmach invoice")
     
     invoice_line_crud.delete(db, invoice_line)
-    return Response(
-        status_code=200,
-        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
-    )
+ 
+    return templates.TemplateResponse(
+    request=request,
+    name="invoices/partials/items_table.html",
+    context={"invoice": invoice, "iva_aliquots": IvaAliquot},
+)
 
 
 @router.post("/{invoice_id}/confirm", response_class=HTMLResponse)
@@ -318,6 +371,7 @@ def pay_invoice(
 
 @router.post("/{invoice_id}/lines", response_class=HTMLResponse)
 def create_invoice_line(
+    request: Request,
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     product_id: str|None = Form(default=""),
@@ -340,11 +394,12 @@ def create_invoice_line(
     )
 
     invoice_line_crud.create(db, data)
-    return Response(
-        status_code=200,
-        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+ 
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/partials/items_table.html",
+        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
     )
-
 
 
 @router.post("/{invoice_id}/authorize", response_class=HTMLResponse)
@@ -370,12 +425,6 @@ def close_line_form(invoice_id: UUID):
 
 
 
-def get_tribute_or_404(tribute_id: UUID, db: Session = Depends(get_db)) -> InvoiceTribute:
-    invoice_tribute = invoice_tribute_crud.get_by_id(db, tribute_id)
-    if not invoice_tribute:
-        raise HTTPException(status_code=404, detail="Invoice tribute not found")
-    return invoice_tribute
-
 
 @router.get("/{invoice_id}/tributes/new-form", response_class=HTMLResponse)
 def new_tribute_form(
@@ -394,6 +443,7 @@ def new_tribute_form(
 
 @router.post("/{invoice_id}/tributes", response_class=HTMLResponse)
 def create_invoice_tribute(
+    request: Request,
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     tribute_type: str = Form(...),
@@ -413,16 +463,18 @@ def create_invoice_tribute(
     try:
         invoice_tribute_crud.create(db, data)
     except ValidationError as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+        return toast_error(str(e))
     
-    return Response(
-        status_code=200,
-        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/partials/items_table.html",
+        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
     )
 
 
 @router.delete("/{invoice_id}/tributes/{tribute_id}", response_class=HTMLResponse)
 def delete_invoice_tribute(
+    request: Request,
     invoice: Invoice = Depends(get_invoice_or_404),
     tribute: InvoiceTribute = Depends(get_tribute_or_404),
     db: Session = Depends(get_db),
@@ -431,9 +483,10 @@ def delete_invoice_tribute(
         raise HTTPException(status_code=404, detail="Invoice tribute mistmach invoice")
     
     invoice_tribute_crud.delete(db, tribute)
-    return Response(
-        status_code=200,
-        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/partials/items_table.html",
+        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
     )
 
 @router.get("/{invoice_id}/tributes/close-form", response_class=HTMLResponse)
@@ -547,12 +600,6 @@ def match_product_suggestions(
         }
     )
 
-def get_product_or_404(product_id: UUID, db: Session = Depends(get_db)) -> Product:
-    product = product_crud.get_by_id(db, product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product
-
 
 @router.post("/{invoice_id}/lines/{invoice_line_id}/link", response_class=HTMLResponse)
 def product_link(
@@ -581,12 +628,6 @@ def product_link(
             "invoice_line": invoice_line,
         }
     )        
-
-def get_serial_number_or_404(serial_number_id: UUID, db: Session = Depends(get_db)) -> SerialNumber:
-    serial_number =serial_number_crud.get_by_id(db, serial_number_id)
-    if not serial_number:
-        raise HTTPException(status_code=404, detail="Serial number not found")
-    return serial_number
 
 def get_serials(invoice_line: InvoiceLine) -> list:
     if invoice_line.invoice.invoice_type == InvoiceType.sale:
@@ -633,36 +674,130 @@ def create_serial(
     except SerialValidationError as e:
         return toast_error(str(e))
 
-    return templates.TemplateResponse(
-        request=request,
-        name="invoices/partials/serial_panel.html",
-        context={
-            "serials": get_serials(invoice_line),
-            "invoice": invoice_line.invoice,
-            "invoice_line": invoice_line
-        }
-    )
-
-@router.delete("/{invoice_id}/lines/{invoice_line_id}/serials/{serial_id}")    
+    if invoice_line.invoice.invoice_type == InvoiceType.sale:
+        return templates.TemplateResponse(
+            request=request,
+            name="invoices/partials/items_table.html",
+            context={
+                "invoice": invoice_line.invoice,
+                "iva_aliquots": IvaAliquot
+                },
+        )
+    else:
+        return templates.TemplateResponse(
+            request=request,
+            name="invoices/partials/serial_panel.html",
+            context={
+                "serials": get_serials(invoice_line),
+                "invoice": invoice_line.invoice,
+                "invoice_line": invoice_line
+            }
+        )
+    
+@router.delete("/{invoice_id}/lines/{invoice_line_id}/serials/{serial_number_id}")    
 def delete_serial(
     request: Request,
-    serial_id: UUID,
     db: Session = Depends(get_db),
     invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
+    serial_number: SerialNumber = Depends(get_invoice_line_serial_or_404)
 ):
-    serial_number = get_serial_number_or_404(serial_id, db)
-    
+   
     try:
         serial_number_service.remove_serial_from_line(db, serial_number, invoice_line)
     except SerialValidationError as e:
         return toast_error(str(e))
     
+    if invoice_line.invoice.invoice_type == InvoiceType.sale:
+        response = templates.TemplateResponse(
+            request=request,
+            name="invoices/partials/items_table.html",
+            context={"invoice": invoice_line.invoice, "iva_aliquots": IvaAliquot},
+        )
+    else:
+        response = templates.TemplateResponse(
+            request=request,
+            name="invoices/partials/serial_panel.html",
+            context={
+                "serials": get_serials(invoice_line),
+                "invoice": invoice_line.invoice,
+                "invoice_line": invoice_line
+            }
+        )
+    return response
+
+@router.post("/{invoice_id}/scan-serial")
+def scan_serial(
+    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
+    serial: str = Form(...),
+    db: Session = Depends(get_db)
+
+):
+    if invoice.invoice_type == InvoiceType.purchase or invoice.confirmed:
+        return toast_error("Comprobante invalido")
+    
+    serial_number = serial_number_crud.get_by_serial(db, serial)
+    if not serial_number:
+        return toast_error("Serial inexistente")
+
+    if serial_number.status != SerialStatus.available:
+        return toast_error("El serial no esta disponible")
+    
+    if invoice.entity_id != serial_number.purchase_line.invoice.entity_id:
+        return toast_error("El serial no fue comprado por esta entidad")
+    
+    invoice_line = invoice_line_crud.get_by_invoice_product(db, invoice.id, serial_number.product_id)
+
+    
+    if not invoice_line:
+        invoice_line = invoice_line_crud.create(
+            db, InvoiceLineCreate(
+                invoice_id=invoice.id,
+                product_id=serial_number.product_id,
+                quantity=1,
+                unit_price=serial_number.purchase_line.unit_price * (1 + serial_number.product.margin / 100),
+                iva_aliquot=serial_number.purchase_line.iva_aliquot
+            )
+        )
+    
+    serial_number_crud.update(db, serial_number, SerialNumberUpdate(sale_line_id=invoice_line.id, status=SerialStatus.reserved))
+
+    invoice_line_crud.update(db, InvoiceLineUpdate(quantity=len(invoice_line.sold_serials)), invoice_line)
+
+    return Response(
+        status_code=200,
+        headers={"HX-Redirect": f"/invoices/{invoice.id}"}
+    )
+
+@router.patch("/{invoice_id}/lines/{invoice_line_id}")
+def update_lines(
+    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
+    invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
+    unit_price: str = Form(default=""),
+    iva_aliquot: str = Form(default=""),
+    db: Session = Depends(get_db)
+):
+    
+    if invoice.confirmed:
+        raise HTTPException(status_code=404, detail="Invoice confirmed")
+
+    if invoice.id != invoice_line.invoice_id:
+        raise HTTPException(status_code=404, detail="Invoice / line ID mismatch")
+        
+    fields = {}
+    if unit_price: fields["unit_price"] = Decimal(unit_price)
+    if iva_aliquot: fields["iva_aliquot"] = IvaAliquot[iva_aliquot]
+
+    data = InvoiceLineUpdate(**fields)
+
+    try:
+        invoice_line_crud.update(db, data, invoice_line)
+    except ValueError as e:
+        return toast_error(str(e))
+
     return templates.TemplateResponse(
         request=request,
-        name="invoices/partials/serial_panel.html",
-        context={
-            "serials": get_serials(invoice_line),
-            "invoice": invoice_line.invoice,
-            "invoice_line": invoice_line
-        }
+        name="invoices/partials/items_table.html",
+        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
     )
