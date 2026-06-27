@@ -3,7 +3,46 @@
 {% block content %}
 <div class="shrink-0 flex justify-between items-center mb-4">
     <h1 class="text-2xl font-bold">Stock</h1>
+
+    <form method="get" action="/stock/serials" class="flex gap-2 items-center">
+        <input type="text" name="q" placeholder="Buscar serial..."
+               class="border rounded px-3 py-2 text-sm w-56">
+        <input type="file" id="serial-scan-file" accept="image/*" capture="environment"
+               class="hidden" onchange="scanSerialFromPhoto(this)">
+        <button type="button" onclick="document.getElementById('serial-scan-file').click()"
+                class="bg-gray-600 text-white px-3 py-2 rounded text-sm hover:bg-gray-700"
+                title="Escanear">📷</button>
+        <button type="submit"
+                class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">
+            Buscar
+        </button>
+        <a href="/stock/serials" class="text-sm text-gray-400 hover:text-blue-600">Ver todos</a>
+    </form>
 </div>
+
+<script>
+function scanSerialFromPhoto(input) {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+
+    if (!('BarcodeDetector' in window)) {
+        alert('BarcodeDetector no soportado. Usá Chrome en Android.');
+        return;
+    }
+
+    const detector = new BarcodeDetector({ formats: ['code_128', 'qr_code', 'ean_13', 'ean_8'] });
+
+    createImageBitmap(file).then(bitmap => detector.detect(bitmap)).then(barcodes => {
+        if (barcodes.length > 0) {
+            const raw = barcodes[0].rawValue.replace(/^\][A-Za-z]\d/, '');
+            window.location.href = '/stock/serials?q=' + encodeURIComponent(raw);
+        } else {
+            alert('No se detectó código — intentá con mejor luz o más cerca.');
+        }
+    }).catch(err => alert('Error: ' + err.message));
+}
+</script>
 
 <form hx-get="/stock/"
       hx-target="#stock-table"
@@ -43,12 +82,12 @@
                 </td>
                 <td class="px-4 py-3 text-right text-gray-600">
                     {% if item.unit_price %}
-                        $ {{ "{:,.2f}".format(item.unit_price) }}
+                        {{ item.unit_price | currency }}
                     {% else %}—{% endif %}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-600">
                     {% if item.valuation %}
-                        $ {{ "{:,.2f}".format(item.valuation) }}
+                        {{ item.valuation | currency }}
                     {% else %}—{% endif %}
                 </td>
             </tr>
@@ -63,7 +102,7 @@
             <tr>
                 <td colspan="3" class="px-4 py-3 text-right font-medium">Total valorización</td>
                 <td class="px-4 py-3 text-right font-semibold text-gray-800">
-                    $ {{ "{:,.2f}".format(stock_items | sum(attribute="valuation")) }}
+                    {{ (stock_items | sum(attribute="valuation")) | currency }}
                 </td>
             </tr>
         </tfoot>

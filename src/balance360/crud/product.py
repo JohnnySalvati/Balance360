@@ -10,8 +10,9 @@ def get_all(db: Session, search: str|None=None) -> list[Product]:
     if search:
         stmt = stmt.where(Product.name.ilike(f"%{search}%"))
     
+    stmt = stmt.order_by(Product.name)
     products = db.execute(stmt).scalars().all()
-    return sorted(list(products), key=lambda x: x.name)
+    return list(products)
 
 def get_by_id(db: Session, product_id: uuid.UUID) -> Product|None:
     product = db.execute(select(Product).where(Product.id == product_id)).scalars().first()

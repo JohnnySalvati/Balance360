@@ -39,7 +39,7 @@
             </div>
             <div>
                 <p class="text-xs text-gray-400">Costo unitario</p>
-                <p class="text-gray-800">${{ "%.2f"|format(cost) }}</p>
+                <p class="text-gray-800">{{ cost | currency }}</p>
             </div>
         </div>
         <a href="/invoices/{{ serial_number.purchase_line.invoice_id }}"
@@ -62,7 +62,7 @@
             </div>
             <div>
                 <p class="text-xs text-gray-400">Precio unitario</p>
-                <p class="text-gray-800">${{ "%.2f"|format(sale_price) }}</p>
+                <p class="text-gray-800">{{ sale_price | currency }}</p>
             </div>
         </div>
         <a href="/invoices/{{ serial_number.sale_line.invoice_id }}"
