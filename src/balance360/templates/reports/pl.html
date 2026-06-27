@@ -42,11 +42,11 @@
             {% set total_expense.value = total_expense.value + row.total_expense %}
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-3 font-medium">{{ row.month_name }}</td>
-                <td class="px-4 py-3 text-right text-green-700">{{ row.total_income | amount }}</td>
-                <td class="px-4 py-3 text-right text-red-700">{{ row.total_expense | amount }}</td>
+                <td class="px-4 py-3 text-right text-green-700">{{ row.total_income | currency }}</td>
+                <td class="px-4 py-3 text-right text-red-700">{{ row.total_expense | currency }}</td>
                 <td class="px-4 py-3 text-right font-semibold
                     {% if row.net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ row.net | amount }}
+                    {{ row.net | currency }}
                 </td>
             </tr>
             {% endfor %}
@@ -54,12 +54,12 @@
         <tfoot class="bg-gray-50 font-semibold text-xs uppercase text-gray-500 border-t-2 border-gray-200">
             <tr>
                 <td class="px-4 py-3">Total</td>
-                <td class="px-4 py-3 text-right text-green-700">{{ total_income.value | amount }}</td>
-                <td class="px-4 py-3 text-right text-red-700">{{ total_expense.value | amount }}</td>
+                <td class="px-4 py-3 text-right text-green-700">{{ total_income.value | currency }}</td>
+                <td class="px-4 py-3 text-right text-red-700">{{ total_expense.value | currency }}</td>
                 {% set net_total = total_income.value - total_expense.value %}
                 <td class="px-4 py-3 text-right
                     {% if net_total >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ net_total | amount }}
+                    {{ net_total | currency }}
                 </td>
             </tr>
         </tfoot>

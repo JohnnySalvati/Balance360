@@ -45,14 +45,14 @@
         </span>
     </td>
     <td class="px-4 py-2 text-right text-green-700 {% if depth == 0 %}font-semibold{% endif %}">
-        {{ node.subtotal_income | amount }}
+        {{ node.subtotal_income | currency }}
     </td>
     <td class="px-4 py-2 text-right text-red-700 {% if depth == 0 %}font-semibold{% endif %}">
-        {{ node.subtotal_expense | amount }}
+        {{ node.subtotal_expense | currency }}
     </td>
     <td class="px-4 py-2 text-right {% if depth == 0 %}font-semibold{% endif %}
                {% if net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-        {{ net | amount }}
+        {{ net | currency }}
     </td>
 </tr>
 {% for child in node.children %}
@@ -83,11 +83,11 @@
         <tfoot>
             <tr class="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">
                 <td class="px-4 py-3 uppercase text-gray-600 text-xs">Total</td>
-                <td class="px-4 py-3 text-right text-green-700">{{ grand_income.value | amount }}</td>
-                <td class="px-4 py-3 text-right text-red-700">{{ grand_expense.value | amount }}</td>
+                <td class="px-4 py-3 text-right text-green-700">{{ grand_income.value | currency }}</td>
+                <td class="px-4 py-3 text-right text-red-700">{{ grand_expense.value | currency }}</td>
                 {% set grand_net = grand_income.value - grand_expense.value %}
                 <td class="px-4 py-3 text-right {% if grand_net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ grand_net | amount }}
+                    {{ grand_net | currency }}
                 </td>
             </tr>
         </tfoot>

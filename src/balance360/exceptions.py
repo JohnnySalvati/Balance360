@@ -21,3 +21,6 @@ class ProductDeleteError(Exception):
 
 class SerialValidationError(Exception):
     pass
+
+class SyncServiceError(Exception):
+    pass

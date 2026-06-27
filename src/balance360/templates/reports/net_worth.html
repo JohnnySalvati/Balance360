@@ -24,7 +24,7 @@
                 <td class="px-4 py-3 text-gray-500">{{ row.account.currency.code }}</td>
                 <td class="px-4 py-3 text-right font-mono
                     {% if row.balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ row.balance | amount }}
+                    {{ row.balance | currency }}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-400 font-mono">
                     {% if row.account.currency.code == "ARS" %}
@@ -35,7 +35,7 @@
                 </td>
                 <td class="px-4 py-3 text-right font-semibold font-mono
                     {% if row.ars_balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ row.ars_balance | amount }}
+                    {{ row.ars_balance | currency }}
                 </td>
             </tr>
             {% endfor %}
@@ -45,7 +45,7 @@
                 <td class="px-4 py-3 uppercase text-gray-600 text-xs" colspan="4">Total ARS</td>
                 <td class="px-4 py-3 text-right font-mono
                     {% if total_ars >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ total_ars | amount }}
+                    {{ total_ars | currency }}
                 </td>
             </tr>
         </tfoot>

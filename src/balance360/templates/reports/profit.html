@@ -18,6 +18,14 @@
             {% endfor %}
         </select>
     </div>
+    <div>
+        <label class="block text-xs text-gray-500 mb-1">Moneda</label>
+        <select name="currency_id" class="border rounded px-3 py-2 text-sm">
+            {% for c in currencies | default([]) %}
+            <option value="{{ c.id }}" {% if selected_currency_id == c.id|string %}selected{% endif %}>{{ c.code }}</option>
+            {% endfor %}
+        </select>
+    </div>
     {% include "_period_filter.html" %}
 </form>
 
@@ -39,15 +47,15 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 max-w-3xl">
         <div class="bg-white rounded shadow p-5">
             <p class="text-xs uppercase tracking-wide text-gray-400">Ganancia</p>
-            <p class="text-2xl font-bold text-green-700 font-mono">{{ t_profit.v | currency }}</p>
+            <p class="text-2xl font-bold text-emerald-600 font-mono">{{ t_profit.v | currency }}</p>
         </div>
         <div class="bg-white rounded shadow p-5">
             <p class="text-xs uppercase tracking-wide text-gray-400">Impuestos</p>
-            <p class="text-2xl font-bold text-red-600 font-mono">{{ t_taxes.v | currency }}</p>
+            <p class="text-2xl font-bold text-rose-500 font-mono">{{ t_taxes.v | currency }}</p>
         </div>
         <div class="bg-white rounded shadow p-5">
             <p class="text-xs uppercase tracking-wide text-gray-400">Resultado</p>
-            <p class="text-2xl font-bold font-mono {% if t_result.v >= 0 %}text-blue-700{% else %}text-red-600{% endif %}">{{ t_result.v | currency }}</p>
+            <p class="text-2xl font-bold font-mono {% if t_result.v >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ t_result.v | currency }}</p>
         </div>
     </div>
 
@@ -72,9 +80,9 @@
                 {% for e in profit.by_entity %}
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-3 text-gray-700">{{ e.entity_name }}</td>
-                    <td class="px-4 py-3 text-right font-mono text-green-700">{{ e.profit | currency }}</td>
-                    <td class="px-4 py-3 text-right font-mono text-red-600">{{ e.taxes | currency }}</td>
-                    <td class="px-4 py-3 text-right font-mono font-semibold {% if e.result >= 0 %}text-blue-700{% else %}text-red-600{% endif %}">{{ e.result | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-emerald-600">{{ e.profit | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-rose-500">{{ e.taxes | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold {% if e.result >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ e.result | currency }}</td>
                 </tr>
                 {% else %}
                 <tr><td colspan="4" class="px-4 py-6 text-center text-gray-400">Sin datos en el período.</td></tr>
@@ -84,9 +92,9 @@
             <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-semibold">
                 <tr>
                     <td class="px-4 py-3 uppercase text-xs text-gray-600">Total</td>
-                    <td class="px-4 py-3 text-right font-mono text-green-700">{{ t_profit.v | currency }}</td>
-                    <td class="px-4 py-3 text-right font-mono text-red-600">{{ t_taxes.v | currency }}</td>
-                    <td class="px-4 py-3 text-right font-mono {% if t_result.v >= 0 %}text-blue-700{% else %}text-red-600{% endif %}">{{ t_result.v | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-emerald-600">{{ t_profit.v | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-rose-500">{{ t_taxes.v | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono {% if t_result.v >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ t_result.v | currency }}</td>
                 </tr>
             </tfoot>
             {% endif %}
@@ -105,9 +113,9 @@
                 data: {
                     labels: [{% for e in profit.by_entity %}{{ e.entity_name | tojson }}, {% endfor %}],
                     datasets: [
-                        { label: 'Ganancia',  backgroundColor: '#15803d', data: [{% for e in profit.by_entity %}{{ e.profit }}, {% endfor %}] },
-                        { label: 'Impuestos', backgroundColor: '#dc2626', data: [{% for e in profit.by_entity %}{{ e.taxes }}, {% endfor %}] },
-                        { label: 'Resultado', backgroundColor: '#1d4ed8', data: [{% for e in profit.by_entity %}{{ e.result }}, {% endfor %}] }
+                        { label: 'Ganancia',  backgroundColor: '#6ee7b7', data: [{% for e in profit.by_entity %}{{ e.profit }}, {% endfor %}] },
+                        { label: 'Impuestos', backgroundColor: '#fda4af', data: [{% for e in profit.by_entity %}{{ e.taxes }}, {% endfor %}] },
+                        { label: 'Resultado', backgroundColor: '#93c5fd', data: [{% for e in profit.by_entity %}{{ e.result }}, {% endfor %}] }
                     ]
                 },
                 options: {

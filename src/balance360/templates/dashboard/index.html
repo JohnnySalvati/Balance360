@@ -26,7 +26,7 @@
             <div class="text-xs uppercase tracking-wide text-gray-500">Patrimonio neto</div>
             <div class="mt-2 text-3xl font-bold font-mono {% if total_ars >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
                 <span class="text-base font-sans text-gray-400">ARS</span>
-                {{ total_ars | amount }}
+                {{ total_ars | currency }}
             </div>
         </div>
 
@@ -95,10 +95,10 @@
                     <td class="px-4 py-3 font-medium">{{ row.account.name }}</td>
                     <td class="px-4 py-3 text-gray-500">{{ row.account.currency.code }}</td>
                     <td class="px-4 py-3 text-right font-mono {% if row.balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                        {{ row.balance | amount }}
+                        {{ row.balance | currency }}
                     </td>
                     <td class="px-4 py-3 text-right font-semibold font-mono {% if row.ars_balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                        {{ row.ars_balance | amount }}
+                        {{ row.ars_balance | currency }}
                     </td>
                 </tr>
                 {% endfor %}
@@ -107,7 +107,7 @@
                 <tr class="border-t-2 border-gray-300 bg-gray-50 font-bold">
                     <td class="px-4 py-3 uppercase text-gray-600 text-xs" colspan="3">Total ARS</td>
                     <td class="px-4 py-3 text-right font-mono {% if total_ars >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                        {{ total_ars | amount }}
+                        {{ total_ars | currency }}
                     </td>
                 </tr>
             </tfoot>
@@ -124,7 +124,8 @@
     const monthlyLabels  = {{ monthly | map(attribute='label') | list | tojson }};
     const monthlyIncome  = {{ monthly | map(attribute='income') | map('float') | list | tojson }};
     const monthlyExpense = {{ monthly | map(attribute='expense') | map('float') | list | tojson }};
-    const fmt = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
+    const money     = v => '$ ' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const moneyAxis = v => '$ ' + Number(v).toLocaleString('en-US');
 
     const el = document.getElementById('monthlyChart');
     if (el && window.Chart) {
@@ -142,9 +143,9 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'bottom', labels: { boxWidth: 12 } },
-                    tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmt.format(c.parsed.y) } }
+                    tooltip: { callbacks: { label: c => c.dataset.label + ': ' + money(c.parsed.y) } }
                 },
-                scales: { y: { beginAtZero: true, ticks: { callback: v => fmt.format(v) } } }
+                scales: { y: { beginAtZero: true, ticks: { callback: v => moneyAxis(v) } } }
             }
         });
     }

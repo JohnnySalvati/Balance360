@@ -3,7 +3,21 @@
 {% block content %}
 <div class="shrink-0 flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">Tipos de cambio</h1>
-    <a href="/config" class="text-sm text-blue-600 hover:underline">← Configuración</a>
+    <div class="flex items-center gap-4">
+        <button
+            hx-post="/config/exchange-rates/sync"
+            hx-target="#rates-container"
+            hx-swap="innerHTML"
+            hx-disabled-elt="this"
+            class="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
+            <svg class="htmx-indicator animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            Actualizar cotizaciones
+        </button>
+        <a href="/config" class="text-sm text-blue-600 hover:underline">← Configuración</a>
+    </div>
 </div>
 
 <div class="shrink-0 mb-4">

@@ -22,11 +22,11 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-3 font-medium">{{ row.account.name }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ row.account.currency.code }}</td>
-                <td class="px-4 py-3 text-right text-green-700">{{ row.total_income | amount }}</td>
-                <td class="px-4 py-3 text-right text-red-700">{{ row.total_expense | amount }}</td>
+                <td class="px-4 py-3 text-right text-green-700">{{ row.total_income | currency }}</td>
+                <td class="px-4 py-3 text-right text-red-700">{{ row.total_expense | currency }}</td>
                 <td class="px-4 py-3 text-right font-semibold
                     {% if row.balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
-                    {{ row.balance | amount }}
+                    {{ row.balance | currency }}
                 </td>
             </tr>
             {% endfor %}

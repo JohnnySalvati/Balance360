@@ -11,6 +11,7 @@ from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.currency import Currency
 from balance360.models.import_rule import ImportRule
+from balance360.models.exchange_rate import ExchangeRate
 from balance360.services.import_rule import Classification
 from balance360.enums import ContactType, AccountType, InvoiceType, IvaAliquot, CondicionIva, DocType, TransactionType
 
@@ -149,3 +150,21 @@ def make_import_rule(
     db.commit()
     db.refresh(import_rule)
     return import_rule
+
+def make_exchange_rate(
+        db: Session,
+        currency_id: uuid.UUID|None = None,
+        date: datetime.date|None = None,
+        rate: Decimal|None = Decimal(0)
+):
+    date = date if date else datetime.date.today()
+    exchange_rate = ExchangeRate(
+        id=uuid.uuid4(),
+        currency_id=currency_id or make_currency(db).id,
+        date=date,
+        rate=rate
+    )
+    db.add(exchange_rate)
+    db.commit()
+    db.refresh(exchange_rate)
+    return exchange_rate

@@ -20,6 +20,10 @@ def get_by_id(db: Session, currency_id: uuid.UUID) -> Currency | None:
     currency = db.execute(select(Currency).where(Currency.id == currency_id)).scalars().first()
     return currency
 
+def get_by_code(db: Session, currency_code: str) -> Currency|None:
+    currency = db.execute(select(Currency).where(Currency.code == currency_code)).scalars().first()
+    return currency
+
 def create(db: Session, data: CurrencyCreate) -> Currency:
     db_currency = Currency(**data.model_dump())
     db.add(db_currency)

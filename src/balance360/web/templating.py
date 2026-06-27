@@ -8,5 +8,5 @@ def format_amount(value):
     return f"{value:,.2f}"
 
 templates.env.filters["amount"] = format_amount
-templates.env.filters["currency"] = lambda v: f"${v:,.2f}"
+templates.env.filters["currency"] = lambda v: f"$ {v:,.2f}"
 templates.env.globals["current_year"] = lambda: date.today().year

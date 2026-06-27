@@ -7,13 +7,15 @@ if TYPE_CHECKING:
 import uuid
 import datetime
 from decimal import Decimal
-from sqlalchemy import Uuid, ForeignKey, Date, Numeric
+from sqlalchemy import Uuid, ForeignKey, Date, Numeric, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from balance360.models.base import Base, TimestampMixin
 
 
 class ExchangeRate(Base, TimestampMixin):
     __tablename__ = "exchange_rates"
+    __table_args__ = (UniqueConstraint("currency_id", "date", name="uq_exchange_rate"),)
+
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
