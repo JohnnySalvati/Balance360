@@ -20,7 +20,7 @@ class SerialNumber(Base, TimestampMixin):
         Uuid, ForeignKey("products.id")
     )
     serial: Mapped[str] = mapped_column(
-        String(20), nullable=False, unique=True
+        String(100), nullable=False, unique=True
     )
     status: Mapped[SerialStatus] = mapped_column(
         Enum(SerialStatus)

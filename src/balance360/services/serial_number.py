@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from balance360.crud import serial_number as serial_number_crud
+from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.serial_number import SerialNumber
 from balance360.schemas.serial_number import SerialNumberCreate, SerialNumberUpdate
@@ -33,20 +34,13 @@ def add_serial_to_line(db: Session, serial_str: str, invoice_line: InvoiceLine) 
 
 
 def remove_serial_from_line(db: Session, serial_number: SerialNumber, invoice_line: InvoiceLine) -> None:
-    
     if invoice_line.invoice.invoice_type == InvoiceType.purchase:
-        if serial_number.status == SerialStatus.pending:
-            serial_number_crud.delete(db, serial_number)
-        else:
-            raise SerialValidationError("Solo se pueden eliminar seriales pendientes")
+        serial_number_crud.delete(db, serial_number)
     else:
-        if serial_number.status == SerialStatus.reserved:
-            serial_number_crud.update(db, serial_number, SerialNumberUpdate(
-                status=SerialStatus.available,
-                sale_line_id=None
-            ))
-        else:
-            raise SerialValidationError("Solo se pueden eliminar seriales reservados")
+        serial_number_crud.update(db, serial_number, SerialNumberUpdate(
+            status=SerialStatus.available,
+            sale_line_id=None
+        ))
     db.flush()
     db.expire(invoice_line)
 
