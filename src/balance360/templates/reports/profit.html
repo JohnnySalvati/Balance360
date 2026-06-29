@@ -3,11 +3,17 @@
 {% block content %}
 <div class="shrink-0 flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">Resultado (ganancia − impuestos)</h1>
-    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+    <div class="flex items-center gap-4">
+        {% set report_url = "/reports/profit" %}
+        {% set result_target = "#profit-result" %}
+        {% set filters_id = "profit-filters" %}
+        {% include "reports/_currency_selector.html" %}
+        <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+    </div>
 </div>
 
-<form hx-get="/reports/profit" hx-target="#profit-result" hx-select="#profit-result"
-      hx-trigger="change" hx-push-url="true"
+<form id="profit-filters" hx-get="/reports/profit" hx-target="#profit-result" hx-select="#profit-result"
+      hx-trigger="change" hx-push-url="true" hx-include="[name='currency_id']"
       class="bg-white rounded shadow p-4 mb-6 flex flex-wrap items-end gap-4">
     <div>
         <label class="block text-xs text-gray-500 mb-1">Entidad</label>
@@ -15,14 +21,6 @@
             <option value="">Todas</option>
             {% for e in entities %}
             <option value="{{ e.id }}" {% if selected_entity_id == e.id|string %}selected{% endif %}>{{ e.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div>
-        <label class="block text-xs text-gray-500 mb-1">Moneda</label>
-        <select name="currency_id" class="border rounded px-3 py-2 text-sm">
-            {% for c in currencies | default([]) %}
-            <option value="{{ c.id }}" {% if selected_currency_id == c.id|string %}selected{% endif %}>{{ c.code }}</option>
             {% endfor %}
         </select>
     </div>
@@ -61,7 +59,9 @@
 
     {% if profit.by_entity %}
     <div class="bg-white rounded shadow p-5 mb-6 max-w-3xl">
-        <canvas id="profitChart" height="120"></canvas>
+        <div style="position: relative; height: 280px;">
+            <canvas id="profitChart"></canvas>
+        </div>
     </div>
     {% endif %}
 
@@ -120,6 +120,7 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' } },
                     scales: { y: { beginAtZero: true } }
                 }

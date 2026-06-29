@@ -3,12 +3,18 @@
 {% block content %}
 <div class="shrink-0 flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">P&amp;L por período</h1>
-    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+    <div class="flex items-center gap-4">
+        {% set report_url = "/reports/pl" %}
+        {% set result_target = "#pl-table" %}
+        {% set filters_id = "pl-filters" %}
+        {% include "reports/_currency_selector.html" %}
+        <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+    </div>
 </div>
 
 <div class="shrink-0 mb-4">
-    <form hx-get="/reports/pl" hx-target="#pl-table" hx-select="#pl-table"
-          hx-trigger="change" hx-push-url="true"
+    <form id="pl-filters" hx-get="/reports/pl" hx-target="#pl-table" hx-select="#pl-table"
+          hx-trigger="change" hx-push-url="true" hx-include="[name='currency_id']"
           class="bg-white rounded shadow p-4 flex flex-wrap gap-4 items-end">
         <div>
             <label class="block text-xs text-gray-500 mb-1">Entidad</label>

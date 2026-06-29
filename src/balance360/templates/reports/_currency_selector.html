@@ -1,0 +1,17 @@
+{# Selector de moneda de visualización (NO es un filtro: reexpresa los montos).
+   Requiere en contexto: report_url, result_target, currencies, selected_currency_id.
+   Opcional: filters_id — id del form de filtros, para arrastrar período/entidad. #}
+<div class="flex items-center gap-2">
+    <span class="text-xs text-gray-500">Ver en</span>
+    <select name="currency_id"
+            hx-get="{{ report_url }}"
+            {% if filters_id is defined and filters_id %}hx-include="#{{ filters_id }}"{% endif %}
+            hx-target="{{ result_target }}" hx-select="{{ result_target }}"
+            hx-swap="outerHTML" hx-trigger="change" hx-push-url="true"
+            class="border rounded px-2 py-1 text-sm font-medium">
+        <option value="" {% if not selected_currency_id %}selected{% endif %}>ARS</option>
+        {% for c in currencies | default([]) if c.code != 'ARS' %}
+        <option value="{{ c.id }}" {% if selected_currency_id == c.id|string %}selected{% endif %}>{{ c.code }}</option>
+        {% endfor %}
+    </select>
+</div>

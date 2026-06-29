@@ -3,10 +3,37 @@
 {% block content %}
 <div class="shrink-0 flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">Patrimonio neto</h1>
-    <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+    <div class="flex items-center gap-4">
+        {% set report_url = "/reports/net-worth" %}
+        {% set result_target = "#networth-result" %}
+        {% set filters_id = "networth-filters" %}
+        {% include "reports/_currency_selector.html" %}
+        <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+    </div>
 </div>
 
-<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+<div class="shrink-0 mb-4">
+    <form id="networth-filters" hx-get="/reports/net-worth"
+          hx-target="#networth-result" hx-select="#networth-result"
+          hx-trigger="change" hx-push-url="true" hx-include="[name='currency_id']"
+          class="bg-white rounded shadow p-4 flex flex-wrap items-end gap-4">
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Entidad</label>
+            <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+                <option value="">Todas</option>
+                {% for e in entities | default([]) %}
+                <option value="{{ e.id }}" {% if selected_entity_id == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+
+{# Código de la moneda de visualización (ARS por defecto) para las etiquetas. #}
+{% set ns = namespace(code="ARS") %}
+{% for c in currencies | default([]) if selected_currency_id == c.id|string %}{% set ns.code = c.code %}{% endfor %}
+
+<div id="networth-result" class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
         <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
             <tr>
@@ -14,7 +41,7 @@
                 <th class="px-4 py-3">Moneda</th>
                 <th class="px-4 py-3 text-right">Saldo</th>
                 <th class="px-4 py-3 text-right">Tipo de cambio</th>
-                <th class="px-4 py-3 text-right">Equivalente ARS</th>
+                <th class="px-4 py-3 text-right">Equivalente {{ ns.code }}</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -27,7 +54,7 @@
                     {{ row.balance | currency }}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-400 font-mono">
-                    {% if row.account.currency.code == "ARS" %}
+                    {% if row.account.currency.code == ns.code %}
                         —
                     {% else %}
                         {{ row.exchange_rate | amount }}
@@ -42,7 +69,7 @@
         </tbody>
         <tfoot>
             <tr class="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">
-                <td class="px-4 py-3 uppercase text-gray-600 text-xs" colspan="4">Total ARS</td>
+                <td class="px-4 py-3 uppercase text-gray-600 text-xs" colspan="4">Total {{ ns.code }}</td>
                 <td class="px-4 py-3 text-right font-mono
                     {% if total_ars >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
                     {{ total_ars | currency }}

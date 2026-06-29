@@ -1,13 +1,15 @@
 from uuid import UUID
 from datetime import date
-from fastapi import APIRouter, Request, Depends, Query
+from fastapi import APIRouter, Request, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, extract, and_
 from balance360.models.user import User
 from balance360.models.transaction import Transaction
 from balance360.models.account import Account
 from balance360.models.category import Category
+from balance360.models.currency import Currency
 from balance360.crud import entity as entity_crud
+from balance360.crud import currency as currency_crud
 from balance360.services.exchange_rate import ars_rate_subquery
 from balance360.services.period import resolve_period
 from balance360.reports import get_account_balances, build_category_tree, get_iva_position, get_tributes, get_iibb_on_sales, get_invoice_profit
@@ -23,31 +25,46 @@ MONTH_NAMES = {
 
 router = APIRouter(prefix="/reports")
 
+
+
 @router.get("")
 def reports_index(request: Request):
     return templates.TemplateResponse(request=request, name="reports/index.html", context={})
 
 
 @router.get("/balance")
-def report_balance(request: Request, db: Session = Depends(get_db)):
-    # Sum income and expenses per account, excluding transfers
+def report_balance(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    currency_id: str = Query(default=""),
+    entity_id: str = Query(default=""),
+):
+    selected_currency_id = UUID(currency_id) if currency_id else None
+
+    user_entities = entity_crud.get_by_user(db, current_user.id)
+
+    entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
+
     stmt = (
         select(
             Account,
             func.coalesce(
                 func.sum(
-                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                    Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, selected_currency_id, Transaction.date)
                 )
                 .filter(
+                    Transaction.entity_id.in_(entity_ids),
                     Transaction.type == TransactionType.income,
                     Transaction.is_transfer == False
                 ), 0
             ).label("total_income"),
             func.coalesce(
                 func.sum(
-                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                    Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, selected_currency_id, Transaction.date)
                 )
                 .filter(
+                    Transaction.entity_id.in_(entity_ids),
                     Transaction.type == TransactionType.expense,
                     Transaction.is_transfer == False
                 ), 0
@@ -72,7 +89,13 @@ def report_balance(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request=request,
         name="reports/balance.html",
-        context={"accounts": accounts_data},
+        context={
+            "accounts": accounts_data,
+            "entities": user_entities,
+            "selected_entity_id": entity_id,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id
+            },
     )
 
 
@@ -87,7 +110,10 @@ def report_pl(
     date_from: str = Query(default=""),
     date_to: str = Query(default=""),
     entity_id: str = Query(default=""),
+    currency_id: str = Query(default="")
 ):
+    selected_currency_id = UUID(currency_id) if currency_id else None
+
     start, end = resolve_period(
         year=int(year) if year else None,
         month=int(month) if month else None,
@@ -106,12 +132,12 @@ def report_pl(
             extract("month", Transaction.date).label("month"),
             func.coalesce(
                 func.sum(
-                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date),1)
+                    Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, selected_currency_id, Transaction.date)
                     ).filter(Transaction.type == TransactionType.income), 0
             ).label("total_income"),
             func.coalesce(
                 func.sum(
-                    Transaction.amount *func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                    Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, selected_currency_id, Transaction.date)
                     ).filter(Transaction.type == TransactionType.expense), 0
             ).label("total_expense"),
         )
@@ -147,7 +173,10 @@ def report_pl(
             "month": month,
             "date_from": date_from,
             "date_to": date_to,
-            "months": months_data
+            "months": months_data,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id
+
         },
     )
 
@@ -162,7 +191,10 @@ def report_pl_category(
     date_from: str = Query(default=""),
     date_to: str = Query(default=""),
     entity_id: str = Query(default=""),
+    currency_id: str = Query(default="")
 ):
+    selected_currency_id = UUID(currency_id) if currency_id else None
+
     start, end = resolve_period(
         year=int(year) if year else None,
         month=int(month) if month else None,
@@ -173,7 +205,7 @@ def report_pl_category(
     user_entities = entity_crud.get_by_user(db, current_user.id)
 
     entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
-   
+    
     tx_conditions = [
         Transaction.category_id == Category.id,
         Transaction.is_transfer == False,
@@ -187,12 +219,12 @@ def report_pl_category(
             Category,
             func.coalesce(
                 func.sum(
-                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                    Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, selected_currency_id, Transaction.date)
                 ).filter(Transaction.type == TransactionType.income), 0
             ).label("total_income"),
             func.coalesce(
                 func.sum(
-                    Transaction.amount * func.coalesce(ars_rate_subquery(Account.currency_id, Transaction.date), 1)
+                    Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, selected_currency_id, Transaction.date)
                 ).filter(Transaction.type == TransactionType.expense), 0
             ).label("total_expense"),
         )
@@ -219,6 +251,9 @@ def report_pl_category(
             "month": month,
             "date_from": date_from,
             "date_to": date_to,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id
+
         },
     )
 
@@ -227,8 +262,18 @@ def report_pl_category(
 def report_net_worth(
     request: Request,
     db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+    entity_id: str = Query(default=""),
+    currency_id: str = Query(default="")
 ):
-    rows_data = get_account_balances(db)
+    
+    selected_currency_id = UUID(currency_id) if currency_id else None
+
+    user_entities = entity_crud.get_by_user(db, current_user.id)
+
+    entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
+
+    rows_data = get_account_balances(db, entity_ids, selected_currency_id)
 
     total_ars = sum(r["ars_balance"] for r in rows_data)
     
@@ -237,7 +282,11 @@ def report_net_worth(
         name="reports/net_worth.html",
         context={
             "accounts": rows_data,
-            "total_ars": total_ars
+            "total_ars": total_ars,
+            "selected_entity_id": entity_id,
+            "entities": user_entities,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id
             }
     )
 
@@ -251,8 +300,11 @@ def iva_report(
     date_to: str = Query(default=""),
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    currency_id: str = Query(default="")
 ):
+    selected_currency_id = UUID(currency_id) if currency_id else None
+
     start, end = resolve_period(
         year=int(year) if year else None,
         month=int(month) if month else None,
@@ -264,7 +316,7 @@ def iva_report(
 
     entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
 
-    iva = get_iva_position(db, start, end, entity_ids)
+    iva = get_iva_position(db, start, end, entity_ids, selected_currency_id)
 
     return templates.TemplateResponse(
         request=request,
@@ -278,7 +330,9 @@ def iva_report(
             "year": year,
             "month": month,
             "date_from": date_from,
-            "date_to": date_to
+            "date_to": date_to,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id
         }
     )
 
@@ -292,8 +346,11 @@ def tribute_report(
     date_to: str = Query(default=""),
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    currency_id: str = Query(default="")
 ):
+    selected_currency_id = UUID(currency_id) if currency_id else None
+
     start, end = resolve_period(
         year=int(year) if year else None,
         month=int(month) if month else None,
@@ -305,7 +362,7 @@ def tribute_report(
 
     entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
 
-    tributes = get_tributes(db, start, end, entity_ids)
+    tributes = get_tributes(db, start, end, entity_ids, selected_currency_id)
 
     return templates.TemplateResponse(
         request=request,
@@ -319,7 +376,10 @@ def tribute_report(
             "year": year,
             "month": month,
             "date_from": date_from,
-            "date_to": date_to
+            "date_to": date_to,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id
+
         }
     )
 
@@ -333,8 +393,11 @@ def iibb_report(
     date_to: str = Query(default=""),
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    currency_id: str = Query(default="")
 ):
+    selected_currency_id = UUID(currency_id) if currency_id else None
+
     start, end = resolve_period(
         year=int(year) if year else None,
         month=int(month) if month else None,
@@ -346,7 +409,7 @@ def iibb_report(
 
     entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
 
-    iibb_by_entity = get_iibb_on_sales(db, start, end, entity_ids)
+    iibb_by_entity = get_iibb_on_sales(db, start, end, entity_ids, selected_currency_id)
 
     return templates.TemplateResponse(
         request=request,
@@ -360,7 +423,9 @@ def iibb_report(
             "year": year,
             "month": month,
             "date_from": date_from,
-            "date_to": date_to
+            "date_to": date_to,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id
         }
     )
 
@@ -375,8 +440,11 @@ def profit_report(
     date_to: str = Query(default=""),
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    currency_id: str = Query(default="")
 ):
+    selected_currency_id = UUID(currency_id) if currency_id else None
+
     start, end = resolve_period(
         year=int(year) if year else None,
         month=int(month) if month else None,
@@ -388,7 +456,7 @@ def profit_report(
 
     entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
 
-    profit_by_entity = get_invoice_profit(db, start, end, entity_ids)
+    profit_by_entity = get_invoice_profit(db, start, end, entity_ids, selected_currency_id)
 
     return templates.TemplateResponse(
         request=request,
@@ -402,7 +470,10 @@ def profit_report(
             "year": year,
             "month": month,
             "date_from": date_from,
-            "date_to": date_to
+            "date_to": date_to,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id
+
         }
     )
 
