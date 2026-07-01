@@ -8,6 +8,11 @@ from cryptography.x509 import load_pem_x509_certificate
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from balance360.database import settings
 
+WSAA_URL = {
+    "homo": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?WSDL",
+    "prod": "https://wsaa.afip.gov.ar/ws/services/LoginCms?WSDL"
+}
+
 class TicketManager:
     def __init__(self) -> None:
         self.tickets: dict = self.read_file()
@@ -19,11 +24,8 @@ class TicketManager:
             "sign": sign,
             "expiration_time": expiration_time
         }
-        try:
-            with open('ticket_arca.json', 'w', encoding='utf-8') as file:
-                json.dump(self.tickets, file, indent=4, ensure_ascii=False)
-        except:
-            raise IOError
+        with open('ticket_arca.json', 'w', encoding='utf-8') as file:
+            json.dump(self.tickets, file, indent=4, ensure_ascii=False)
 
     def get_valid_ticket(self, service: str) -> dict|None:
         ticket = self.tickets.get(service)
@@ -57,9 +59,13 @@ def build_tra(service: str) ->str:
     return xml
 
 def sign(xml: str) ->bytes:
+
     private_key_path = settings.private_key_path
     cert_path = settings.cert_path
     
+    if not cert_path or not private_key_path:
+        raise ValueError("Certificados de ARCA no configurados")
+
     with open(cert_path, "rb") as cert_file:
         cert_data = cert_file.read()
     cert_key = load_pem_x509_certificate(data=cert_data)
@@ -91,14 +97,12 @@ def parse_xml(response: str, service: str) -> dict:
     }
 
 def arca_query(service: str) -> dict:
-    wsdl_url = "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?WSDL"
-    prod_url = "https://wsaa.afip.gov.ar/ws/services/LoginCms?WSDL"
-
+    
     xml = build_tra(service)
 
     xml_signed = sign(xml)
 
-    client = Client(wsdl_url)
+    client = Client(WSAA_URL[settings.afip_env])
     response = client.service.loginCms(in0=base64.b64encode(xml_signed).decode("utf-8"))
 
     return parse_xml(response, service)

@@ -6,6 +6,7 @@ from sqlalchemy.engine import Row
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, extract, desc, true, or_, case, not_
 from balance360.models.category import Category
+from balance360.models.currency import Currency
 from balance360.models.account import Account
 from balance360.models.transaction import Transaction
 from balance360.models.invoice import Invoice
@@ -13,8 +14,7 @@ from balance360.models.invoice_line import InvoiceLine
 from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.entity import Entity
 from balance360.enums import TransactionType, InvoiceType, VoucherType
-from balance360.services.exchange_rate import ars_rate_subquery
-from balance360.services.period import resolve_period
+from balance360.services.exchange_rate import conversion_factor
 
 @dataclass
 class CategoryNode:
@@ -65,8 +65,10 @@ def build_category_tree(rows: list[Row]) -> list[CategoryNode]:
 
 
 
-def get_account_balances(db: Session, entity_ids: list|None=None, to_currency_id: UUID|None=None):
+def get_account_balances(db: Session, entity_ids: list|None=None, to_currency: Currency|None=None, reference_date: date|None=None):
     
+    if not reference_date: reference_date=date.today()
+
     entity_filter = Transaction.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
     stmt = (
@@ -89,7 +91,12 @@ def get_account_balances(db: Session, entity_ids: list|None=None, to_currency_id
                 ), 0
             ).label("total_expense"),
             func.coalesce(
-                ars_rate_subquery(Account.currency_id, func.current_date(), to_currency_id, func.current_date()), 1
+                conversion_factor(
+                        source_id=Account.currency_id,
+                        txn_date=func.current_date(),
+                        target_currency=to_currency,
+                        reference_date=reference_date
+                    ), 1
             ).label("exchange_rate")
         )
         .outerjoin(Transaction, Transaction.account_id == Account.id)
@@ -109,7 +116,7 @@ def get_account_balances(db: Session, entity_ids: list|None=None, to_currency_id
     return rows_data
 
 
-def get_monthly_income_expense(db: Session, months:int =12, entity_ids: list|None=None, to_currency_id: UUID|None=None):
+def get_monthly_income_expense(db: Session, months:int =12, entity_ids: list|None=None, to_currency: Currency|None=None, reference_date: date|None=None):
 
     def year_from_idx(idx: int) -> int:
         return idx // 12
@@ -122,6 +129,8 @@ def get_monthly_income_expense(db: Session, months:int =12, entity_ids: list|Non
             return next(r for r in rows if r.year == year_from_idx(idx) and r.month == month_from_idx(idx))
         except StopIteration:
             return None
+    
+    if not reference_date: reference_date=date.today()
 
     entity_filter = Transaction.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
@@ -131,12 +140,19 @@ def get_monthly_income_expense(db: Session, months:int =12, entity_ids: list|Non
     start_idx = current_idx - months + 1
     start_window = date(year_from_idx(start_idx), month_from_idx(start_idx), day=1)
 
+   
     stmt = (
         select(
             extract("year", Transaction.date).label("year"),
             extract("month", Transaction.date).label("month"),
             func.coalesce(
-                func.sum(Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, to_currency_id, Transaction.date))
+                func.sum(Transaction.amount * conversion_factor(
+                            source_id=Account.currency_id,
+                            txn_date=Transaction.date,
+                            target_currency=to_currency,
+                            reference_date=reference_date
+                    )
+                )
                 .filter(
                     Transaction.type == TransactionType.expense,
                     Transaction.is_transfer == False,
@@ -145,7 +161,13 @@ def get_monthly_income_expense(db: Session, months:int =12, entity_ids: list|Non
                 ), 0
             ).label("total_expense"),
             func.coalesce(
-                func.sum(Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, to_currency_id, Transaction.date))
+                func.sum(Transaction.amount * conversion_factor(
+                        source_id=Account.currency_id,
+                        txn_date=Transaction.date,
+                        target_currency=to_currency,
+                        reference_date=reference_date
+                    )
+                )
                 .filter(
                     Transaction.type == TransactionType.income,
                     Transaction.is_transfer == False,
@@ -183,10 +205,13 @@ def get_expenses_by_category(
         month: int|None=None,
         limit:int = 6,
         entity_ids: list|None=None,
-        to_currency_id: UUID|None=None
+        to_currency: Currency|None=None,
+        reference_date: date|None=None
 ):
     if year is None: year=date.today().year
     if month is None: month=date.today().month
+
+    if not reference_date: reference_date=date.today()
     
     entity_filter = Transaction.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
@@ -195,7 +220,12 @@ def get_expenses_by_category(
             Category,
             func.coalesce(
                 func.sum(
-                    Transaction.amount * ars_rate_subquery(Account.currency_id, Transaction.date, to_currency_id, Transaction.date)
+                    Transaction.amount * conversion_factor(
+                        source_id=Account.currency_id,
+                        txn_date=Transaction.date,
+                        target_currency=to_currency,
+                        reference_date=reference_date
+                    )
                 ).filter(
                     Transaction.type == TransactionType.expense,
                     Transaction.is_transfer == False,
@@ -233,8 +263,10 @@ def get_expenses_by_category(
     return rows_data
 
 
-def get_iva_position(db: Session, start: date, end: date, entity_ids: list|None=None, to_currency_id: UUID|None=None) -> dict:
+def get_iva_position(db: Session, start: date, end: date, entity_ids: list|None=None, to_currency: Currency|None=None, reference_date: date|None=None) -> dict:
 
+    if not reference_date: reference_date=date.today()
+    
     entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
     nc_case = case((Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_= 1)
@@ -245,14 +277,25 @@ def get_iva_position(db: Session, start: date, end: date, entity_ids: list|None=
             Entity.name.label("entity_name"),
             func.coalesce(
                 func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * InvoiceLine.iva_rate / 100 * nc_case *
-                          ars_rate_subquery(None, Invoice.date, to_currency_id, Invoice.date))
+                        conversion_factor(
+                            source_id=None,
+                            txn_date=Invoice.date,
+                            target_currency=to_currency,
+                            reference_date=reference_date
+                        )
+                    )
                 .filter(
                     Invoice.invoice_type == InvoiceType.sale,
                 ), 0
             ).label("debit"),
             func.coalesce(
                 func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * InvoiceLine.iva_rate / 100 * nc_case *
-                         ars_rate_subquery(None, Invoice.date, to_currency_id, Invoice.date))
+                        conversion_factor(
+                            source_id=None,
+                            txn_date=Invoice.date,
+                            target_currency=to_currency,
+                            reference_date=reference_date
+                        )                    )
                 .filter(
                     Invoice.invoice_type == InvoiceType.purchase,
                 ), 0
@@ -293,8 +336,10 @@ def get_iva_position(db: Session, start: date, end: date, entity_ids: list|None=
     }
     
 
-def get_tributes(db: Session, start: date, end: date, entity_ids: list|None=None, to_currency_id: UUID|None=None) -> dict:
+def get_tributes(db: Session, start: date, end: date, entity_ids: list|None=None, to_currency: Currency|None=None, reference_date: date|None=None) -> dict:
 
+    if not reference_date: reference_date=date.today()
+    
     entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
     stmt = (
@@ -303,7 +348,13 @@ def get_tributes(db: Session, start: date, end: date, entity_ids: list|None=None
             Entity.name.label("entity_name"),
             InvoiceTribute.tribute_type.label("tribute_type"),
             func.sum(InvoiceTribute.base_amount * InvoiceTribute.rate / 100 * 
-                     ars_rate_subquery(None, Invoice.date, to_currency_id, Invoice.date))
+                        conversion_factor(
+                            source_id=None,
+                            txn_date=Invoice.date,
+                            target_currency=to_currency,
+                            reference_date=reference_date
+                        )
+                    )
             .label("total_invoice")
         )
         .where(Invoice.date.between(start, end))
@@ -345,7 +396,9 @@ def get_tributes(db: Session, start: date, end: date, entity_ids: list|None=None
 
 
 
-def get_iibb_on_sales(db: Session, start: date, end: date, entity_ids: list|None=None, to_currency_id: UUID|None=None) -> dict:
+def get_iibb_on_sales(db: Session, start: date, end: date, entity_ids: list|None=None, to_currency: Currency|None=None, reference_date: date|None=None) -> dict:
+    
+    if not reference_date: reference_date=date.today()
     
     entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
@@ -357,7 +410,13 @@ def get_iibb_on_sales(db: Session, start: date, end: date, entity_ids: list|None
             Entity.name.label("entity_name"),
             Entity.iibb_rate.label("iibb_rate"),
             func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * Entity.iibb_rate / 100 * nc_case *
-                      ars_rate_subquery(None, Invoice.date, to_currency_id, Invoice.date))
+                        conversion_factor(
+                            source_id=None,
+                            txn_date=Invoice.date,
+                            target_currency=to_currency,
+                            reference_date=reference_date
+                        )
+                    )
             .label("entity_total"),
         )
         .where(Invoice.date.between(start, end))
@@ -386,8 +445,11 @@ def get_invoice_profit(
     start: date,
     end: date,
     entity_ids: list|None=None,
-    to_currency_id: UUID|None=None
+    to_currency: Currency|None=None,
+    reference_date: date|None=None
 ) -> dict:
+    
+    if not reference_date: reference_date=date.today()
     
     entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
@@ -399,12 +461,24 @@ def get_invoice_profit(
             Entity.name.label("entity_name"),
             func.coalesce(
                 func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * nc_case *
-                        ars_rate_subquery(None, Invoice.date, to_currency_id, Invoice.date))
+                        conversion_factor(
+                            source_id=None,
+                            txn_date=Invoice.date,
+                            target_currency=to_currency,
+                            reference_date=reference_date
+                        )
+                    )
                 .filter(Invoice.invoice_type == InvoiceType.sale), 0
             ).label("net_sales"),
             func.coalesce(
                 func.sum(InvoiceLine.quantity * InvoiceLine.unit_price * nc_case * 
-                        ars_rate_subquery(None, Invoice.date, to_currency_id, Invoice.date))
+                        conversion_factor(
+                            source_id=None,
+                            txn_date=Invoice.date,
+                            target_currency=to_currency,
+                            reference_date=reference_date
+                        )
+                    )
                 .filter(Invoice.invoice_type == InvoiceType.purchase), 0
             ).label("net_purchases")
         )
@@ -429,11 +503,11 @@ def get_invoice_profit(
         } for row in rows
     ]
 
-    iibb_by_entity = get_iibb_on_sales(db, start=start, end=end, entity_ids=entity_ids, to_currency_id=to_currency_id)
+    iibb_by_entity = get_iibb_on_sales(db, start=start, end=end, entity_ids=entity_ids, to_currency=to_currency, reference_date=reference_date)
 
-    tributes_by_entity = get_tributes(db, start=start, end=end, entity_ids=entity_ids, to_currency_id=to_currency_id)
+    tributes_by_entity = get_tributes(db, start=start, end=end, entity_ids=entity_ids, to_currency=to_currency, reference_date=reference_date)
 
-    iva_by_entity = get_iva_position(db, start=start, end=end, entity_ids=entity_ids, to_currency_id=to_currency_id)
+    iva_by_entity = get_iva_position(db, start=start, end=end, entity_ids=entity_ids,  to_currency=to_currency, reference_date=reference_date)
 
     profit_idx = {e["entity_id"]: e for e in entities_profit}
     iva_idx = {e["entity_id"]: e for e in iva_by_entity["by_entity"]}

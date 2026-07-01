@@ -3,7 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from balance360.models.currency import Currency
 from balance360.models.exchange_rate import ExchangeRate
+from balance360.models.account import Account
 from balance360.schemas.currency import CurrencyCreate, CurrencyUpdate
+from balance360.exceptions import CurrencyDeleteError
 
 def get_all(db: Session, search: str|None=None) -> list[Currency]:
     stmt = select(Currency)
@@ -32,6 +34,14 @@ def create(db: Session, data: CurrencyCreate) -> Currency:
     return db_currency
 
 def delete(db: Session, currency: Currency):
+    stmt = (select(Account).where(Account.currency_id == currency.id).limit(1))
+    accounts = db.execute(stmt).scalar()
+    
+    stmt = (select(ExchangeRate).where(ExchangeRate.currency_id == currency.id).limit(1))
+    exchange_rates = db.execute(stmt).scalar()
+
+    if accounts or exchange_rates:
+        raise CurrencyDeleteError("No se puede borrar: tiene cuentas o cotizaciones asociadas")
     db.delete(currency)
     db.flush()
 

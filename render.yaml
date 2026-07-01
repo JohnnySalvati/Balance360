@@ -1,0 +1,41 @@
+# Blueprint de Render: describe el servicio web (Docker) y la base Postgres.
+# Al conectar este repo en Render, el archivo crea y mantiene todo solo,
+# y cada push a la rama indicada dispara un redeploy automático (tu CD).
+services:
+  - type: web
+    name: balance360
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    branch: fastapi          # rama que dispara el deploy (cambiala si migrás a main)
+    plan: starter            # 'free' existe, pero la app se duerme por inactividad
+    region: ohio             # elegí la región más cercana a tus usuarios
+    healthCheckPath: /login/ # debe responder 200 sin autenticación
+    envVars:
+      # Render genera un secreto aleatorio fuerte y lo inyecta.
+      # Así el SECRET_KEY de producción nunca toca el repo ni el chat.
+      - key: SECRET_KEY
+        generateValue: true
+
+      - key: AFIP_ENV
+        value: homo
+
+      # Se cablea sola desde la base de abajo. OJO: viene como
+      # postgresql://...  -> hay que normalizar el driver en el código.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: balance360-db
+          property: connectionString
+
+      # Certificados dormidos por ahora. sync:false = no se versiona;
+      # se cargan a mano en el panel cuando actives facturación en prod.
+      - key: PRIVATE_KEY_PATH
+        sync: false
+      - key: CERT_PATH
+        sync: false
+
+databases:
+  - name: balance360-db
+    plan: basic-256mb        # el plan pago más chico; incluye backups
+    postgresMajorVersion: "16"
+    databaseName: balance360
+    user: balance360

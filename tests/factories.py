@@ -168,3 +168,5 @@ def make_exchange_rate(
     db.commit()
     db.refresh(exchange_rate)
     return exchange_rate
+
+    

@@ -8,6 +8,11 @@
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script>htmx.config.useTemplateFragments = true;</script>
+    <style>
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator,
+        .htmx-request.htmx-indicator { display: inline-block; }
+    </style>
 </head>
 <body class="bg-gray-100 text-gray-800 h-screen flex flex-col overflow-hidden">
 

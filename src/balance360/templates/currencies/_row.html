@@ -2,7 +2,9 @@
     <td class="px-4 py-3 font-mono font-medium text-gray-800">{{ c.code }}</td>
     <td class="px-4 py-3 text-gray-700">{{ c.name }}</td>
     <td class="px-4 py-3 text-gray-500 text-xs">
-        {% if c.is_bond %}
+        {% if c.is_index %}
+        <span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Índice</span>
+        {% elif c.is_bond %}
         <span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Bono</span>
         {% else %}
         <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Moneda</span>

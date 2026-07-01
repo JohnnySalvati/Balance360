@@ -6,6 +6,8 @@ from balance360.dependencies import get_db
 from balance360.crud import currency as currency_crud
 from balance360.schemas.currency import CurrencyCreate, CurrencyUpdate
 from balance360.web.templating import templates
+from balance360.web.responses import toast_error
+from balance360.exceptions import CurrencyDeleteError
 
 router = APIRouter(prefix="/currencies")
 
@@ -59,8 +61,9 @@ def create_currency(
     code: str = Form(...),
     name: str = Form(...),
     is_bond: bool = Form(default=False),
+    is_index: bool = Form(default=False)
 ):
-    currency_crud.create(db, CurrencyCreate(code=code.upper(), name=name, is_bond=is_bond))
+    currency_crud.create(db, CurrencyCreate(code=code.upper(), name=name, is_bond=is_bond, is_index=is_index))
     response = HTMLResponse('<div id="modal"></div>')
     response.headers["HX-Trigger"] = "refreshRows"
     return response
@@ -82,11 +85,13 @@ def update_currency(
     code: str | None = Form(default=""),
     name: str | None = Form(default=""),
     is_bond: bool = Form(default=False),
+    is_index: bool = Form(default=False),
 ):
     data = CurrencyUpdate(
         code=code.upper() if code else None,
         name=name if name else None,
         is_bond=is_bond,
+        is_index=is_index
     )
     currency_crud.update(db, currency, data)
     response = HTMLResponse('<div id="modal"></div>')
@@ -99,5 +104,9 @@ def delete_currency(
     currency=Depends(get_currency_or_404),
     db: Session = Depends(get_db),
 ):
-    currency_crud.delete(db, currency)
+    try:
+        currency_crud.delete(db, currency)
+    except CurrencyDeleteError as e:
+        return toast_error(str(e))
+
     return HTMLResponse("")

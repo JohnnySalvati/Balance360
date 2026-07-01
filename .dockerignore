@@ -1,0 +1,27 @@
+# Entornos y caches locales: NO deben entrar a la imagen.
+.venv/
+.git/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Secretos y datos locales: nunca se hornean en la imagen.
+.env
+certs/
+ticket_arca.json
+
+# Planillas y archivos de trabajo que no son parte de la app.
+*.xlsx
+*.xlsx- procesado
+
+# Config de editor y de desarrollo local.
+.vscode/
+docker-compose.yml
+docker/
+*.ps1
+
+# Tests: no hacen falta en la imagen de runtime (corren en CI).
+tests/
+test_*.py

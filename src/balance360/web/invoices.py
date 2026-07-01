@@ -37,6 +37,7 @@ from balance360.exceptions import InvoiceAuthorizationError, InvoiceConfirmation
 from balance360.dependencies import get_db, get_current_user
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType, SerialStatus
 from balance360.web.templating import templates
+from balance360.web.responses import toast_error
 
 router = APIRouter(prefix="/invoices")
 
@@ -633,14 +634,6 @@ def get_serials(invoice_line: InvoiceLine) -> list:
     if invoice_line.invoice.invoice_type == InvoiceType.sale:
         return invoice_line.sold_serials
     return invoice_line.purchased_serials
-
-
-def toast_error(message: str) -> HTMLResponse:
-    response = HTMLResponse("")
-    response.headers["HX-Trigger"] = json.dumps({"showToast": {"message": message , "type": "error"}})
-    response.headers["HX-Reswap"] = "none"
-    return response
-
 
 @router.get("/{invoice_id}/lines/{invoice_line_id}/serials")
 def serial_rows(

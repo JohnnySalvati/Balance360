@@ -38,6 +38,13 @@
                 <label for="is_bond" class="text-sm text-gray-700">Es un bono</label>
             </div>
 
+            <div class="flex items-center gap-2">
+                <input type="checkbox" name="is_index" id="is_index" value="true"
+                       {% if is_edit and currency.is_index %}checked{% endif %}
+                       class="rounded border-gray-300">
+                <label for="is_index" class="text-sm text-gray-700">Es un índice (ej: UVA)</label>
+            </div>
+
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"
                         hx-get="/config/currencies/close-modal"

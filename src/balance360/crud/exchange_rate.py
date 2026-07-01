@@ -1,6 +1,6 @@
 import uuid
 from datetime import date
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from balance360.models.exchange_rate import ExchangeRate
@@ -39,8 +39,31 @@ def update(db: Session, exchange_rate: ExchangeRate, data: ExchangeRateUpdate) -
 
 def upsert(db: Session, data: ExchangeRateCreate) -> ExchangeRate: 
     stmt = insert(ExchangeRate).values(**data.model_dump())
+    
     constraint = "uq_exchange_rate"
-    set_ = {"rate": data.rate}
+    set_ = {
+        "rate": stmt.excluded.rate,
+        "updated_at": func.now()
+    }
     stmt = stmt.on_conflict_do_update(constraint=constraint, set_=set_)
+    
     stmt = stmt.returning(ExchangeRate)
+    
     return db.execute(stmt).scalars().one()
+
+
+def upsert_many(db: Session, data_list: list[ExchangeRateCreate]) -> int: 
+    values = [{**d.model_dump(), "id": uuid.uuid4()} for d in data_list]
+
+    stmt = insert(ExchangeRate).values(values)
+    
+    constraint = "uq_exchange_rate"
+    set_ = {
+        "rate": stmt.excluded.rate,
+        "updated_at": func.now()
+    }
+    stmt = stmt.on_conflict_do_update(constraint=constraint, set_=set_)
+    
+    db.execute(stmt)
+
+    return len(values)

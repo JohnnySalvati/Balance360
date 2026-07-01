@@ -24,3 +24,6 @@ class SerialValidationError(Exception):
 
 class SyncServiceError(Exception):
     pass
+
+class CurrencyDeleteError(Exception):
+    pass

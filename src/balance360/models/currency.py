@@ -24,6 +24,9 @@ class Currency(Base, TimestampMixin):
     is_bond: Mapped[bool] = mapped_column(
         Boolean, default=False
     )
+    is_index: Mapped[bool] = mapped_column(
+        Boolean, default=False
+    )
     accounts: Mapped[list["Account"]] = relationship(
         back_populates="currency"
     )
