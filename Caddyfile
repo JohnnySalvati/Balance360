@@ -1,0 +1,6 @@
+# Caddy obtiene y renueva el certificado HTTPS automáticamente para este
+# dominio (Let's Encrypt). No hay que configurar nada más para el TLS.
+# {$DOMAIN} se lee de la variable DOMAIN de tu archivo .env.
+{$DOMAIN} {
+    reverse_proxy app:8000
+}
