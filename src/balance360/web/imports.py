@@ -16,6 +16,8 @@ from balance360.services.import_xlsx import import_workbook
 from balance360.dependencies import get_db
 from balance360.web.templating import templates
 from balance360.enums import ImportRowStatus, TransactionType
+from balance360.exceptions import ImportServiceError
+from balance360.web.responses import toast_error 
 
 router = APIRouter(prefix="/imports")
 
@@ -30,7 +32,6 @@ def import_page(
         request=request,
         name="imports/index.html",
         context={"batches": import_batches}
-
     )
 
 @router.post("/", response_class=HTMLResponse)
@@ -41,7 +42,10 @@ def upload(
 ):
     contents = file.file.read()
 
-    batch = import_workbook(db=db, file_bytes=BytesIO(contents), filename=file.filename or "import.xlsx")
+    try:
+        batch = import_workbook(db=db, file_bytes=BytesIO(contents), filename=file.filename or "import.xlsx")
+    except ImportServiceError as e:
+        return toast_error(str(e))
     
     return Response(
         status_code=200,

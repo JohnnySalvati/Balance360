@@ -14,6 +14,7 @@ from balance360.crud import import_batch as import_batch_crud
 from balance360.crud import import_row as import_row_crud
 from balance360.services.import_rule import extract_amount
 from balance360.enums import TransactionType, ImportRowStatus
+from balance360.exceptions import ImportServiceError
     
 def parse_sheet(ws: Worksheet) -> tuple[list[dict], list[dict]]:
     valid_rows = []
@@ -88,46 +89,55 @@ def import_workbook(
         filename: str,
 ) -> ImportBatch:
     accounts = account_crud.get_all(db)
+
+    if not accounts:
+        raise ImportServiceError("No hay cuentas configuradas, crea una antes de importar")
+
     wb = load_workbook(file_bytes, data_only=True)
+
+    accounts_to_process = [account for account in accounts if account.name in wb.sheetnames]
+    
+    if not accounts_to_process:
+        raise ImportServiceError("Ninguna hoja del Excel coincide con tus cuentas")
 
     import_batch = import_batch_crud.create(db, ImportBatchCreate(filename=filename))
 
-    for account in accounts:
-        if account.name in wb.sheetnames:
+    for account in accounts_to_process:
         
-            valid_rows, review_rows = parse_sheet(ws=wb[account.name])
+        valid_rows, review_rows = parse_sheet(ws=wb[account.name])
 
-            for valid_row in valid_rows:
+        for valid_row in valid_rows:
 
-                transaction_crud.create(
-                    db,
-                    TransactionCreate(
-                        date=valid_row["date"],
-                        description=valid_row["description"],
-                        amount=valid_row["amount"],
-                        type=valid_row["transaction_type"],
-                        account_id=account.id,
-                        source_file=filename,
-                        source_sheet=account.name,
-                        source_row=valid_row["source_row"],
-                        import_batch_id=import_batch.id
-                    )
+            transaction_crud.create(
+                db,
+                TransactionCreate(
+                    date=valid_row["date"],
+                    description=valid_row["description"],
+                    amount=valid_row["amount"],
+                    type=valid_row["transaction_type"],
+                    account_id=account.id,
+                    source_file=filename,
+                    source_sheet=account.name,
+                    source_row=valid_row["source_row"],
+                    import_batch_id=import_batch.id
                 )
+            )
 
-            for review_row in review_rows:
+        for review_row in review_rows:
 
-                import_row_crud.create(
-                    db,
-                    ImportRowCreate(
-                        batch_id=import_batch.id,
-                        account_id=account.id,
-                        source_row=review_row["source_row"],
-                        date=review_row["date"],
-                        description=review_row["description"],
-                        debit=review_row["debit"],
-                        credit=review_row["credit"],
-                        status=ImportRowStatus.needs_review,
-                        reason=review_row["reason"]
-                    )
+            import_row_crud.create(
+                db,
+                ImportRowCreate(
+                    batch_id=import_batch.id,
+                    account_id=account.id,
+                    source_row=review_row["source_row"],
+                    date=review_row["date"],
+                    description=review_row["description"],
+                    debit=review_row["debit"],
+                    credit=review_row["credit"],
+                    status=ImportRowStatus.needs_review,
+                    reason=review_row["reason"]
                 )
+            )
+    
     return import_batch

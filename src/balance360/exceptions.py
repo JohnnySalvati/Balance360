@@ -27,3 +27,6 @@ class SyncServiceError(Exception):
 
 class CurrencyDeleteError(Exception):
     pass
+
+class ImportServiceError(Exception):
+    pass
