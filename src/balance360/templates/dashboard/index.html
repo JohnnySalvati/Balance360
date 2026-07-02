@@ -22,27 +22,27 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
         {# Patrimonio neto #}
-        <div class="bg-white rounded shadow p-5">
+        <a href="{{ request.url_for('report_net_worth') }}" class="block bg-white rounded shadow p-5 hover:shadow-md hover:ring-1 hover:ring-blue-200 transition">
             <div class="text-xs uppercase tracking-wide text-gray-500">Patrimonio neto</div>
             <div class="mt-2 text-3xl font-bold font-mono {% if total_ars >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
                 <span class="text-base font-sans text-gray-400">ARS</span>
                 {{ total_ars | currency }}
             </div>
-        </div>
+        </a>
 
         {# Cantidad de cuentas #}
-        <div class="bg-white rounded shadow p-5">
+        <a href="{{ request.url_for('config_accounts') }}" class="block bg-white rounded shadow p-5 hover:shadow-md hover:ring-1 hover:ring-blue-200 transition">
             <div class="text-xs uppercase tracking-wide text-gray-500">Cuentas</div>
             <div class="mt-2 text-3xl font-bold font-mono text-gray-800">{{ accounts | length }}</div>
-        </div>
+        </a>
 
         {# Monedas distintas #}
-        <div class="bg-white rounded shadow p-5">
+        <a href="{{ request.url_for('config_currencies') }}" class="block bg-white rounded shadow p-5 hover:shadow-md hover:ring-1 hover:ring-blue-200 transition">
             <div class="text-xs uppercase tracking-wide text-gray-500">Monedas</div>
             <div class="mt-2 text-3xl font-bold font-mono text-gray-800">
                 {{ accounts | map(attribute='account.currency.code') | unique | list | length }}
             </div>
-        </div>
+        </a>
     </div>
 
     {# ---- Charts ---- #}

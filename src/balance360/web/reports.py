@@ -288,7 +288,7 @@ def report_pl_category(
     )
 
 
-@router.get("/net-worth")
+@router.get("/net-worth", name="report_net_worth")
 def report_net_worth(
     request: Request,
     db: Session = Depends(get_db),

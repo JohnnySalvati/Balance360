@@ -19,7 +19,7 @@ def get_currency_or_404(currency_id: uuid.UUID, db: Session = Depends(get_db)):
     return currency
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse, name="config_currencies")
 def currency_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request=request,

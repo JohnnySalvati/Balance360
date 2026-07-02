@@ -11,7 +11,7 @@ from balance360.web.templating import templates
 
 router = APIRouter(prefix="/accounts")
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse, name="config_accounts")
 def accounts_page(request: Request, db: Session = Depends(get_db)):
     accounts = account_crud.get_all(db)
     return templates.TemplateResponse(
