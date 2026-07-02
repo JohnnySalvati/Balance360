@@ -44,7 +44,7 @@ def delete(db: Session, user: User):
     db.delete(user)
     db.flush()
 
-def update(db: Session, user: User, data: UserUpdate):
+def update(db: Session, user: User, data: UserUpdate) -> User:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(user, field, value)
     db.flush()
@@ -53,3 +53,9 @@ def update(db: Session, user: User, data: UserUpdate):
 
 def verify_user_password(user: User, password: str) -> bool:
     return pwd_context.verify(password, user.hashed_password)
+
+def set_password(db: Session, user: User, new_password: str) -> User:
+    user.hashed_password = hash_password(new_password)
+    db.flush()
+    db.refresh(user)
+    return user

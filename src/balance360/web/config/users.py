@@ -1,15 +1,24 @@
 import uuid
+import json
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from balance360.dependencies import get_db
+from balance360.models.user import User
 from balance360.crud import user as user_crud
 from balance360.schemas.user import UserCreate, UserUpdate
 from balance360.dependencies import get_current_user
 from balance360.web.templating import templates
+from balance360.web.responses import toast_error
 
 router = APIRouter(prefix="/users")
+
+def get_user_or_404(user_id: uuid.UUID, db: Session = Depends(get_db)) -> User:
+    user = user_crud.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 @router.get("/", response_class=HTMLResponse)
 def user_page(request: Request, db: Session = Depends(get_db)):
@@ -120,3 +129,23 @@ def delete_user(
 
     user_crud.delete(db, user)
     return HTMLResponse("")
+
+@router.post("/{user_id}/reset-password")
+def reset_password(
+    request: Request,
+    new_password: str = Form(...),
+    new_password_confirm: str = Form(...),
+    user: User = Depends(get_user_or_404),
+    db: Session = Depends(get_db)
+):
+    if len(new_password)<8:
+        return toast_error("Debe tener 8 caracteres como minimo")
+    if new_password != new_password_confirm:
+        return toast_error("Las passwords no coinciden")
+    
+    user_crud.set_password(db, user, new_password)
+    response = HTMLResponse('<div id="modal"></div>')
+    response.headers["HX-Trigger"] = json.dumps({"showToast": {"message": "Password actualizada" , "type": "success"}})
+    return response
+
+

@@ -40,3 +40,10 @@ def login(
     
     return response
 
+@router.post("/logout", response_class=RedirectResponse)
+def logout():
+    response = RedirectResponse(url="/login/", status_code=302)
+    response.delete_cookie("access_token")
+
+    return response
+    
