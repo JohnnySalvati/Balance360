@@ -1,6 +1,6 @@
-# Stack de producción para correr Balance360 en una VM.
-# Uso:   docker compose -f docker-compose.prod.yml up -d --build
-# Secretos: copiá .env.example a .env y completá los valores.
+# Stack de producción para la VM, detrás del reverse proxy nginx (srv-nginx, .9).
+# nginx termina el HTTPS y proxea a esta VM por HTTP en el puerto 8000.
+# Uso:  docker compose -f docker-compose.prod.yml up -d --build
 services:
   db:
     image: postgres:16
@@ -13,8 +13,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    # El puerto 5432 NO se publica a propósito: la base solo es visible
-    # dentro de la red interna del compose, nunca desde internet.
+    # El 5432 NO se publica: la base solo vive en la red interna del compose.
 
   app:
     build: .
@@ -23,23 +22,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Tampoco se publica el 8000: Caddy le habla por la red interna 'app:8000'.
-
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    env_file: .env
     ports:
-      - "80:80"     # necesario para el desafío HTTP de Let's Encrypt
-      - "443:443"   # tráfico HTTPS
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data      # acá persisten los certificados TLS emitidos
-      - caddy_config:/config
-    depends_on:
-      - app
+      - "8000:8000"   # expuesto en la LAN para que el nginx de .9 lo alcance
 
 volumes:
   postgres_data:
-  caddy_data:
-  caddy_config:
