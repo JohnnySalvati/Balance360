@@ -30,7 +30,7 @@
 
 <div id="tributes-result">
     <p class="text-sm text-gray-500 mb-4">
-        Período: {{ start.strftime('%d/%m/%Y') }} — {{ end.strftime('%d/%m/%Y') }}
+        Período: {{ period.start.strftime('%d/%m/%Y') }} — {{ period.end.strftime('%d/%m/%Y') }}
     </p>
 
     {% set tributo_labels = {"national": "Nacional", "provincial": "Provincial", "municipal": "Municipal", "domestic": "Interno", "iibb": "Ingresos Brutos", "iva_perception": "Percepción IVA", "other": "Otro"} %}

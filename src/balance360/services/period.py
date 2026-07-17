@@ -28,7 +28,7 @@ def resolve_period(
             date(day=31, month=12, year=year)
         )
     return (
-            date_from or date(day=1, month=date.today().month, year=date.today().year),
+            date(day=1, month=1, year=1900),
             date.today()
         )
     

@@ -33,8 +33,8 @@ from balance360.services import serial_number as serial_number_service
 from balance360.services.serial_number import SerialValidationError
 from balance360.services import product_match as product_match_service
 from balance360.services.period import resolve_period
-from balance360.exceptions import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError
-from balance360.dependencies import get_db, get_current_user
+from balance360.exceptions import InvoiceAuthorizationError, InvoiceConfirmationError, InvoicePaymentError, WsfeError
+from balance360.dependencies import get_db, get_current_user, get_period, Period
 from balance360.enums import InvoiceType, VoucherType, IvaAliquot, TributeType, SerialStatus
 from balance360.web.templating import templates
 from balance360.web.responses import toast_error
@@ -96,20 +96,11 @@ def get_invoice_line_serial_or_404(
 def invoice_page(
     request: Request,
     db: Session = Depends(get_db),
-    year: str = Query(default=""),
-    month: str = Query(default=""),
-    date_from: str = Query(default=""),
-    date_to: str = Query(default=""),
+    period: Period = Depends(get_period),
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
     invoice_type: InvoiceType|None = None
 ):
-    start, end = resolve_period(
-        year=int(year) if year else None,
-        month=int(month) if month else None,
-        date_from=date.fromisoformat(date_from) if date_from else None,
-        date_to=date.fromisoformat(date_to) if date_to else None,
-    )
     user_entities = entity_crud.get_by_user(db, current_user.id)
 
     entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
@@ -117,8 +108,8 @@ def invoice_page(
     filtered_invoices = invoice_crud.get_all(
         db=db,
         invoice_type=invoice_type,
-        start=start,
-        end=end,
+        start=period.start,
+        end=period.end,
         entity_ids=entity_ids
     )
     
@@ -126,16 +117,11 @@ def invoice_page(
         request=request,
         name="invoices/list.html",
         context={
+            "period": period,
             "invoices": filtered_invoices,
             "current_type": invoice_type.value if invoice_type else None,
-            "start": start,
-            "end": end,
             "entities": user_entities,
             "selected_entity_id": entity_id,
-            "year": year,
-            "month": month,
-            "date_from": date_from,
-            "date_to": date_to
         }
     )
 
@@ -412,6 +398,8 @@ def authorize_invoice(
         invoice_service.authorize_invoice(db, invoice)
     except InvoiceAuthorizationError as e:
         return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+    except WsfeError as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
 
     return Response(
         status_code=200,
@@ -609,13 +597,14 @@ def product_link(
     invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
     db: Session = Depends(get_db),
     product_id: str = Form(default=""),
+    track_serial: bool = Form(default=True),
     new_product_name: str = Form(default="")
 ):
     if not product_id and not new_product_name: 
         raise HTTPException(status_code=400, detail="At least one parameter is required")
     
     if not product_id:
-        product = product_crud.create(db, ProductCreate(name=new_product_name))
+        product = product_crud.create(db, ProductCreate(name=new_product_name, track_serial=track_serial))
     else:
         product = get_product_or_404(UUID(product_id), db)
 

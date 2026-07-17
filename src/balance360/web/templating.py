@@ -10,3 +10,4 @@ def format_amount(value):
 templates.env.filters["amount"] = format_amount
 templates.env.filters["currency"] = lambda v: f"$ {v:,.2f}"
 templates.env.globals["current_year"] = lambda: date.today().year
+templates.env.globals["current_month"] = lambda: date.today().month
