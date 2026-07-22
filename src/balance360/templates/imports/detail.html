@@ -18,7 +18,7 @@
 
     {# Buscar y tildar por descripción #}
     <div class="shrink-0 mb-4">
-        <input type="search" oninput="tildarPorDescripcion(this.value)"
+        <input type="search" oninput="filtrarPorDescripcion(this.value)"
                placeholder="Buscar y tildar por descripción…"
                class="border rounded px-3 py-2 text-sm w-full max-w-md">
     </div>
@@ -67,13 +67,32 @@
 </div>
 
 <script>
-    function tildarPorDescripcion(query) {
-        const q = query.trim().toLowerCase();
+    function normalize(text) {
+    return text
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    }
+
+    function filtrarPorDescripcion(query) {
+        const words = normalize(query)
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
         document.querySelectorAll('#rows-body tr').forEach(tr => {
             const desc = tr.querySelector('[name="description"]');
             const check = tr.querySelector('.row-check');
+
             if (!desc || !check) return;
-            check.checked = q !== '' && desc.value.toLowerCase().includes(q);
+
+            const text = normalize(desc.value);
+            const matches = words.every(word => text.includes(word));
+
+            // Sin búsqueda: mostrar todo y destildar.
+            // Con búsqueda: mostrar solo las coincidencias y tildarlas.
+            tr.hidden = words.length > 0 && !matches;
+            check.checked = words.length > 0 && matches;
         });
     }
 </script>

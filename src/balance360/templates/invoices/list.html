@@ -47,6 +47,7 @@
             <tr>
                 <th class="px-4 py-3">Fecha</th>
                 <th class="px-4 py-3">Comprobante</th>
+                <th class="px-4 py-3">Entidad</th>
                 <th class="px-4 py-3">Contacto</th>
                 <th class="px-4 py-3">Categoría</th>
                 <th class="px-4 py-3 text-right">Total</th>
@@ -69,6 +70,7 @@
                         Informal
                     {% endif %}
                 </td>
+                <td class="px-4 py-3 text-gray-700">{{ inv.entity.name }}</td>
                 <td class="px-4 py-3 text-gray-800">{{ inv.contact.name }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ inv.category.name if inv.category else "—" }}</td>
                 <td class="px-4 py-3 text-right font-medium">{{ inv.total | currency }}</td>
@@ -88,7 +90,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="px-4 py-6 text-center text-gray-400">No hay comprobantes cargados.</td>
+                <td colspan="7" class="px-4 py-6 text-center text-gray-400">No hay comprobantes cargados.</td>
             </tr>
             {% endfor %}
         </tbody>

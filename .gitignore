@@ -12,3 +12,5 @@ wheels/
 certs/
 
 .env
+
+*.xlsx

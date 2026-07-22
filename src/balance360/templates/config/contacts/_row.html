@@ -2,7 +2,7 @@
 <tr id="con-row-{{ c.id }}" class="hover:bg-gray-50">
     <td class="px-4 py-3 font-medium text-gray-800">{{ c.name }}</td>
     <td class="px-4 py-3 text-gray-500">{{ type_labels[c.contact_type.value] }}</td>
-    <td class="px-4 py-3 text-gray-400">{{ c.tax_id or '—' }}</td>
+    <td class="px-4 py-3 text-gray-400">{{ c.tax_id | cuit or '—' }}</td>
     <td class="px-4 py-3 text-right">
         <div class="flex justify-end gap-3">
             <button hx-get="/config/contacts/{{ c.id }}/edit-form"

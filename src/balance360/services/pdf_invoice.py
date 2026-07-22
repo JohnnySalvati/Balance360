@@ -99,6 +99,15 @@ def _extract_voucher_type(lines: list, text: str) -> str | None:
     m = re.search(r'\bFACTURA\b[^\n]*\n[^\n]*\b([A-C])\s*$', text[:400], re.MULTILINE | re.IGNORECASE)
     if m:
         return m.group(1).upper()
+    # Last resort: AFIP voucher code under a "Cod." box (Dux Software).
+    # pdfplumber may keep it inline ("Cod.\n001") or push the digits to the
+    # end of the NEXT line ("Cod. FECHA: ...\nTEL: ... 001"). Case-sensitive
+    # on purpose: other vendors print uppercase "COD." item labels.
+    m = re.search(r'\bCod\.\s*0*(\d{1,3})\s*$', text, re.MULTILINE)
+    if not m:
+        m = re.search(r'\bCod\.[^\n]*\n[^\n]*?\b0*(\d{1,3})\s*$', text, re.MULTILINE)
+    if m:
+        return _AFIP_VOUCHER_LETTER.get(int(m.group(1)))
     return None
 
 
@@ -110,6 +119,10 @@ def _extract_pos_number(lines: list, text: str):
     if m:
         return int(m.group(1)), int(m.group(2))
     m = re.search(r'^FACTURA\s*\n[A-C]\s+0*(\d{1,4})-0*(\d+)', text, re.MULTILINE)
+    if m:
+        return int(m.group(1)), int(m.group(2))
+    # "Nº 00002-00006657" (Dux) / "Nº A00005-00024903" (ssd-ml style).
+    m = re.search(r'\bN[º°o]\.?\s*[A-C]?\s*0*(\d{1,5})\s*-\s*0*(\d+)\b', text, re.IGNORECASE)
     if m:
         return int(m.group(1)), int(m.group(2))
     m = re.search(r'Nro[:\s]+[A-C]?-?0*(\d{1,4})[-\s]+0*(\d{4,8})\b', text, re.IGNORECASE)
@@ -133,6 +146,16 @@ def _extract_date(text: str) -> datetime.date | None:
         if d and d.year >= 2020:
             return d
     return None
+
+
+# ARCA voucher-type code (the "Cod. NNN" box printed by Dux Software and
+# similar) -> invoice letter. Unknown codes map to None on purpose: better
+# no letter than a wrong one (other vendors print unrelated "COD." lines).
+_AFIP_VOUCHER_LETTER = {
+    1: "A", 2: "A", 3: "A", 201: "A", 202: "A", 203: "A",
+    6: "B", 7: "B", 8: "B", 206: "B", 207: "B", 208: "B",
+    11: "C", 12: "C", 13: "C", 211: "C", 212: "C", 213: "C",
+}
 
 
 # Air/NVX invoices ("FACTURA\nA 0047-…"): the supplier (Venex/NVX) is printed
@@ -307,6 +330,16 @@ LAYOUTS: list[Layout] = [
         row=re.compile(
             rf"^(?P<code>\S+)\s+(?P<desc>.+?)\s+(?P<qty>\d+\.\d+)\s+(?P<price>{N})\s+(?P<importe>{N})\s*$"
         ),
+    ),
+    # 9. Dux Software (EVER/EMVI, etc.): code desc qty price subtotal iva% total
+    #    Continuation fragments like "(813)" wrap BELOW the row -> append.
+    Layout(
+        name="dux",
+        signature=re.compile(r"Código\s+Descripción\s+Cant\.\s+Precio\s+Uni\.", re.I),
+        row=re.compile(
+            rf"^(?P<code>\S+)\s+(?P<desc>.+?)\s+(?P<qty>\d+,\d+)\s+(?P<price>{N})\s+{N}\s+(?P<iva>\d+,\d+)\s+{N}\s*$"
+        ),
+        wrap="append",
     ),
 ]
 

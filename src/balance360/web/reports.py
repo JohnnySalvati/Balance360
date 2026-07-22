@@ -1,28 +1,45 @@
-from uuid import UUID
 from datetime import date
-from fastapi import APIRouter, Request, Depends, Query
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy import and_, extract, func, select
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, extract, and_
-from balance360.models.user import User
-from balance360.models.transaction import Transaction
+
+from balance360.crud import currency as currency_crud
+from balance360.crud import entity as entity_crud
+from balance360.dependencies import Period, get_current_user, get_db, get_period
+from balance360.enums import TransactionType
 from balance360.models.account import Account
 from balance360.models.category import Category
-from balance360.crud import entity as entity_crud
-from balance360.crud import currency as currency_crud
-from balance360.services.exchange_rate import  conversion_factor
-from balance360.reports import get_account_balances, build_category_tree, get_iva_position, get_tributes, get_iibb_on_sales, get_invoice_profit
+from balance360.models.transaction import Transaction
+from balance360.models.user import User
+from balance360.reports import (
+    build_category_tree,
+    get_account_balances,
+    get_iibb_on_sales,
+    get_invoice_profit,
+    get_iva_position,
+    get_tributes,
+)
+from balance360.services.exchange_rate import conversion_factor
 from balance360.web.templating import templates
-from balance360.dependencies import get_current_user, get_db, get_period, Period
-from balance360.enums import TransactionType
 
 MONTH_NAMES = {
-    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+    1: "Enero",
+    2: "Febrero",
+    3: "Marzo",
+    4: "Abril",
+    5: "Mayo",
+    6: "Junio",
+    7: "Julio",
+    8: "Agosto",
+    9: "Septiembre",
+    10: "Octubre",
+    11: "Noviembre",
+    12: "Diciembre",
 }
 
 router = APIRouter(prefix="/reports")
-
 
 
 @router.get("")
@@ -49,31 +66,35 @@ def report_balance(
             Account,
             func.coalesce(
                 func.sum(
-                    Transaction.amount * conversion_factor(
+                    Transaction.amount
+                    * conversion_factor(
                         source_id=Account.currency_id,
                         txn_date=Transaction.date,
                         target_currency=to_currency,
-                        reference_date=date.today())
-                )
-                .filter(
+                        reference_date=date.today(),
+                    )
+                ).filter(
                     Transaction.entity_id.in_(entity_ids),
                     Transaction.type == TransactionType.income,
-                    Transaction.is_transfer == False
-                ), 0
+                    Transaction.is_transfer.is_(False),
+                ),
+                0,
             ).label("total_income"),
             func.coalesce(
                 func.sum(
-                    Transaction.amount * conversion_factor(
+                    Transaction.amount
+                    * conversion_factor(
                         source_id=Account.currency_id,
                         txn_date=Transaction.date,
                         target_currency=to_currency,
-                        reference_date=date.today())
-                )
-                .filter(
+                        reference_date=date.today(),
+                    )
+                ).filter(
                     Transaction.entity_id.in_(entity_ids),
                     Transaction.type == TransactionType.expense,
-                    Transaction.is_transfer == False
-                ), 0
+                    Transaction.is_transfer.is_(False),
+                ),
+                0,
             ).label("total_expense"),
         )
         .outerjoin(Transaction, Transaction.account_id == Account.id)
@@ -100,27 +121,25 @@ def report_balance(
             "entities": user_entities,
             "selected_entity_id": entity_id,
             "currencies": currency_crud.get_all(db),
-            "selected_currency_id": currency_id
-            },
+            "selected_currency_id": currency_id,
+        },
     )
-
 
 
 @router.get("/pl")
 def report_pl(
     request: Request,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user),
-    period: Period = Depends(get_period), 
+    current_user=Depends(get_current_user),
+    period: Period = Depends(get_period),
     entity_id: str = Query(default=""),
-    currency_id: str = Query(default="")
+    currency_id: str = Query(default=""),
 ):
     to_currency = currency_crud.get_by_id(db, UUID(currency_id)) if currency_id else None
 
     user_entities = entity_crud.get_by_user(db, current_user.id)
 
     entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
-   
 
     stmt = (
         select(
@@ -128,26 +147,30 @@ def report_pl(
             extract("month", Transaction.date).label("month"),
             func.coalesce(
                 func.sum(
-                    Transaction.amount * conversion_factor(
+                    Transaction.amount
+                    * conversion_factor(
                         source_id=Account.currency_id,
                         txn_date=Transaction.date,
                         target_currency=to_currency,
-                        reference_date=date.today()
+                        reference_date=date.today(),
                     )
-                ).filter(Transaction.type == TransactionType.income), 0
+                ).filter(Transaction.type == TransactionType.income),
+                0,
             ).label("total_income"),
             func.coalesce(
                 func.sum(
-                    Transaction.amount * conversion_factor(
+                    Transaction.amount
+                    * conversion_factor(
                         source_id=Account.currency_id,
                         txn_date=Transaction.date,
                         target_currency=to_currency,
-                        reference_date=date.today()
+                        reference_date=date.today(),
                     )
-                ).filter(Transaction.type == TransactionType.expense), 0
+                ).filter(Transaction.type == TransactionType.expense),
+                0,
             ).label("total_expense"),
         )
-        .where(Transaction.is_transfer == False)
+        .where(Transaction.is_transfer.is_(False))
         .where(Transaction.date >= period.start)
         .where(Transaction.date <= period.end)
         .where(Transaction.entity_id.in_(entity_ids))
@@ -155,7 +178,7 @@ def report_pl(
         .group_by("year", "month")
         .order_by("year", "month")
     )
-    
+
     rows = db.execute(stmt).all()
     months_data = [
         {
@@ -177,8 +200,7 @@ def report_pl(
             "selected_entity_id": entity_id,
             "months": months_data,
             "currencies": currency_crud.get_all(db),
-            "selected_currency_id": currency_id
-
+            "selected_currency_id": currency_id,
         },
     )
 
@@ -187,23 +209,23 @@ def report_pl(
 def report_pl_category(
     request: Request,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user),
-    period: Period = Depends(get_period), 
+    current_user=Depends(get_current_user),
+    period: Period = Depends(get_period),
     entity_id: str = Query(default=""),
-    currency_id: str = Query(default="")
+    currency_id: str = Query(default=""),
 ):
     to_currency = currency_crud.get_by_id(db, UUID(currency_id)) if currency_id else None
 
     user_entities = entity_crud.get_by_user(db, current_user.id)
 
     entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
-    
+
     tx_conditions = [
         Transaction.category_id == Category.id,
-        Transaction.is_transfer == False,
+        Transaction.is_transfer.is_(False),
         Transaction.date >= period.start,
         Transaction.date <= period.end,
-        Transaction.entity_id.in_(entity_ids)
+        Transaction.entity_id.in_(entity_ids),
     ]
 
     stmt = (
@@ -211,25 +233,27 @@ def report_pl_category(
             Category,
             func.coalesce(
                 func.sum(
-                    Transaction.amount * conversion_factor(
+                    Transaction.amount
+                    * conversion_factor(
                         source_id=Account.currency_id,
                         txn_date=Transaction.date,
                         target_currency=to_currency,
-                        reference_date=date.today()
+                        reference_date=date.today(),
                     )
-                )
-                .filter(Transaction.type == TransactionType.income), 0
+                ).filter(Transaction.type == TransactionType.income),
+                0,
             ).label("total_income"),
             func.coalesce(
                 func.sum(
-                    Transaction.amount * conversion_factor(
+                    Transaction.amount
+                    * conversion_factor(
                         source_id=Account.currency_id,
                         txn_date=Transaction.date,
                         target_currency=to_currency,
-                        reference_date=date.today()
+                        reference_date=date.today(),
                     )
-                )
-                .filter(Transaction.type == TransactionType.expense), 0
+                ).filter(Transaction.type == TransactionType.expense),
+                0,
             ).label("total_expense"),
         )
         .outerjoin(Transaction, and_(*tx_conditions))
@@ -239,7 +263,7 @@ def report_pl_category(
     )
 
     rows = db.execute(stmt).all()
-    
+
     groups_data = build_category_tree(list(rows))
 
     return templates.TemplateResponse(
@@ -251,8 +275,7 @@ def report_pl_category(
             "entities": user_entities,
             "selected_entity_id": entity_id,
             "currencies": currency_crud.get_all(db),
-            "selected_currency_id": currency_id
-
+            "selected_currency_id": currency_id,
         },
     )
 
@@ -261,9 +284,9 @@ def report_pl_category(
 def report_net_worth(
     request: Request,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user),
+    current_user=Depends(get_current_user),
     entity_id: str = Query(default=""),
-    currency_id: str = Query(default="")
+    currency_id: str = Query(default=""),
 ):
     to_currency = currency_crud.get_by_id(db, UUID(currency_id)) if currency_id else None
 
@@ -274,7 +297,7 @@ def report_net_worth(
     rows_data = get_account_balances(db, entity_ids, to_currency)
 
     total_ars = sum(r["ars_balance"] for r in rows_data)
-    
+
     return templates.TemplateResponse(
         request=request,
         name="reports/net_worth.html",
@@ -284,8 +307,8 @@ def report_net_worth(
             "selected_entity_id": entity_id,
             "entities": user_entities,
             "currencies": currency_crud.get_all(db),
-            "selected_currency_id": currency_id
-            }
+            "selected_currency_id": currency_id,
+        },
     )
 
 
@@ -296,7 +319,7 @@ def iva_report(
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    currency_id: str = Query(default="")
+    currency_id: str = Query(default=""),
 ):
     to_currency = currency_crud.get_by_id(db, UUID(currency_id)) if currency_id else None
 
@@ -311,23 +334,23 @@ def iva_report(
         name="reports/iva.html",
         context={
             "period": period,
-            "iva": iva, 
+            "iva": iva,
             "entities": user_entities,
             "selected_entity_id": entity_id,
             "currencies": currency_crud.get_all(db),
-            "selected_currency_id": currency_id
-        }
+            "selected_currency_id": currency_id,
+        },
     )
 
 
 @router.get("/tributes")
 def tribute_report(
     request: Request,
-    period: Period = Depends(get_period),    
+    period: Period = Depends(get_period),
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    currency_id: str = Query(default="")
+    currency_id: str = Query(default=""),
 ):
     to_currency = currency_crud.get_by_id(db, UUID(currency_id)) if currency_id else None
 
@@ -342,12 +365,12 @@ def tribute_report(
         name="reports/tributes.html",
         context={
             "period": period,
-            "tributes": tributes, 
+            "tributes": tributes,
             "entities": user_entities,
             "selected_entity_id": entity_id,
             "currencies": currency_crud.get_all(db),
-            "selected_currency_id": currency_id
-        }
+            "selected_currency_id": currency_id,
+        },
     )
 
 
@@ -358,7 +381,7 @@ def iibb_report(
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    currency_id: str = Query(default="")
+    currency_id: str = Query(default=""),
 ):
     to_currency = currency_crud.get_by_id(db, UUID(currency_id)) if currency_id else None
 
@@ -373,14 +396,13 @@ def iibb_report(
         name="reports/iibb.html",
         context={
             "period": period,
-            "iibb_by_entity": iibb_by_entity, 
+            "iibb_by_entity": iibb_by_entity,
             "entities": user_entities,
             "selected_entity_id": entity_id,
             "currencies": currency_crud.get_all(db),
-            "selected_currency_id": currency_id
-        }
+            "selected_currency_id": currency_id,
+        },
     )
-
 
 
 @router.get("/profit")
@@ -390,7 +412,7 @@ def profit_report(
     entity_id: str = Query(default=""),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    currency_id: str = Query(default="")
+    currency_id: str = Query(default=""),
 ):
     to_currency = currency_crud.get_by_id(db, UUID(currency_id)) if currency_id else None
 
@@ -405,11 +427,10 @@ def profit_report(
         name="reports/profit.html",
         context={
             "period": period,
-            "profit": profit_by_entity, 
+            "profit": profit_by_entity,
             "entities": user_entities,
             "selected_entity_id": entity_id,
             "currencies": currency_crud.get_all(db),
-            "selected_currency_id": currency_id
-
-        }
+            "selected_currency_id": currency_id,
+        },
     )
