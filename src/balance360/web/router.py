@@ -1,13 +1,24 @@
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
-from balance360.web import transactions, reports, import_rules, invoices, stock, dashboard, imports
+
+from balance360.web import (
+    dashboard,
+    import_rules,
+    imports,
+    invoices,
+    reports,
+    stock,
+    transactions,
+)
 from balance360.web.config import router as config_router
 
 router = APIRouter()
 
+
 @router.get("/")
 def root():
     return RedirectResponse(url="/dashboard")
+
 
 router.include_router(transactions.router)
 router.include_router(reports.router)
@@ -17,6 +28,3 @@ router.include_router(invoices.router)
 router.include_router(stock.router)
 router.include_router(dashboard.router)
 router.include_router(imports.router)
-
-
-

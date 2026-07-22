@@ -1,4 +1,5 @@
 """Pure-function tests for the PDF invoice parser (no DB fixtures needed)."""
+
 from decimal import Decimal
 
 from balance360.services.pdf_invoice import (

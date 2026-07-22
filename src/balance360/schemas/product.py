@@ -1,16 +1,19 @@
-from pydantic import BaseModel, ConfigDict
 import uuid
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict
+
 
 class ProductCreate(BaseModel):
     name: str
-    margin: Decimal|None = Decimal(0)
+    margin: Decimal | None = Decimal(0)
     track_serial: bool = False
 
+
 class ProductUpdate(BaseModel):
-    name: str|None = None
-    margin: Decimal|None = None
+    name: str | None = None
+    margin: Decimal | None = None
     track_serial: bool = False
 
 
@@ -22,6 +25,3 @@ class ProductRead(BaseModel):
     track_serial: bool = False
     created_at: datetime
     updated_at: datetime
-
-
-

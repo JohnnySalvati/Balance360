@@ -1,91 +1,96 @@
 import uuid
 from datetime import date
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import select, func
-from balance360.enums import TransactionType, ClassificationStatus
+
+from balance360.enums import ClassificationStatus, TransactionType
 from balance360.models.transaction import Transaction
 from balance360.schemas.transaction import TransactionCreate, TransactionUpdate
 
 
 def _apply_filters(
-        stmt,
-        date_from: date|None = None,
-        date_to: date|None = None,
-        entity_id: uuid.UUID|None = None,
-        account_id: uuid.UUID|None = None,
-        transaction_type: TransactionType|None = None,
-        category_id: uuid.UUID|None = None,
-        classification_status: ClassificationStatus|None = None,
-        description: str = "",
+    stmt,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    entity_id: uuid.UUID | None = None,
+    account_id: uuid.UUID | None = None,
+    transaction_type: TransactionType | None = None,
+    category_id: uuid.UUID | None = None,
+    classification_status: ClassificationStatus | None = None,
+    description: str = "",
 ):
-    if date_from: stmt = stmt.where(Transaction.date >= date_from)
-    if date_to: stmt = stmt.where(Transaction.date <= date_to)
-    if entity_id: stmt = stmt.where(Transaction.entity_id == entity_id)
-    if account_id: stmt = stmt.where(Transaction.account_id == account_id)
-    if transaction_type: stmt = stmt.where(Transaction.type == transaction_type)
-    if category_id: stmt = stmt.where(Transaction.category_id == category_id)
+    if date_from:
+        stmt = stmt.where(Transaction.date >= date_from)
+    if date_to:
+        stmt = stmt.where(Transaction.date <= date_to)
+    if entity_id:
+        stmt = stmt.where(Transaction.entity_id == entity_id)
+    if account_id:
+        stmt = stmt.where(Transaction.account_id == account_id)
+    if transaction_type:
+        stmt = stmt.where(Transaction.type == transaction_type)
+    if category_id:
+        stmt = stmt.where(Transaction.category_id == category_id)
     if classification_status:
         match classification_status:
             case ClassificationStatus.unclassified:
                 stmt = stmt.where(
-                    Transaction.is_manual == False,
-                    Transaction.applied_rule_id == None
+                    Transaction.is_manual == False, Transaction.applied_rule_id == None
                 )
             case ClassificationStatus.auto_classified:
                 stmt = stmt.where(
-                    Transaction.is_manual == False,
-                    Transaction.applied_rule_id != None
+                    Transaction.is_manual == False, Transaction.applied_rule_id != None
                 )
             case ClassificationStatus.manual_no_rule:
                 stmt = stmt.where(
-                    Transaction.is_manual == True,
-                    Transaction.applied_rule_id == None
+                    Transaction.is_manual == True, Transaction.applied_rule_id == None
                 )
             case ClassificationStatus.manual_with_rule:
                 stmt = stmt.where(
-                    Transaction.is_manual == True,
-                    Transaction.applied_rule_id != None
+                    Transaction.is_manual == True, Transaction.applied_rule_id != None
                 )
-    
-    if description: stmt = stmt.where(Transaction.description.ilike(f"%{description}%"))
+
+    if description:
+        stmt = stmt.where(Transaction.description.ilike(f"%{description}%"))
     return stmt
 
 
 def get_all(
-        db: Session,
-        date_from: date|None = None,
-        date_to: date|None = None,
-        entity_id: uuid.UUID|None = None,
-        account_id: uuid.UUID|None = None,
-        transaction_type: TransactionType|None = None,
-        category_id: uuid.UUID|None = None,
-        classification_status: ClassificationStatus|None = None,
-        description: str = "",
-        limit: int|None = None,
-        offset: int|None = 0
-    ) -> list[Transaction]:
+    db: Session,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    entity_id: uuid.UUID | None = None,
+    account_id: uuid.UUID | None = None,
+    transaction_type: TransactionType | None = None,
+    category_id: uuid.UUID | None = None,
+    classification_status: ClassificationStatus | None = None,
+    description: str = "",
+    limit: int | None = None,
+    offset: int | None = 0,
+) -> list[Transaction]:
 
     stmt = select(Transaction)
 
     stmt = _apply_filters(
         stmt,
-        date_from=date_from, 
+        date_from=date_from,
         date_to=date_to,
         entity_id=entity_id,
         account_id=account_id,
         transaction_type=transaction_type,
         category_id=category_id,
         classification_status=classification_status,
-        description=description
+        description=description,
     )
 
     stmt = stmt.options(
-            selectinload(Transaction.account),
-            selectinload(Transaction.entity),
-            selectinload(Transaction.contact),
-            selectinload(Transaction.category),
-        )
-    
+        selectinload(Transaction.account),
+        selectinload(Transaction.entity),
+        selectinload(Transaction.contact),
+        selectinload(Transaction.category),
+    )
+
     stmt = stmt.order_by(Transaction.date, Transaction.id)
 
     if limit:
@@ -94,40 +99,43 @@ def get_all(
     transactions = db.execute(stmt).scalars().all()
     return list(transactions)
 
+
 def count_all(
-        db,
-        date_from: date|None = None,
-        date_to: date|None = None,
-        entity_id: uuid.UUID|None = None,
-        account_id: uuid.UUID|None = None,
-        transaction_type: TransactionType|None = None,
-        category_id: uuid.UUID|None = None,
-        classification_status: ClassificationStatus|None = None,
-        description: str = "",
-    ) -> int:
-    
+    db,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    entity_id: uuid.UUID | None = None,
+    account_id: uuid.UUID | None = None,
+    transaction_type: TransactionType | None = None,
+    category_id: uuid.UUID | None = None,
+    classification_status: ClassificationStatus | None = None,
+    description: str = "",
+) -> int:
+
     stmt = select(func.count()).select_from(Transaction)
 
     stmt = _apply_filters(
         stmt,
-        date_from=date_from, 
+        date_from=date_from,
         date_to=date_to,
         entity_id=entity_id,
         account_id=account_id,
         transaction_type=transaction_type,
         category_id=category_id,
         classification_status=classification_status,
-        description=description
+        description=description,
     )
 
     quantity = db.execute(stmt).scalar()
     return quantity
 
-    
 
 def get_by_id(db: Session, transaction_id: uuid.UUID) -> Transaction | None:
-    transaction = db.execute(select(Transaction).where(Transaction.id == transaction_id)).scalars().first()
+    transaction = (
+        db.execute(select(Transaction).where(Transaction.id == transaction_id)).scalars().first()
+    )
     return transaction
+
 
 def create(db: Session, data: TransactionCreate) -> Transaction:
     db_transaction = Transaction(**data.model_dump())
@@ -136,9 +144,11 @@ def create(db: Session, data: TransactionCreate) -> Transaction:
     db.refresh(db_transaction)
     return db_transaction
 
+
 def delete(db: Session, transaction: Transaction):
     db.delete(transaction)
     db.flush()
+
 
 def update(db: Session, transaction: Transaction, data: TransactionUpdate):
     for field, value in data.model_dump(exclude_unset=True).items():

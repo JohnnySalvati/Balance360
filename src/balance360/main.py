@@ -1,11 +1,32 @@
-from fastapi import FastAPI
-from fastapi import Request as FastAPIRequest, Depends
+from fastapi import Depends, FastAPI
+from fastapi import Request as FastAPIRequest
 from fastapi.responses import RedirectResponse
-from balance360.models import user, entity, account, currency, contact, category, transaction, import_rule, attachment  # noqa: F401
-from balance360.routers import category, currency, contact, account, entity, user, transaction, exchange_rate, import_rule
-from balance360.web import router as web_router
-from balance360.web import auth
+
 from balance360.dependencies import get_current_user
+from balance360.models import (  # noqa: F401
+    account,
+    attachment,
+    category,
+    contact,
+    currency,
+    entity,
+    import_rule,
+    transaction,
+    user,
+)
+from balance360.routers import (
+    account,
+    category,
+    contact,
+    currency,
+    entity,
+    exchange_rate,
+    import_rule,
+    transaction,
+    user,
+)
+from balance360.web import auth
+from balance360.web import router as web_router
 
 app = FastAPI(title="Balance360")
 
@@ -20,6 +41,7 @@ app.include_router(exchange_rate.router, prefix="/api")
 app.include_router(import_rule.router, prefix="/api")
 app.include_router(web_router.router, dependencies=[Depends(get_current_user)])
 app.include_router(auth.router)
+
 
 @app.exception_handler(401)
 async def unauthorized_handler(request: FastAPIRequest, exc):

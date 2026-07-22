@@ -1,28 +1,35 @@
 import json
-from uuid import UUID
 from datetime import date
 from decimal import Decimal
-from fastapi import APIRouter, Request, Depends, Query, Form, HTTPException
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from balance360.dependencies import get_db
+
+from balance360.crud import account as account_crud
+from balance360.crud import category as category_crud
+from balance360.crud import contact as contact_crud
+from balance360.crud import entity as entity_crud
 from balance360.crud import import_rule as import_rule_crud
 from balance360.crud import transaction as transaction_crud
-from balance360.crud import entity as entity_crud
-from balance360.crud import contact as contact_crud
-from balance360.crud import category as category_crud
-from balance360.crud import account as account_crud
-from balance360.schemas.transaction import TransactionUpdate, TransactionCreate
+from balance360.dependencies import get_db
+from balance360.enums import ClassificationStatus, TransactionType
 from balance360.models.transaction import Transaction
-from balance360.services.import_rule import Classification
-from balance360.enums import TransactionType, ClassificationStatus
-from balance360.services.import_rule import find_best_rule, resolve_rule_for_classification, RuleConflictError
+from balance360.schemas.transaction import TransactionCreate, TransactionUpdate
+from balance360.services.import_rule import (
+    Classification,
+    RuleConflictError,
+    find_best_rule,
+    resolve_rule_for_classification,
+)
 from balance360.web.templating import templates
 
 router = APIRouter()
 
 PAGE_SIZE = 50
+
 
 @router.get("/transactions")
 def transaction_list(request: Request, db: Session = Depends(get_db)):
@@ -55,7 +62,7 @@ def transaction_rows(
     description: str = Query(default=""),
     entity_id: str = Query(default=""),
     category_id: str = Query(default=""),
-    page: int = Query(default=1)
+    page: int = Query(default=1),
 ):
     offset = (page - 1) * PAGE_SIZE
 
@@ -63,7 +70,9 @@ def transaction_rows(
     date_to_parsed = date.fromisoformat(date_to) if date_to else None
     type_parsed = TransactionType(transaction_type) if transaction_type else None
     account_id_parsed = UUID(account_id) if account_id else None
-    classification_status_parsed = ClassificationStatus(classification_status) if classification_status else None
+    classification_status_parsed = (
+        ClassificationStatus(classification_status) if classification_status else None
+    )
     entity_id_parsed = UUID(entity_id) if entity_id else None
     category_id_parsed = UUID(category_id) if category_id else None
 
@@ -78,7 +87,7 @@ def transaction_rows(
         entity_id=entity_id_parsed,
         category_id=category_id_parsed,
         limit=PAGE_SIZE,
-        offset=offset
+        offset=offset,
     )
 
     total_count = db.scalar(select(func.count()).select_from(Transaction)) or 0
@@ -95,7 +104,7 @@ def transaction_rows(
         category_id=category_id_parsed,
     )
 
-    total_pages = (filtered_count + PAGE_SIZE - 1) // PAGE_SIZE 
+    total_pages = (filtered_count + PAGE_SIZE - 1) // PAGE_SIZE
 
     return templates.TemplateResponse(
         request=request,
@@ -109,7 +118,7 @@ def transaction_rows(
             "accounts": account_crud.get_all(db),
             "page": page,
             "total_pages": total_pages,
-            "filtered_count": filtered_count
+            "filtered_count": filtered_count,
         },
     )
 
@@ -166,6 +175,7 @@ def create_transaction(
     response.headers["HX-Trigger"] = "refreshRows"
     return response
 
+
 @router.patch("/transactions/{transaction_id}/classify")
 def classify_transaction(
     request: Request,
@@ -185,12 +195,16 @@ def classify_transaction(
     contacts = contact_crud.get_all(db)
     categories = category_crud.get_all(db)
 
-    
     def row_response(extra_trigger: dict | None = None):
         resp = templates.TemplateResponse(
             request=request,
             name="transactions/row.html",
-            context={"t": transaction, "entities": entities, "contacts": contacts, "categories": categories},
+            context={
+                "t": transaction,
+                "entities": entities,
+                "contacts": contacts,
+                "categories": categories,
+            },
         )
 
         resp.headers["HX-Trigger"] = "refreshChart"
@@ -208,34 +222,39 @@ def classify_transaction(
                 contact_id=contact_id,
                 category_id=category_id,
                 is_transfer=is_transfer,
-                account_id=None
+                account_id=None,
             )
             rule = resolve_rule_for_classification(
-                    db=db,
-                    description=transaction.description,
-                    transaction_type=transaction.type,
-                    classification=classification,
-                    force=force
-                )
+                db=db,
+                description=transaction.description,
+                transaction_type=transaction.type,
+                classification=classification,
+                force=force,
+            )
         except RuleConflictError as e:
-            return row_response({"showRuleConflict": 
-                                    {"row_id": f"row-{transaction_id}",
-                                    "pattern": e.pattern,
-                                    "count": e.count
-                                    }})
+            return row_response(
+                {
+                    "showRuleConflict": {
+                        "row_id": f"row-{transaction_id}",
+                        "pattern": e.pattern,
+                        "count": e.count,
+                    }
+                }
+            )
     data = {
         "entity_id": entity_id,
         "contact_id": contact_id,
         "category_id": category_id,
         "is_manual": True,
         "is_transfer": is_transfer,
-        "applied_rule_id": rule.id if rule else None
+        "applied_rule_id": rule.id if rule else None,
     }
 
-    transaction = transaction_crud.update(db=db, transaction=transaction, data=TransactionUpdate(**data))
+    transaction = transaction_crud.update(
+        db=db, transaction=transaction, data=TransactionUpdate(**data)
+    )
 
     return row_response()
-
 
 
 @router.post("/transactions/apply-rules")
@@ -250,7 +269,7 @@ def apply_rules(
     description: str = Form(default=""),
     entity_id: str = Form(default=""),
     category_id: str = Form(default=""),
-    page: int = Query(default=1)
+    page: int = Query(default=1),
 ):
     all_transactions = [t for t in transaction_crud.get_all(db) if not t.is_manual]
     import_rules = import_rule_crud.get_all(db)
@@ -272,7 +291,9 @@ def apply_rules(
     date_to_parsed = date.fromisoformat(date_to) if date_to else None
     type_parsed = TransactionType(transaction_type) if transaction_type else None
     account_id_parsed = UUID(account_id) if account_id else None
-    classification_status_parsed = ClassificationStatus(classification_status) if classification_status else None
+    classification_status_parsed = (
+        ClassificationStatus(classification_status) if classification_status else None
+    )
     entity_id_parsed = UUID(entity_id) if entity_id else None
     category_id_parsed = UUID(category_id) if category_id else None
 
@@ -287,7 +308,7 @@ def apply_rules(
         entity_id=entity_id_parsed,
         category_id=category_id_parsed,
         limit=PAGE_SIZE,
-        offset=(page - 1) * PAGE_SIZE
+        offset=(page - 1) * PAGE_SIZE,
     )
 
     filtered_count = transaction_crud.count_all(
@@ -302,7 +323,7 @@ def apply_rules(
         category_id=category_id_parsed,
     )
 
-    total_pages = (filtered_count + PAGE_SIZE - 1) // PAGE_SIZE 
+    total_pages = (filtered_count + PAGE_SIZE - 1) // PAGE_SIZE
 
     response = templates.TemplateResponse(
         request=request,
@@ -316,7 +337,7 @@ def apply_rules(
             "accounts": account_crud.get_all(db),
             "page": page,
             "total_pages": total_pages,
-            "filtered_count": filtered_count
+            "filtered_count": filtered_count,
         },
     )
     response.headers["HX-Trigger"] = "refreshChart"
@@ -335,6 +356,7 @@ def status_chart(request: Request, db: Session = Depends(get_db)):
         context={"counts": counts, "ClassificationStatus": ClassificationStatus},
     )
 
+
 @router.get("/transactions/{transaction_id}/edit-form")
 def transaction_edit_form(request: Request, transaction_id: UUID, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
@@ -345,9 +367,10 @@ def transaction_edit_form(request: Request, transaction_id: UUID, db: Session = 
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),
             "accounts": account_crud.get_all(db),
-            "transaction": transaction_crud.get_by_id(db, transaction_id)
-        }
+            "transaction": transaction_crud.get_by_id(db, transaction_id),
+        },
     )
+
 
 @router.delete("/transactions/{transaction_id}")
 def transaction_delete(transaction_id: UUID, db: Session = Depends(get_db)):
@@ -356,6 +379,7 @@ def transaction_delete(transaction_id: UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Transaction not found")
     transaction_crud.delete(db, transaction)
     return HTMLResponse("")
+
 
 @router.patch("/transactions/{transaction_id}/update")
 def transaction_update(
@@ -372,8 +396,8 @@ def transaction_update(
     category_id: str = Form(default=""),
     is_manual: bool = Form(default=True),
     is_transfer: bool = Form(default=False),
-    applied_rule_id: str= Form(default="")
-    ):
+    applied_rule_id: str = Form(default=""),
+):
 
     date_parsed = date.fromisoformat(transaction_date) if transaction_date else None
     amount_parsed = Decimal(amount)
@@ -387,7 +411,7 @@ def transaction_update(
     transaction = transaction_crud.get_by_id(db, transaction_id)
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    
+
     data = TransactionUpdate(
         date=date_parsed,
         description=description,
@@ -399,13 +423,10 @@ def transaction_update(
         category_id=category_id_parsed,
         is_manual=is_manual,
         is_transfer=is_transfer,
-        applied_rule_id=applied_rule_id_parsed
+        applied_rule_id=applied_rule_id_parsed,
     )
 
-    transaction_crud.update(
-        db=db,
-        transaction=transaction,
-        data=data)
+    transaction_crud.update(db=db, transaction=transaction, data=data)
     response = HTMLResponse('<div id="modal"></div>')
     response.headers["HX-Trigger"] = "refreshRows"
     return response

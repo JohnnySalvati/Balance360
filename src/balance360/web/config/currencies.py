@@ -1,13 +1,15 @@
 import uuid
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, Query
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from balance360.dependencies import get_db
+
 from balance360.crud import currency as currency_crud
-from balance360.schemas.currency import CurrencyCreate, CurrencyUpdate
-from balance360.web.templating import templates
-from balance360.web.responses import toast_error
+from balance360.dependencies import get_db
 from balance360.exceptions import CurrencyDeleteError
+from balance360.schemas.currency import CurrencyCreate, CurrencyUpdate
+from balance360.web.responses import toast_error
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/currencies")
 
@@ -35,9 +37,7 @@ def close_modal():
 
 @router.get("/rows")
 def currency_rows(
-    request: Request,
-    search: str|None = Query(default=""),
-    db: Session = Depends(get_db)
+    request: Request, search: str | None = Query(default=""), db: Session = Depends(get_db)
 ):
     return templates.TemplateResponse(
         request=request,
@@ -61,9 +61,11 @@ def create_currency(
     code: str = Form(...),
     name: str = Form(...),
     is_bond: bool = Form(default=False),
-    is_index: bool = Form(default=False)
+    is_index: bool = Form(default=False),
 ):
-    currency_crud.create(db, CurrencyCreate(code=code.upper(), name=name, is_bond=is_bond, is_index=is_index))
+    currency_crud.create(
+        db, CurrencyCreate(code=code.upper(), name=name, is_bond=is_bond, is_index=is_index)
+    )
     response = HTMLResponse('<div id="modal"></div>')
     response.headers["HX-Trigger"] = "refreshRows"
     return response
@@ -91,7 +93,7 @@ def update_currency(
         code=code.upper() if code else None,
         name=name if name else None,
         is_bond=is_bond,
-        is_index=is_index
+        is_index=is_index,
     )
     currency_crud.update(db, currency, data)
     response = HTMLResponse('<div id="modal"></div>')

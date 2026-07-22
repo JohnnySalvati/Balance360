@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from balance360.dependencies import get_db
+
 from balance360.crud import user as user_crud
+from balance360.dependencies import get_db
 from balance360.services.auth import create_access_token
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/login")
+
 
 @router.get("/", response_class=HTMLResponse)
 def login_form(
@@ -17,13 +19,14 @@ def login_form(
         name="auth/_form.html",
     )
 
+
 @router.post("/", response_class=RedirectResponse)
 def login(
     request: Request,
     db: Session = Depends(get_db),
     email: str = Form(...),
-    password: str = Form(...)
-    ):
+    password: str = Form(...),
+):
 
     user = user_crud.get_by_email(db, email)
 
@@ -31,14 +34,15 @@ def login(
         return templates.TemplateResponse(
             request=request,
             name="auth/_form.html",
-            context={"error": "Email o contraseña incorrectos"}
+            context={"error": "Email o contraseña incorrectos"},
         )
-    
+
     token = create_access_token(user.id)
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie("access_token", token, httponly=True)
-    
+
     return response
+
 
 @router.post("/logout", response_class=RedirectResponse)
 def logout():
@@ -46,4 +50,3 @@ def logout():
     response.delete_cookie("access_token")
 
     return response
-    

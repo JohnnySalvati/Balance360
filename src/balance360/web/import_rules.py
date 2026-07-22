@@ -1,19 +1,22 @@
-import uuid
 import json
-from fastapi import APIRouter, Request, Depends, Form, HTTPException
+import uuid
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from balance360.enums import TransactionType
-from balance360.dependencies import get_db
-from balance360.crud import import_rule as import_rule_crud
-from balance360.crud import entity as entity_crud
-from balance360.crud import contact as contact_crud
+
 from balance360.crud import category as category_crud
+from balance360.crud import contact as contact_crud
+from balance360.crud import entity as entity_crud
+from balance360.crud import import_rule as import_rule_crud
+from balance360.dependencies import get_db
+from balance360.enums import TransactionType
 from balance360.schemas.import_rule import ImportRuleUpdate
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/import-rules")
+
 
 @router.get("/", response_class=HTMLResponse)
 def import_rules_page(request: Request, db: Session = Depends(get_db)):
@@ -25,20 +28,18 @@ def import_rules_page(request: Request, db: Session = Depends(get_db)):
             "entities": entity_crud.get_all(db),
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),
-            "transaction_types": TransactionType
-            }
+            "transaction_types": TransactionType,
+        },
     )
+
 
 @router.get("/close-modal")
 def close_modal():
     return HTMLResponse('<div id="modal"></div>')
 
+
 @router.get("/rows")
-def import_rules_rows(
-    request: Request,
-    db: Session = Depends(get_db),
-    pattern: str = ""
-):
+def import_rules_rows(request: Request, db: Session = Depends(get_db), pattern: str = ""):
     return templates.TemplateResponse(
         request=request,
         name="import_rules/_rows.html",
@@ -47,11 +48,15 @@ def import_rules_rows(
             "entities": entity_crud.get_all(db),
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),
-            "transaction_types": TransactionType
-            }
+            "transaction_types": TransactionType,
+        },
     )
+
+
 @router.get("/{import_rule_id}/edit-form")
-def import_rule_edit_form(request: Request, import_rule_id: uuid.UUID, db: Session = Depends(get_db)):
+def import_rule_edit_form(
+    request: Request, import_rule_id: uuid.UUID, db: Session = Depends(get_db)
+):
     return templates.TemplateResponse(
         request=request,
         name="import_rules/_form_modal.html",
@@ -60,26 +65,26 @@ def import_rule_edit_form(request: Request, import_rule_id: uuid.UUID, db: Sessi
             "entities": entity_crud.get_all(db),
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),
-            "transaction_types": TransactionType
-        }
+            "transaction_types": TransactionType,
+        },
     )
 
 
 @router.patch("/{import_rule_id}", response_class=HTMLResponse)
 def update_import_rule(
-        import_rule_id: uuid.UUID,
-        db: Session = Depends(get_db),
-        pattern: str = Form(default=""),
-        entity_id: str = Form(default=""),
-        contact_id: str = Form(default=""),
-        category_id: str = Form(default=""),
-        transaction_type: str = Form(default=""),
-        is_transfer: bool = Form(default=False),
+    import_rule_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    pattern: str = Form(default=""),
+    entity_id: str = Form(default=""),
+    contact_id: str = Form(default=""),
+    category_id: str = Form(default=""),
+    transaction_type: str = Form(default=""),
+    is_transfer: bool = Form(default=False),
 ):
     import_rule = import_rule_crud.get_by_id(db, import_rule_id)
     if not import_rule:
         raise HTTPException(status_code=404, detail="Import Rule not found")
-    
+
     data = {
         "entity_id": uuid.UUID(entity_id) if entity_id else None,
         "contact_id": uuid.UUID(contact_id) if contact_id else None,
@@ -88,20 +93,25 @@ def update_import_rule(
         "is_transfer": is_transfer,
     }
 
-    if pattern: data["pattern"] = pattern
+    if pattern:
+        data["pattern"] = pattern
 
     response = HTMLResponse('<div id="modal"></div>')
-    
+
     try:
         import_rule_crud.update(db, ImportRuleUpdate(**data), import_rule)
     except ValueError as e:
-        response.headers["HX-Trigger"] = json.dumps({"showToast": {"message": str(e) , "type": "error"}})
+        response.headers["HX-Trigger"] = json.dumps(
+            {"showToast": {"message": str(e), "type": "error"}}
+        )
     except IntegrityError:
         db.rollback()
-        response.headers["HX-Trigger"] = json.dumps({"showToast": {"message": "Ya existe una regla con ese patron y tipo" , "type": "error"}})
+        response.headers["HX-Trigger"] = json.dumps(
+            {"showToast": {"message": "Ya existe una regla con ese patron y tipo", "type": "error"}}
+        )
     else:
         response.headers["HX-Trigger"] = "refreshRows"
-    
+
     return response
 
 

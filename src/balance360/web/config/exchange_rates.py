@@ -1,32 +1,39 @@
-import uuid
 import datetime
 import json
+import uuid
 from decimal import Decimal
-from fastapi import APIRouter, Request, Depends, Form
+
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from balance360.crud import currency as currency_crud
+from balance360.crud import exchange_rate as exchange_rate_crud
 from balance360.dependencies import get_db
 from balance360.models.exchange_rate import ExchangeRate
 from balance360.schemas.exchange_rate import ExchangeRateCreate
 from balance360.services.rate_sync import sync_all
-from balance360.crud import currency as currency_crud
-from balance360.crud import exchange_rate as exchange_rate_crud
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/exchange-rates")
+
 
 def _get_rates_by_currency(db: Session) -> list[dict]:
     currencies = currency_crud.get_all(db)
 
     groups = []
     for currency in sorted(currencies, key=lambda c: c.name):
-        rates = db.execute(
-            select(ExchangeRate)
-            .where(ExchangeRate.currency_id == currency.id)
-            .order_by(ExchangeRate.date.desc())
-            .limit(60)
-        ).scalars().all()
+        rates = (
+            db.execute(
+                select(ExchangeRate)
+                .where(ExchangeRate.currency_id == currency.id)
+                .order_by(ExchangeRate.date.desc())
+                .limit(60)
+            )
+            .scalars()
+            .all()
+        )
         groups.append({"currency": currency, "rates": rates})
 
     return groups
@@ -86,35 +93,33 @@ def delete_exchange_rate(
         context={"groups": groups},
     )
 
+
 @router.post("/sync", response_class=HTMLResponse)
 def synchronize_all(
-request: Request,
+    request: Request,
     db: Session = Depends(get_db),
 ):
-    
+
     result = sync_all(db)
-    
+
     groups = _get_rates_by_currency(db)
-    
+
     response = templates.TemplateResponse(
         request=request,
         name="config/exchange_rates/_rates_table.html",
-        context={"groups": groups,
-                 "result": result
-                 },
+        context={"groups": groups, "result": result},
     )
 
     ok = result.get("ok", {})
     ok_message = " | ".join(f"{code}: {msg}" for code, msg in ok.items())
-        
+
     errors = result.get("errors", {})
     error_message = " | ".join(f"{code}: {msg}" for code, msg in errors.items())
 
     message = " || ".join(p for p in (ok_message, error_message) if p)
 
-    response.headers["HX-Trigger"] = json.dumps({"showToast": {
-        "message": message,
-        "type": "error" if errors else "success"
-        }})
-        
+    response.headers["HX-Trigger"] = json.dumps(
+        {"showToast": {"message": message, "type": "error" if errors else "success"}}
+    )
+
     return response

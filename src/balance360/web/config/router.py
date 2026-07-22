@@ -1,6 +1,17 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from balance360.web.config import exchange_rates, categories, accounts, entities, contacts, products, currencies, users, app_config
+
+from balance360.web.config import (
+    accounts,
+    app_config,
+    categories,
+    contacts,
+    currencies,
+    entities,
+    exchange_rates,
+    products,
+    users,
+)
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/config")
@@ -14,6 +25,7 @@ router.include_router(products.router)
 router.include_router(currencies.router)
 router.include_router(users.router)
 router.include_router(app_config.router)
+
 
 @router.get("/", response_class=HTMLResponse)
 def config_index(request: Request):

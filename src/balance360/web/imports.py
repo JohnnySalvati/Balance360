@@ -1,66 +1,59 @@
 from datetime import date
+from decimal import Decimal
 from io import BytesIO
 from uuid import UUID
-from decimal import Decimal
-from sqlalchemy.orm import Session
-from fastapi import APIRouter, Request,UploadFile, File, Depends, Query, Form
+
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.responses import HTMLResponse, Response
-from balance360.schemas.transaction import TransactionCreate
-from balance360.schemas.import_row import ImportRowUpdate
+from sqlalchemy.orm import Session
+
+from balance360.crud import account as account_crud
 from balance360.crud import import_batch as import_batch_crud
 from balance360.crud import import_row as import_row_crud
-from balance360.crud import account as account_crud
 from balance360.crud import transaction as transaction_crud
-from balance360.services.import_xlsx import import_workbook
 from balance360.dependencies import get_db
-from balance360.web.templating import templates
 from balance360.enums import ImportRowStatus, TransactionType
 from balance360.exceptions import ImportServiceError
-from balance360.web.responses import toast_error 
+from balance360.schemas.import_row import ImportRowUpdate
+from balance360.schemas.transaction import TransactionCreate
+from balance360.services.import_xlsx import import_workbook
+from balance360.web.responses import toast_error
+from balance360.web.templating import templates
 
 router = APIRouter(prefix="/imports")
 
+
 @router.get("/", response_class=HTMLResponse)
-def import_page(
-    request: Request,
-    db: Session = Depends(get_db)):
+def import_page(request: Request, db: Session = Depends(get_db)):
 
     import_batches = import_batch_crud.get_all(db)
 
     return templates.TemplateResponse(
-        request=request,
-        name="imports/index.html",
-        context={"batches": import_batches}
+        request=request, name="imports/index.html", context={"batches": import_batches}
     )
 
+
 @router.post("/", response_class=HTMLResponse)
-def upload(
-    request: Request,
-    db: Session = Depends(get_db),
-    file: UploadFile = File(...)
-):
+def upload(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
     contents = file.file.read()
 
     try:
-        batch = import_workbook(db=db, file_bytes=BytesIO(contents), filename=file.filename or "import.xlsx")
+        batch = import_workbook(
+            db=db, file_bytes=BytesIO(contents), filename=file.filename or "import.xlsx"
+        )
     except ImportServiceError as e:
         return toast_error(str(e))
-    
-    return Response(
-        status_code=200,
-        headers={"HX-Redirect": f"/imports/{batch.id}"}
-    )
+
+    return Response(status_code=200, headers={"HX-Redirect": f"/imports/{batch.id}"})
+
 
 @router.get("/{batch_id}", response_class=HTMLResponse)
-def review_batch(
-    request: Request,
-    batch_id: UUID,
-    db: Session = Depends(get_db)
-):
+def review_batch(request: Request, batch_id: UUID, db: Session = Depends(get_db)):
 
     batch = import_batch_crud.get_by_id(db, batch_id)
-    if not batch: raise HTTPException(status_code=404, detail="Import batch not found")
+    if not batch:
+        raise HTTPException(status_code=404, detail="Import batch not found")
 
     rows = import_row_crud.get_by_batch(db, batch_id, ImportRowStatus.needs_review)
 
@@ -69,12 +62,9 @@ def review_batch(
     return templates.TemplateResponse(
         request=request,
         name="imports/detail.html",
-        context={
-            "batch": batch,
-            "rows": rows,
-            "accounts": accounts
-        }
+        context={"batch": batch, "rows": rows, "accounts": accounts},
     )
+
 
 @router.post("/rows/{row_id}/import", response_class=HTMLResponse)
 def import_row(
@@ -101,30 +91,24 @@ def import_row(
         source_sheet=row.account.name,
         source_row=row.source_row,
         import_batch_id=row.batch_id,
-        import_row_id=row.id
+        import_row_id=row.id,
     )
     transaction_crud.create(db, data)
 
     import_row_crud.update(db, ImportRowUpdate(status=ImportRowStatus.imported), row)
 
-    return Response(
-        status_code=200
-    )
+    return Response(status_code=200)
+
 
 @router.post("/rows/{row_id}/discard", response_class=HTMLResponse)
-def row_discard(
-    request: Request,
-    row_id: UUID,
-    db: Session = Depends(get_db)
-):
+def row_discard(request: Request, row_id: UUID, db: Session = Depends(get_db)):
     import_row = import_row_crud.get_by_id(db, row_id)
     if not import_row:
         raise HTTPException(status_code=404, detail="Import row not found")
 
     import_row_crud.update(db, ImportRowUpdate(status=ImportRowStatus.discarded), import_row)
-    return Response(
-        status_code=200
-    )
+    return Response(status_code=200)
+
 
 @router.post("/rows/bulk-import", response_class=HTMLResponse)
 def bulk_import(
@@ -140,17 +124,19 @@ def bulk_import(
 
     for row_id in row_ids:
         row = import_row_crud.get_by_id(db, row_id)
-        
+
         if not row:
             continue
         batch_id = row.batch_id
         if not row.date or not row.description:
             continue
         if type_parsed == TransactionType.expense:
-            if not row.debit: continue
+            if not row.debit:
+                continue
             amount = row.debit
         else:
-            if not row.credit: continue
+            if not row.credit:
+                continue
             amount = row.credit
 
         data = TransactionCreate(
@@ -163,29 +149,27 @@ def bulk_import(
             source_sheet=row.account.name,
             source_row=row.source_row,
             import_batch_id=row.batch_id,
-            import_row_id=row.id
+            import_row_id=row.id,
         )
         transaction_crud.create(db, data)
 
         import_row_crud.update(db, ImportRowUpdate(status=ImportRowStatus.imported), row)
 
-    rows = import_row_crud.get_by_batch(db, batch_id, ImportRowStatus.needs_review) if batch_id else []
+    rows = (
+        import_row_crud.get_by_batch(db, batch_id, ImportRowStatus.needs_review) if batch_id else []
+    )
     accounts = account_crud.get_all(db)
     return templates.TemplateResponse(
-        request=request, name="imports/_rows.html",
-        context={"rows": rows, "accounts": accounts}
-)
+        request=request, name="imports/_rows.html", context={"rows": rows, "accounts": accounts}
+    )
+
 
 @router.delete("/{batch_id}")
-def delete_batch(
-    request: Request,
-    batch_id: UUID,
-    db: Session = Depends(get_db)
-):
+def delete_batch(request: Request, batch_id: UUID, db: Session = Depends(get_db)):
     batch = import_batch_crud.get_by_id(db, batch_id)
     if not batch:
         raise HTTPException(status_code=404, detail="Import batch not found")
-    
+
     import_batch_crud.delete(db, batch)
-    
+
     return HTMLResponse("")

@@ -1,12 +1,15 @@
 import uuid
 from dataclasses import dataclass
 from decimal import Decimal
-from sqlalchemy import select, func, case
+
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
-from balance360.models.invoice_line import InvoiceLine
-from balance360.models.invoice import Invoice
-from balance360.models.product import Product
+
 from balance360.enums import InvoiceType
+from balance360.models.invoice import Invoice
+from balance360.models.invoice_line import InvoiceLine
+from balance360.models.product import Product
+
 
 @dataclass
 class Stock:
@@ -16,7 +19,8 @@ class Stock:
     unit_price: Decimal
     valuation: Decimal
 
-def get_stock_summary(db: Session, entity_id: uuid.UUID|None = None) -> list[Stock]:
+
+def get_stock_summary(db: Session, entity_id: uuid.UUID | None = None) -> list[Stock]:
 
     last_price_sq = (
         select(InvoiceLine.unit_price)
@@ -30,19 +34,20 @@ def get_stock_summary(db: Session, entity_id: uuid.UUID|None = None) -> list[Sto
     )
     if entity_id:
         last_price_sq = last_price_sq.where(Invoice.entity_id == entity_id)
-       
+
     last_price_sq = last_price_sq.scalar_subquery()
-    
+
     stmt = (
-        select(Product.name,
-               func.sum(
-                   case(
-                       (Invoice.invoice_type == InvoiceType.purchase, InvoiceLine.quantity),
-                       else_=-InvoiceLine.quantity
-                   )
-               ).label("stock_qty"),
-               last_price_sq.label("unit_price"),
-               Product.id.label("id")
+        select(
+            Product.name,
+            func.sum(
+                case(
+                    (Invoice.invoice_type == InvoiceType.purchase, InvoiceLine.quantity),
+                    else_=-InvoiceLine.quantity,
+                )
+            ).label("stock_qty"),
+            last_price_sq.label("unit_price"),
+            Product.id.label("id"),
         )
         .join(InvoiceLine, InvoiceLine.product_id == Product.id)
         .join(Invoice)
@@ -60,27 +65,28 @@ def get_stock_summary(db: Session, entity_id: uuid.UUID|None = None) -> list[Sto
             name=row.name,
             stock_qty=row.stock_qty,
             unit_price=row.unit_price,
-            valuation= row.stock_qty * row.unit_price if row.unit_price else Decimal(0)
-        ) for row in rows
+            valuation=row.stock_qty * row.unit_price if row.unit_price else Decimal(0),
+        )
+        for row in rows
     ]
 
 
 def get_product_stock(db, product_id, entity_id) -> int:
 
-        stmt = (
-            select(
-                func.sum(
-                    case(
-                        (Invoice.invoice_type == InvoiceType.purchase, InvoiceLine.quantity),
-                        else_=-InvoiceLine.quantity
-                    )
-                ).label("stock_qty"),
-            )
-            .join(Invoice)
-            .where(Invoice.confirmed)
-            .where(InvoiceLine.product_id == product_id)
-            .where(Invoice.entity_id == entity_id)
+    stmt = (
+        select(
+            func.sum(
+                case(
+                    (Invoice.invoice_type == InvoiceType.purchase, InvoiceLine.quantity),
+                    else_=-InvoiceLine.quantity,
+                )
+            ).label("stock_qty"),
         )
-        quantity = db.execute(stmt).scalar()
+        .join(Invoice)
+        .where(Invoice.confirmed)
+        .where(InvoiceLine.product_id == product_id)
+        .where(Invoice.entity_id == entity_id)
+    )
+    quantity = db.execute(stmt).scalar()
 
-        return quantity or 0
+    return quantity or 0

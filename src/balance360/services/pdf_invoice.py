@@ -7,9 +7,11 @@ Item extraction uses a layout registry: each known vendor layout is
 identified by its table header (signature) and parsed with a dedicated
 row pattern. Adding a new vendor means adding one Layout entry.
 """
+
 from __future__ import annotations
-import re
+
 import datetime
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
@@ -47,7 +49,7 @@ def _parse_date(s: str) -> datetime.date | None:
     return None
 
 
-def _to_decimal(s: str|None) -> Decimal | None:
+def _to_decimal(s: str | None) -> Decimal | None:
     """Parse a number string in either AR (1.234,56) or US (1,234.56) format.
 
     The decimal separator is the rightmost '.' or ',' in the token; every
@@ -56,17 +58,17 @@ def _to_decimal(s: str|None) -> Decimal | None:
     """
     if s is None:
         return None
-    cleaned = re.sub(r"[^\d.,]", "", s.strip())   # drop $, %, spaces, letters
+    cleaned = re.sub(r"[^\d.,]", "", s.strip())  # drop $, %, spaces, letters
     if not cleaned:
         return None
     last_dot = cleaned.rfind(".")
     last_comma = cleaned.rfind(",")
     dec_pos = max(last_dot, last_comma)
-    if dec_pos == -1:                              # integer, no separators
+    if dec_pos == -1:  # integer, no separators
         digits, frac = cleaned, ""
     else:
         digits = re.sub(r"[.,]", "", cleaned[:dec_pos])
-        frac = cleaned[dec_pos + 1:]
+        frac = cleaned[dec_pos + 1 :]
     try:
         return Decimal(f"{digits}.{frac}" if frac else digits)
     except InvalidOperation:
@@ -74,7 +76,7 @@ def _to_decimal(s: str|None) -> Decimal | None:
 
 
 def _normalize_cuit(s: str) -> str:
-    digits = re.sub(r'\D', '', s)
+    digits = re.sub(r"\D", "", s)
     if len(digits) == 11:
         return f"{digits[:2]}-{digits[2:10]}-{digits[10]}"
     return s
@@ -85,63 +87,67 @@ def _normalize_cuit(s: str) -> str:
 # --------------------------------------------------------------------------
 def _extract_voucher_type(lines: list, text: str) -> str | None:
     for line in lines[:5]:
-        if re.match(r'^[A-C]$', line.strip()):
+        if re.match(r"^[A-C]$", line.strip()):
             return line.strip()
-    m = re.search(r'^FACTURA\s*\n([A-C])\s+\d{4}-\d+', text, re.MULTILINE)
+    m = re.search(r"^FACTURA\s*\n([A-C])\s+\d{4}-\d+", text, re.MULTILINE)
     if m:
         return m.group(1).upper()
-    m = re.search(r'\b([A-C])\s+Nro\s*:', text[:400], re.IGNORECASE)
+    m = re.search(r"\b([A-C])\s+Nro\s*:", text[:400], re.IGNORECASE)
     if m:
         return m.group(1).upper()
-    m = re.search(r'^([A-C])\s+Fecha', text, re.MULTILINE | re.IGNORECASE)
+    m = re.search(r"^([A-C])\s+Fecha", text, re.MULTILINE | re.IGNORECASE)
     if m:
         return m.group(1).upper()
-    m = re.search(r'\bFACTURA\b[^\n]*\n[^\n]*\b([A-C])\s*$', text[:400], re.MULTILINE | re.IGNORECASE)
+    m = re.search(
+        r"\bFACTURA\b[^\n]*\n[^\n]*\b([A-C])\s*$", text[:400], re.MULTILINE | re.IGNORECASE
+    )
     if m:
         return m.group(1).upper()
     # Last resort: AFIP voucher code under a "Cod." box (Dux Software).
     # pdfplumber may keep it inline ("Cod.\n001") or push the digits to the
     # end of the NEXT line ("Cod. FECHA: ...\nTEL: ... 001"). Case-sensitive
     # on purpose: other vendors print uppercase "COD." item labels.
-    m = re.search(r'\bCod\.\s*0*(\d{1,3})\s*$', text, re.MULTILINE)
+    m = re.search(r"\bCod\.\s*0*(\d{1,3})\s*$", text, re.MULTILINE)
     if not m:
-        m = re.search(r'\bCod\.[^\n]*\n[^\n]*?\b0*(\d{1,3})\s*$', text, re.MULTILINE)
+        m = re.search(r"\bCod\.[^\n]*\n[^\n]*?\b0*(\d{1,3})\s*$", text, re.MULTILINE)
     if m:
         return _AFIP_VOUCHER_LETTER.get(int(m.group(1)))
     return None
 
 
 def _extract_pos_number(lines: list, text: str):
-    m = re.search(r'Punto de Venta[:\s]+0*(\d+)\s+Comp\.?\s*Nro[:\s]+0*(\d+)', text, re.IGNORECASE)
+    m = re.search(r"Punto de Venta[:\s]+0*(\d+)\s+Comp\.?\s*Nro[:\s]+0*(\d+)", text, re.IGNORECASE)
     if m:
         return int(m.group(1)), int(m.group(2))
-    m = re.search(r'FACTURA\s+0*(\d+)-0*(\d+)', text, re.IGNORECASE)
+    m = re.search(r"FACTURA\s+0*(\d+)-0*(\d+)", text, re.IGNORECASE)
     if m:
         return int(m.group(1)), int(m.group(2))
-    m = re.search(r'^FACTURA\s*\n[A-C]\s+0*(\d{1,4})-0*(\d+)', text, re.MULTILINE)
+    m = re.search(r"^FACTURA\s*\n[A-C]\s+0*(\d{1,4})-0*(\d+)", text, re.MULTILINE)
     if m:
         return int(m.group(1)), int(m.group(2))
     # "Nº 00002-00006657" (Dux) / "Nº A00005-00024903" (ssd-ml style).
-    m = re.search(r'\bN[º°o]\.?\s*[A-C]?\s*0*(\d{1,5})\s*-\s*0*(\d+)\b', text, re.IGNORECASE)
+    m = re.search(r"\bN[º°o]\.?\s*[A-C]?\s*0*(\d{1,5})\s*-\s*0*(\d+)\b", text, re.IGNORECASE)
     if m:
         return int(m.group(1)), int(m.group(2))
-    m = re.search(r'Nro[:\s]+[A-C]?-?0*(\d{1,4})[-\s]+0*(\d{4,8})\b', text, re.IGNORECASE)
+    m = re.search(r"Nro[:\s]+[A-C]?-?0*(\d{1,4})[-\s]+0*(\d{4,8})\b", text, re.IGNORECASE)
     if m:
         return int(m.group(1)), int(m.group(2))
-    m = re.search(r'[Ff]actura\s+[A-C]?\s*0*(\d{1,4})-0*(\d{5,8})\b', text)
+    m = re.search(r"[Ff]actura\s+[A-C]?\s*0*(\d{1,4})-0*(\d{5,8})\b", text)
     if m:
         return int(m.group(1)), int(m.group(2))
     return None, None
 
 
 def _extract_date(text: str) -> datetime.date | None:
-    m = re.search(r'Fecha\s+(?:de\s+)?[Ee]misi[oó]n[:\s]+(\d{1,2}/\d{1,2}/\d{4})', text, re.IGNORECASE)
+    m = re.search(
+        r"Fecha\s+(?:de\s+)?[Ee]misi[oó]n[:\s]+(\d{1,2}/\d{1,2}/\d{4})", text, re.IGNORECASE
+    )
     if m:
         return _parse_date(m.group(1))
-    m = re.search(r'Fecha[:\s]+(\d{1,2}/\d{1,2}/\d{4})', text, re.IGNORECASE)
+    m = re.search(r"Fecha[:\s]+(\d{1,2}/\d{1,2}/\d{4})", text, re.IGNORECASE)
     if m:
         return _parse_date(m.group(1))
-    for match in re.finditer(r'\b(\d{1,2}/\d{1,2}/20\d{2})\b', text):
+    for match in re.finditer(r"\b(\d{1,2}/\d{1,2}/20\d{2})\b", text):
         d = _parse_date(match.group(1))
         if d and d.year >= 2020:
             return d
@@ -152,16 +158,31 @@ def _extract_date(text: str) -> datetime.date | None:
 # similar) -> invoice letter. Unknown codes map to None on purpose: better
 # no letter than a wrong one (other vendors print unrelated "COD." lines).
 _AFIP_VOUCHER_LETTER = {
-    1: "A", 2: "A", 3: "A", 201: "A", 202: "A", 203: "A",
-    6: "B", 7: "B", 8: "B", 206: "B", 207: "B", 208: "B",
-    11: "C", 12: "C", 13: "C", 211: "C", 212: "C", 213: "C",
+    1: "A",
+    2: "A",
+    3: "A",
+    201: "A",
+    202: "A",
+    203: "A",
+    6: "B",
+    7: "B",
+    8: "B",
+    206: "B",
+    207: "B",
+    208: "B",
+    11: "C",
+    12: "C",
+    13: "C",
+    211: "C",
+    212: "C",
+    213: "C",
 }
 
 
 # Air/NVX invoices ("FACTURA\nA 0047-…"): the supplier (Venex/NVX) is printed
 # only in the logo image, so the text layer carries the BUYER's data. We must
 # not return the buyer as the supplier — leave it for manual selection.
-_AIR_SIGNATURE = re.compile(r'^FACTURA\s*\n[A-C]\s+\d{4}-\d+', re.MULTILINE)
+_AIR_SIGNATURE = re.compile(r"^FACTURA\s*\n[A-C]\s+\d{4}-\d+", re.MULTILINE)
 
 
 def _extract_supplier_cuit(lines: list, text: str) -> str | None:
@@ -169,40 +190,40 @@ def _extract_supplier_cuit(lines: list, text: str) -> str | None:
         return None
     buyer_pos = text.find("Apellido y Nombre")
     emisor_zone = text[:buyer_pos] if buyer_pos > 0 else text
-    m = re.search(r'Cuit\s+Nro\.?[:\s]+(\d{2}-\d{7,8}-\d)', emisor_zone, re.IGNORECASE)
+    m = re.search(r"Cuit\s+Nro\.?[:\s]+(\d{2}-\d{7,8}-\d)", emisor_zone, re.IGNORECASE)
     if m:
         return _normalize_cuit(m.group(1))
-    m = re.search(r'C\.?U\.?I\.?T\.?[:\s]+(\d{2}-\d{7,8}-\d)', emisor_zone, re.IGNORECASE)
+    m = re.search(r"C\.?U\.?I\.?T\.?[:\s]+(\d{2}-\d{7,8}-\d)", emisor_zone, re.IGNORECASE)
     if m:
         return _normalize_cuit(m.group(1))
-    m = re.search(r'CUIT[:\s]+(\d{11})', emisor_zone, re.IGNORECASE)
+    m = re.search(r"CUIT[:\s]+(\d{11})", emisor_zone, re.IGNORECASE)
     if m:
         return _normalize_cuit(m.group(1))
     return None
 
 
 _SKIP = re.compile(
-    r'^(ORIGINAL|FACTURA|COD[.:\s]|Nro[:\s]|Código|Punto de Venta|Razón Social|Domicilio|Ingresos|'
-    r'Condición|CUIT|C\.U\.I\.T|I\.V\.A\.|IVA|Fecha|Inicio|Tel[.:/]|Fax|SR\.|CONCEPTO|'
-    r'Detalle|IIBB|Inscripta|Original)',
-    re.IGNORECASE
+    r"^(ORIGINAL|FACTURA|COD[.:\s]|Nro[:\s]|Código|Punto de Venta|Razón Social|Domicilio|Ingresos|"
+    r"Condición|CUIT|C\.U\.I\.T|I\.V\.A\.|IVA|Fecha|Inicio|Tel[.:/]|Fax|SR\.|CONCEPTO|"
+    r"Detalle|IIBB|Inscripta|Original)",
+    re.IGNORECASE,
 )
-_JUNK = re.compile(r'HOJA\s+\d+/\d+|^\(|^Av\.|^Gral\.|^\d|^[A-C]\s+\d{4}-\d+')
+_JUNK = re.compile(r"HOJA\s+\d+/\d+|^\(|^Av\.|^Gral\.|^\d|^[A-C]\s+\d{4}-\d+")
 
 
 def _clean_line(line: str) -> str:
-    return re.sub(r'\s+HOJA\s+\d+/\d+.*$', '', line).strip()
+    return re.sub(r"\s+HOJA\s+\d+/\d+.*$", "", line).strip()
 
 
 def _extract_supplier_name(lines: list, text: str) -> str | None:
     if _AIR_SIGNATURE.search(text):
         return None
-    m = re.search(r'^De:\s+(.+?)(?:\s+FACTURA)?\s*$', text, re.MULTILINE | re.IGNORECASE)
+    m = re.search(r"^De:\s+(.+?)(?:\s+FACTURA)?\s*$", text, re.MULTILINE | re.IGNORECASE)
     if m:
         return m.group(1).strip()
     buyer_pos = text.find("Apellido y Nombre")
     emisor_zone = text[:buyer_pos] if buyer_pos > 0 else text[:600]
-    m = re.search(r'Razón Social[:\s]+(.+?)\s+Fecha', emisor_zone, re.IGNORECASE)
+    m = re.search(r"Razón Social[:\s]+(.+?)\s+Fecha", emisor_zone, re.IGNORECASE)
     if m:
         return m.group(1).strip()
     for line in lines[:10]:
@@ -216,9 +237,10 @@ def _extract_condicion_iva(text: str, voucher_type: str | None) -> str | None:
     if voucher_type == "C":
         return "MONOTRIBUTO"
     m = re.search(
-        r'(Responsable\s+Monotributo|Monotributo|IVA\s+Responsable|'
-        r'Responsable\s+Inscripto|Sujeto\s+Exento|Exento)',
-        text, re.IGNORECASE
+        r"(Responsable\s+Monotributo|Monotributo|IVA\s+Responsable|"
+        r"Responsable\s+Inscripto|Sujeto\s+Exento|Exento)",
+        text,
+        re.IGNORECASE,
     )
     if not m:
         return None
@@ -253,8 +275,8 @@ _TERMINATOR = re.compile(
 @dataclass
 class Layout:
     name: str
-    signature: re.Pattern   # matches the table header line
-    row: re.Pattern         # matches a single item row (named groups)
+    signature: re.Pattern  # matches the table header line
+    row: re.Pattern  # matches a single item row (named groups)
     wrap: str | None = None  # 'append' (continuation below) | 'prepend' (above) | None
     skip_zero: bool = False  # drop rows whose price is 0 (combo sub-items)
 
@@ -291,7 +313,9 @@ LAYOUTS: list[Layout] = [
     # 4. Memos: qty code desc price iva % bonif % importe
     Layout(
         name="memos",
-        signature=re.compile(r"Cantidad\s+Código\s+Descripción\s+Precio\s+unitario\s+IVA\s+Bonif", re.I),
+        signature=re.compile(
+            r"Cantidad\s+Código\s+Descripción\s+Precio\s+unitario\s+IVA\s+Bonif", re.I
+        ),
         row=re.compile(
             rf"^(?P<qty>\d+)\s+(?P<code>\S+)\s+(?P<desc>.+?)\s+(?P<price>{N})\s+(?P<iva>\d+,\d+)\s*%\s+{N}\s*%\s+{N}\s*$"
         ),
@@ -300,7 +324,9 @@ LAYOUTS: list[Layout] = [
     # 5. ZTECNO: qty code desc iva price dto importe
     Layout(
         name="ztecno",
-        signature=re.compile(r"CANTIDAD\s+CODIGO\s+DESCRIPCION\s+%?\s*IVA\s+PRECIO\s+%?\s*Dto\s+IMPORTE", re.I),
+        signature=re.compile(
+            r"CANTIDAD\s+CODIGO\s+DESCRIPCION\s+%?\s*IVA\s+PRECIO\s+%?\s*Dto\s+IMPORTE", re.I
+        ),
         row=re.compile(
             rf"^(?P<qty>\d+)\s+(?P<code>\S+)\s+(?P<desc>.+?)\s+(?P<iva>\d+,\d+)\s+(?P<price>{N})\s+{N}\s+{N}\s*$"
         ),
@@ -375,7 +401,7 @@ def _extract_items(lines: list, voucher_type: str | None) -> list:
     result: list[ParsedInvoiceLine] = []
     pending = ""  # buffered description text (for 'prepend' layouts)
 
-    for line in lines[hdr + 1:]:
+    for line in lines[hdr + 1 :]:
         stripped = line.strip()
         if not stripped:
             continue
@@ -409,8 +435,10 @@ def _extract_items(lines: list, voucher_type: str | None) -> list:
 
 
 def parse_invoice_pdf(file_bytes: bytes) -> ParsedInvoice:
-    import pdfplumber
     import io
+
+    import pdfplumber
+
     try:
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             text = "\n".join(page.extract_text() or "" for page in pdf.pages)
@@ -427,7 +455,7 @@ def parse_invoice_pdf(file_bytes: bytes) -> ParsedInvoice:
     supplier_condicion_iva = _extract_condicion_iva(text, voucher_type)
 
     cae = None
-    m = re.search(r'C\.?A\.?E\.?\s*(?:N[°o]?\.?)?[:\s#]+(\d{14})', text)
+    m = re.search(r"C\.?A\.?E\.?\s*(?:N[°o]?\.?)?[:\s#]+(\d{14})", text)
     if m:
         cae = m.group(1)
 

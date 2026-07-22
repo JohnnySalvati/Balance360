@@ -11,9 +11,12 @@ a token-set scorer (which compares the *set* of words, ignoring order and
 duplicates) ranks far better than ratio/WRatio, which can be fooled by shared
 substrings.
 """
+
 from __future__ import annotations
+
 from dataclasses import dataclass
-from rapidfuzz import process, fuzz
+
+from rapidfuzz import fuzz, process
 
 from balance360.models.product import Product
 
@@ -29,7 +32,9 @@ class ProductSuggestion:
     score: int
 
 
-def suggest(description: str|None, products: list[Product], limit: int = 5) -> list[ProductSuggestion]:
+def suggest(
+    description: str | None, products: list[Product], limit: int = 5
+) -> list[ProductSuggestion]:
     """Return the best-matching products for a description, best first."""
     if not description or not products:
         return []
