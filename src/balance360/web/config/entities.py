@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
@@ -62,6 +63,9 @@ def create_entity(
     tax_id: str = Form(default=""),
     condicion_iva: str = Form(...),
     iibb_rate: str = Form(...),
+    address: str | None = Form(default=""),
+    iibb: str | None = Form(default=""),
+    start_date: str | None = Form(default=""),
 ):
     entity_crud.create(
         db,
@@ -70,6 +74,9 @@ def create_entity(
             tax_id=tax_id or None,
             condicion_iva=CondicionIva[condicion_iva],
             iibb_rate=Decimal(iibb_rate),
+            address=address or None,
+            iibb=iibb or None,
+            start_date=date.fromisoformat(start_date) if start_date else None,
         ),
     )
     response = HTMLResponse('<div id="modal"></div>')
@@ -104,6 +111,9 @@ def update_entity(
     tax_id: str = Form(default=""),
     condicion_iva: str = Form(...),
     iibb_rate: Decimal = Form(...),
+    address: str | None = Form(default=""),
+    iibb: str | None = Form(default=""),
+    start_date: str | None = Form(default=""),
 ):
     entity_crud.update(
         db,
@@ -113,6 +123,9 @@ def update_entity(
             tax_id=tax_id or None,
             condicion_iva=CondicionIva[condicion_iva],
             iibb_rate=iibb_rate,
+            address=address or None,
+            iibb=iibb or None,
+            start_date=date.fromisoformat(start_date) if start_date else None,
         ),
     )
     response = HTMLResponse('<div id="modal"></div>')

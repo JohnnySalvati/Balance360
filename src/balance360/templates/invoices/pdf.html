@@ -1,0 +1,203 @@
+{# Representación impresa del comprobante autorizado (RG 1415), para WeasyPrint.
+
+   Contexto esperado:
+     invoice : el comprobante ya autorizado (con .entity, .contact, .invoice_lines,
+               .iva_breakdown, .invoice_tributes, .cae, .cae_expiry, .number, .pos, ...)
+     qr      : data URI de la imagen del QR  (ej: "data:image/png;base64,....")
+
+   Se renderiza con el env de Jinja de la app, así que usa los filtros `currency` y `cuit`.
+   Campos del emisor que quizás tengas que agregar a Entity: address (domicilio),
+   iibb (nro de inscripción o "Exento"), start_date (inicio de actividades).
+   Si no existen, se muestran en blanco sin romper.
+#}
+{% set vt = invoice.voucher_type.value %}
+{% set letters = {"A": "A", "B": "B", "C": "C", "NCA": "A", "NCB": "B", "NCC": "C"} %}
+{% set codes = {"A": "01", "B": "06", "C": "11", "NCA": "03", "NCB": "08", "NCC": "53"} %}
+{% set titles = {"A": "FACTURA", "B": "FACTURA", "C": "FACTURA",
+                 "NCA": "NOTA DE CRÉDITO", "NCB": "NOTA DE CRÉDITO", "NCC": "NOTA DE CRÉDITO"} %}
+{% set letter = letters.get(vt, vt) %}
+{% set discriminate = letter == "A" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 1.1cm; }
+  * { box-sizing: border-box; }
+  body { font-family: "DejaVu Sans", sans-serif; font-size: 8.5pt; color: #000; margin: 0; }
+
+  .doc { border: 1px solid #000; display: flex; flex-direction: column; min-height: 27cm; }
+  .body { flex: 1 1 auto; }  /* crece y empuja totales + CAE al fondo */
+
+  /* Solo en pantalla: hoja A4 centrada, para que el preview se parezca al PDF.
+     WeasyPrint renderiza como @media print, así que esto no lo afecta. */
+  @media screen {
+    body { background: #e5e5e5; padding: 1cm 0; }
+    .doc { width: 19cm; margin: 0 auto; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,.25); }
+  }
+
+  /* ── Encabezado con recuadro de letra montado al centro ── */
+  .head-wrap { position: relative; }
+  .head { display: table; width: 100%; table-layout: fixed; border-bottom: 1px solid #000; }
+  .head-cell { display: table-cell; width: 50%; vertical-align: top; padding: 10px 14px; min-height: 3.3cm; }
+  .head-cell.left { border-right: 1px solid #000; }
+  .head-cell.right { padding-left: 1.2cm; }  /* deja pasar el recuadro de la letra */
+  .logo { max-height: 1.6cm; max-width: 6cm; margin-bottom: 6px; }
+  .original { font-size: 7pt; letter-spacing: 1px; }
+  .emisor-name { font-size: 15pt; font-weight: bold; margin: 4px 0 8px; }
+  .doc-title { font-size: 13pt; font-weight: bold; }
+  .comp-line { margin-top: 2px; }
+  .comp-line b { display: inline-block; min-width: 3.6cm; }
+
+  .letterbox {
+    position: absolute; top: -1px; left: 50%; margin-left: -0.9cm;
+    width: 1.8cm; height: 1.7cm; border: 1px solid #000; background: #fff;
+    text-align: center; padding-top: 2px;
+  }
+  .letterbox .l { font-size: 30pt; font-weight: bold; line-height: 1; }
+  .letterbox .c { font-size: 7pt; }
+
+  /* ── Bloques de datos ── */
+  .band { padding: 6px 14px; border-bottom: 1px solid #000; }
+  .band .row { margin: 1px 0; }
+  .band b { font-weight: bold; }
+  .muted { color: #333; }
+
+  /* ── Ítems ── */
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items th, table.items td { border-bottom: 1px solid #bbb; padding: 4px 6px; }
+  table.items thead th { border-bottom: 1px solid #000; background: #f0f0f0; font-size: 7.5pt;
+                         text-transform: uppercase; letter-spacing: .3px; }
+  .num { text-align: right; white-space: nowrap; }
+  .center { text-align: center; }
+
+  /* ── Totales ── */
+  .totals { width: 100%; display: table; }
+  .totals .spacer { display: table-cell; width: 58%; }
+  .totals .box { display: table-cell; width: 42%; padding: 8px 14px; }
+  .totals .t { display: table; width: 100%; }
+  .totals .t > div { display: table-row; }
+  .totals .t span { display: table-cell; padding: 2px 0; }
+  .totals .t .r { text-align: right; }
+  .totals .grand { font-size: 12pt; font-weight: bold; border-top: 1px solid #000; }
+
+  /* ── Pie: CAE + QR ── */
+  .foot { display: table; width: 100%; border-top: 1px solid #000; padding: 10px 14px; }
+  .foot .qr { display: table-cell; width: 3.2cm; vertical-align: middle; }
+  .foot .qr img { width: 3cm; height: 3cm; }
+  .foot .cae { display: table-cell; vertical-align: middle; padding-left: 14px; }
+  .foot .cae .big { font-size: 11pt; font-weight: bold; }
+  .autorizado { font-size: 7pt; color: #333; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="doc">
+
+    <div class="head-wrap">
+      <div class="head">
+        <div class="head-cell left">
+          {% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}
+          <div class="original">ORIGINAL</div>
+          <div class="emisor-name">{{ invoice.entity.name }}</div>
+          <div class="muted">Razón Social: {{ invoice.entity.name }}</div>
+          <div class="muted">Domicilio Comercial: {{ invoice.entity.address or "" }}</div>
+          <div class="muted">Condición frente al IVA: {{ invoice.entity.condicion_iva.name.title() }}</div>
+        </div>
+        <div class="head-cell right">
+          <div class="doc-title">{{ titles.get(vt, "COMPROBANTE") }}</div>
+          <div class="comp-line"><b>Punto de Venta:</b> {{ "%05d"|format(invoice.pos) }}
+              &nbsp;&nbsp; <b>Comp. Nro:</b> {{ "%08d"|format(invoice.number) }}</div>
+          <div class="comp-line"><b>Fecha de Emisión:</b> {{ invoice.date.strftime("%d/%m/%Y") }}</div>
+          <div class="comp-line"><b>CUIT:</b> {{ invoice.entity.tax_id | cuit }}</div>
+          <div class="comp-line"><b>Ingresos Brutos:</b> {{ invoice.entity.iibb or "" }}</div>
+          <div class="comp-line"><b>Inicio de Actividades:</b>
+              {{ invoice.entity.start_date.strftime("%d/%m/%Y") if invoice.entity.start_date else "" }}</div>
+        </div>
+      </div>
+      <div class="letterbox">
+        <div class="l">{{ letter }}</div>
+        <div class="c">COD. {{ codes.get(vt, "") }}</div>
+      </div>
+    </div>
+
+    {# ── Receptor ── #}
+    <div class="band">
+      <div class="row"><b>CUIT/DNI:</b> {{ invoice.contact.tax_id | cuit }}
+          &nbsp;&nbsp; <b>Condición frente al IVA:</b> {{ invoice.contact.condicion_iva.name.title() }}</div>
+      <div class="row"><b>Apellido y Nombre / Razón Social:</b> {{ invoice.contact.name }}</div>
+      <div class="row"><b>Domicilio:</b> {{ invoice.contact.address or "" }}
+          &nbsp;&nbsp; <b>Condición de venta:</b> {{ invoice.payment_condition or "Contado" }}</div>
+    </div>
+
+    {# ── Período facturado (solo servicios) ── #}
+    {% if invoice.concepto.value != "products" %}
+    <div class="band">
+      <div class="row">
+        <b>Período Facturado Desde:</b> {{ invoice.from_date.strftime("%d/%m/%Y") if invoice.from_date else "" }}
+        &nbsp;&nbsp; <b>Hasta:</b> {{ invoice.to_date.strftime("%d/%m/%Y") if invoice.to_date else "" }}
+        &nbsp;&nbsp; <b>Vto. para el pago:</b> {{ invoice.due_date.strftime("%d/%m/%Y") if invoice.due_date else "" }}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="body">
+    {# ── Ítems ── #}
+    <table class="items">
+      <thead>
+        <tr>
+          <th style="text-align:left">Descripción</th>
+          <th class="num">Cantidad</th>
+          <th class="num">Precio Unit.</th>
+          {% if discriminate %}<th class="num">% IVA</th>{% endif %}
+          <th class="num">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in invoice.invoice_lines %}
+        <tr>
+          <td>{{ line.description or (line.product.name if line.product else "—") }}</td>
+          <td class="num">{{ line.quantity }}</td>
+          <td class="num">{{ line.unit_price | currency }}</td>
+          {% if discriminate %}<td class="num">{{ line.iva_rate }}%</td>{% endif %}
+          <td class="num">{{ line.net_amount | currency }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    {# ── Totales ── #}
+    <div class="totals">
+      <div class="spacer"></div>
+      <div class="box">
+        <div class="t">
+          {% if discriminate %}
+            <div><span>Importe Neto Gravado:</span><span class="r">{{ invoice.net_total | currency }}</span></div>
+            {% for item in invoice.iva_breakdown %}
+            <div><span>IVA {{ item.aliquot.rate }}%:</span><span class="r">{{ item.iva_amount | currency }}</span></div>
+            {% endfor %}
+          {% else %}
+            <div><span>Subtotal:</span><span class="r">{{ invoice.net_total | currency }}</span></div>
+          {% endif %}
+          {% for tribute in invoice.invoice_tributes %}
+          <div><span>{{ tribute.description }}:</span><span class="r">{{ tribute.amount | currency }}</span></div>
+          {% endfor %}
+          <div class="grand"><span>Importe Total:</span><span class="r">{{ invoice.total | currency }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    {# ── CAE + QR ── #}
+    <div class="foot">
+      <div class="qr">{% if qr %}<img src="{{ qr }}" alt="QR">{% endif %}</div>
+      <div class="cae">
+        <div class="big">CAE N°: {{ invoice.cae }}</div>
+        <div class="big">Fecha de Vto. de CAE: {{ invoice.cae_expiry.strftime("%d/%m/%Y") if invoice.cae_expiry else "" }}</div>
+        <div class="autorizado">Comprobante Autorizado — Esta Administración Federal no se responsabiliza
+            por los datos ingresados en el detalle de la operación.</div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

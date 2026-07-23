@@ -14,6 +14,7 @@ class ContactBase(BaseModel):
     condicion_iva: CondicionIva
     doc_type: DocType
     email: str | None = None
+    address: str | None = None
 
 
 class ContactCreate(ContactBase):
@@ -40,6 +41,7 @@ class ContactUpdate(BaseModel):
     condicion_iva: CondicionIva | None = None
     doc_type: DocType | None = None
     email: str | None = None
+    address: str | None = None
 
     @field_validator("tax_id")
     @classmethod

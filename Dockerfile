@@ -13,6 +13,14 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
+# --- Librerías de sistema para WeasyPrint ---
+# Pango (motor de texto) + una fuente, necesarias para renderizar el PDF del
+# comprobante. Va ANTES de las dependencias para que quede cacheada y no se
+# reconstruya en cada cambio de código.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpango-1.0-0 libpangoft2-1.0-0 fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+
 # --- Capa 1: dependencias ---
 # Copiamos SOLO los archivos de bloqueo primero. Mientras no cambien,
 # Docker reutiliza esta capa cacheada y no reinstala nada en cada build.

@@ -98,7 +98,7 @@ docker compose -f docker-compose.prod.yml stop app
 docker compose -f docker-compose.prod.yml cp ~/balance360.dump db:/tmp/
 docker compose -f docker-compose.prod.yml exec db sh -c \
   'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges /tmp/balance360.dump'
-docker compose -f docker-compose.prod.yml start app
+
 ```
 
 - `--clean --if-exists`: borra y recrea los objetos existentes.

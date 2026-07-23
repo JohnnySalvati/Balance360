@@ -5,13 +5,13 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.poolmanager import PoolManager
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, pkcs7
 from cryptography.x509 import load_pem_x509_certificate
+from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
+from urllib3.poolmanager import PoolManager
 from zeep import Client
 from zeep.cache import SqliteCache
 from zeep.exceptions import Fault
@@ -24,6 +24,7 @@ WSAA_URL = {
     "homo": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?WSDL",
     "prod": "https://wsaa.afip.gov.ar/ws/services/LoginCms?WSDL",
 }
+
 
 class _AfipTlsAdapter(HTTPAdapter):
     """Baja el nivel de seguridad de OpenSSL solo para la conexión con AFIP.
@@ -58,6 +59,8 @@ def build_client(url: str) -> Client:
         cache=SqliteCache(),
     )
     return Client(url, transport=transport)
+
+
 class TicketManager:
     def __init__(self) -> None:
         self.tickets: dict = self.read_file()

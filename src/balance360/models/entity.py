@@ -1,19 +1,18 @@
 from __future__ import annotations
 
+import uuid
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
+
+from sqlalchemy import Date, Enum, Numeric, String, Uuid
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from balance360.models.entity_membership import EntityMembership
     from balance360.models.import_rule import ImportRule
     from balance360.models.invoice import Invoice
     from balance360.models.transaction import Transaction
-
-import uuid
-
-from sqlalchemy import Enum, Numeric, String, Uuid
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from balance360.enums import CondicionIva
 from balance360.models.base import Base, TimestampMixin
 
@@ -25,6 +24,10 @@ class Entity(Base, TimestampMixin):
     condicion_iva: Mapped[CondicionIva] = mapped_column(Enum(CondicionIva))
     tax_id: Mapped[str | None] = mapped_column(String(13))
     iibb_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), server_default="0", nullable=False)
+    address: Mapped[str | None] = mapped_column(String(200))
+    iibb: Mapped[str | None] = mapped_column(String(50))
+    start_date: Mapped[date | None] = mapped_column(Date)
+
     transactions: Mapped[list[Transaction]] = relationship(back_populates="entity")
     invoices: Mapped[list["Invoice"]] = relationship(back_populates="entity")
     entity_memberships: Mapped[list["EntityMembership"]] = relationship(back_populates="entity")

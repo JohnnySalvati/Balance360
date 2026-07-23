@@ -35,11 +35,7 @@ app = FastAPI(title="Balance360")
 
 static_files = StaticFiles(directory=Path(__file__).parent / "static")
 
-app.mount(
-    path="/static",
-    app=static_files,
-    name="static"
-)
+app.mount(path="/static", app=static_files, name="static")
 
 app.include_router(category.router, prefix="/api")
 app.include_router(currency.router, prefix="/api")

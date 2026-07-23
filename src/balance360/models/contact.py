@@ -24,6 +24,8 @@ class Contact(Base, TimestampMixin):
     tax_id: Mapped[str | None] = mapped_column(String(11))
     contact_type: Mapped[ContactType] = mapped_column(Enum(ContactType))
     email: Mapped[str | None] = mapped_column(String(254))
+    address: Mapped[str | None] = mapped_column(String(200))
+
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="contact")
     invoices: Mapped[list["Invoice"]] = relationship(back_populates="contact")
     import_rules: Mapped[list["ImportRule"]] = relationship(back_populates="contact")

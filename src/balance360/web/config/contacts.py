@@ -60,6 +60,8 @@ def create_contact(
     contact_type: str = Form(...),
     condicion_iva: str = Form(...),
     doc_type: str = Form(...),
+    email: str | None = Form(default=""),
+    address: str | None = Form(default=""),
 ):
     contact_crud.create(
         db,
@@ -69,6 +71,8 @@ def create_contact(
             contact_type=ContactType(contact_type),
             condicion_iva=CondicionIva[condicion_iva],
             doc_type=DocType[doc_type],
+            email=email or None,
+            address=address or None,
         ),
     )
     response = HTMLResponse('<div id="modal"></div>')
@@ -94,6 +98,8 @@ def update_contact(
     contact_type: str = Form(...),
     condicion_iva: str = Form(...),
     doc_type: str = Form(...),
+    email: str | None = Form(default=""),
+    address: str | None = Form(default=""),
 ):
     contact = contact_crud.get_by_id(db, contact_id)
     if not contact:
@@ -107,6 +113,8 @@ def update_contact(
             contact_type=ContactType(contact_type),
             condicion_iva=CondicionIva[condicion_iva],
             doc_type=DocType[doc_type],
+            email=email or None,
+            address=address or None,
         ),
     )
     response = HTMLResponse('<div id="modal"></div>')

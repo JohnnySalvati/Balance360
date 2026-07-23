@@ -58,6 +58,7 @@ from balance360.services import invoice as invoice_service
 from balance360.services import product_match
 from balance360.services import product_match as product_match_service
 from balance360.services import serial_number as serial_number_service
+from balance360.services.invoice_pdf import build_qr
 from balance360.services.serial_number import SerialValidationError
 from balance360.web.responses import format_validation_error, toast_error
 from balance360.web.templating import templates
@@ -825,4 +826,25 @@ def update_lines(
         request=request,
         name="invoices/partials/items_table.html",
         context={"invoice": invoice, "iva_aliquots": IvaAliquot},
+    )
+
+
+@router.get("/{invoice_id}/pdf")
+def write_pdf(
+    invoice: Invoice = Depends(get_invoice_or_404),
+):
+    from weasyprint import HTML
+
+    if not invoice.cae:
+        raise HTTPException(status_code=404, detail="Comprobante no autorizado")
+
+    qr = build_qr(invoice)
+
+    html = templates.get_template("invoices/pdf.html").render({"invoice": invoice, "qr": qr})
+    pdf = HTML(string=html).write_pdf()
+
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="comprobante.pdf"'},
     )

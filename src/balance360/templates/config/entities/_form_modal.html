@@ -50,6 +50,27 @@
                        class="border rounded px-3 py-2 text-sm">
             </div>
 
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Domicilio comercial</label>
+                <input type="text" name="address" maxlength="200"
+                       value="{{ entity.address if is_edit and entity.address else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Ingresos Brutos</label>
+                <input type="text" name="iibb" maxlength="50"
+                       value="{{ entity.iibb if is_edit and entity.iibb else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Inicio de actividades</label>
+                <input type="date" name="start_date"
+                       value="{{ entity.start_date.isoformat() if is_edit and entity.start_date else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"
                         hx-get="/config/entities/close-modal"

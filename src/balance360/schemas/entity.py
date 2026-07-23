@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -13,6 +13,9 @@ class EntityCreate(BaseModel):
     tax_id: str | None = None
     condicion_iva: CondicionIva
     iibb_rate: Decimal = Decimal(0)
+    address: str | None = None
+    iibb: str | None = None
+    start_date: date | None = None
 
     @field_validator("tax_id")
     @classmethod
@@ -27,6 +30,11 @@ class EntityRead(BaseModel):
     name: str
     tax_id: str | None = None
     condicion_iva: CondicionIva
+    iibb_rate: Decimal = Decimal(0)
+    address: str | None = None
+    iibb: str | None = None
+    start_date: date | None = None
+
     created_at: datetime
     updated_at: datetime
 
@@ -36,6 +44,9 @@ class EntityUpdate(BaseModel):
     tax_id: str | None = None
     condicion_iva: CondicionIva | None = None
     iibb_rate: Decimal | None = None
+    address: str | None = None
+    iibb: str | None = None
+    start_date: date | None = None
 
     @field_validator("tax_id")
     @classmethod

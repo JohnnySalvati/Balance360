@@ -67,6 +67,20 @@
                 </select>
             </div>
 
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Domicilio</label>
+                <input type="text" name="address" maxlength="200"
+                       value="{{ contact.address if is_edit and contact.address else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Email</label>
+                <input type="email" name="email" maxlength="254"
+                       value="{{ contact.email if is_edit and contact.email else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"
                         hx-get="/config/contacts/close-modal"
