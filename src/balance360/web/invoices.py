@@ -830,21 +830,22 @@ def update_lines(
 
 
 @router.get("/{invoice_id}/pdf")
-def write_pdf(
+def download_pdf(
     invoice: Invoice = Depends(get_invoice_or_404),
 ):
-    from weasyprint import HTML
-
     if not invoice.cae:
         raise HTTPException(status_code=404, detail="Comprobante no autorizado")
 
     qr = build_qr(invoice)
 
     html = templates.get_template("invoices/pdf.html").render({"invoice": invoice, "qr": qr})
-    pdf = HTML(string=html).write_pdf()
 
+    try:
+        from weasyprint import HTML
+    except (ImportError, OSError):
+        return HTMLResponse(html)   # dev local sin GTK → preview HTML
     return Response(
-        content=pdf,
+        content=HTML(string=html).write_pdf(),
         media_type="application/pdf",
         headers={"Content-Disposition": 'inline; filename="comprobante.pdf"'},
     )
