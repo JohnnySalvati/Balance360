@@ -1,8 +1,12 @@
 import base64
 import json
+import ssl
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, pkcs7
@@ -21,12 +25,39 @@ WSAA_URL = {
     "prod": "https://wsaa.afip.gov.ar/ws/services/LoginCms?WSDL",
 }
 
+class _AfipTlsAdapter(HTTPAdapter):
+    """Baja el nivel de seguridad de OpenSSL solo para la conexión con AFIP.
+
+    Los servidores de AFIP negocian Diffie-Hellman de 1024 bits, que el OpenSSL
+    moderno rechaza por defecto (SECLEVEL 2). SECLEVEL=1 lo permite. NO desactiva
+    la verificación del certificado del servidor: solo afloja la fuerza del cifrado.
+    """
+
+    def __init__(self, *args, **kwargs):
+        ctx = ssl.create_default_context()
+        ctx.set_ciphers("DEFAULT@SECLEVEL=1")
+        self._ssl_context = ctx
+        super().__init__(*args, **kwargs)
+
+    def init_poolmanager(self, connections, maxsize, block=False):
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            ssl_context=self._ssl_context,
+        )
+
 
 def build_client(url: str) -> Client:
-    transport = Transport(timeout=30, operation_timeout=30, cache=SqliteCache())
+    session = requests.Session()
+    session.mount("https://", _AfipTlsAdapter())
+    transport = Transport(
+        session=session,
+        timeout=30,
+        operation_timeout=30,
+        cache=SqliteCache(),
+    )
     return Client(url, transport=transport)
-
-
 class TicketManager:
     def __init__(self) -> None:
         self.tickets: dict = self.read_file()
