@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Balance360</title>
+    <link rel="icon" href="/static/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -17,7 +18,10 @@
 <body class="bg-gray-100 text-gray-800 h-screen flex flex-col overflow-hidden">
 
     <nav class="bg-white shadow px-6 py-4 flex gap-6 shrink-0">
-        <a href="/" class="font-bold text-blue-600">Balance360</a>
+        <a href="/" class="flex items-center gap-2 font-bold text-blue-600">
+            <img src="/static/insoft-logo.svg" alt="InSoft" class="h-7 -my-1">
+            <span>Balance360</span>
+        </a>
         <a href="/dashboard" class="hover:text-blue-600">Inicio</a>
         <a href="/transactions" class="hover:text-blue-600">Transacciones</a>
         <a href="/imports/" class="hover:text-blue-600">Importaciones</a>

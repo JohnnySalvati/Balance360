@@ -130,9 +130,37 @@ docker compose -f docker-compose.prod.yml exec db sh -c \
    POSTGRES_DB=balance360
    DATABASE_URL=postgresql+psycopg://balance360:<secreto>@db:5432/balance360
    SECRET_KEY=<aleatorio largo>
-   AFIP_ENV=homo
+   AFIP_ENV=prod
+   PROD_PRIVATE_KEY_PATH=/app/certs/balance360.key
+   PROD_CERT_PATH=/app/certs/prod.crt
    ```
 
    El host de `DATABASE_URL` es `db`: el nombre del servicio en el compose.
-3. `docker compose -f docker-compose.prod.yml up -d --build`
-4. Restaurar datos (sección 3) o dejar que las migraciones creen el esquema vacío.
+3. Copiar los certificados (sección 6).
+4. `docker compose -f docker-compose.prod.yml up -d --build`
+5. Restaurar datos (sección 3) o dejar que las migraciones creen el esquema vacío.
+
+---
+
+## 6. Certificados ARCA
+
+Los certificados **nunca viajan por git ni entran a la imagen** (`.dockerignore` excluye `certs/`). Llegan a la VM por `scp` y el compose los monta en el contenedor como solo lectura (`./certs:/app/certs:ro`).
+
+Desde dev (solo hacen falta los de producción):
+
+```powershell
+ssh johnny@<vm> "mkdir -p ~/Balance360/certs"
+scp .\certs\balance360.key .\certs\prod.crt johnny@<vm>:~/Balance360/certs/
+```
+
+En el `.env` de la VM las rutas son las **del contenedor**:
+
+```
+AFIP_ENV=prod
+PROD_PRIVATE_KEY_PATH=/app/certs/balance360.key
+PROD_CERT_PATH=/app/certs/prod.crt
+```
+
+(`HOMO_*` pueden omitirse: en Settings son opcionales y con `AFIP_ENV=prod` no se usan.)
+
+Gotcha WSAA: el ticket de acceso se cachea en `ticket_arca.json`, relativo al CWD → vive **dentro** del contenedor y se pierde en cada redeploy. WSAA no emite un TA nuevo mientras el anterior (de local o de un contenedor anterior) siga vigente: si al facturar aparece "el CEE ya posee un TA válido", es eso — esperar a que venza (~12 h). Mejora pendiente: mover ese cache a Postgres.

@@ -19,6 +19,11 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    volumes:
+      # Los certificados ARCA no entran a la imagen (.dockerignore los excluye):
+      # se montan desde el disco de la VM, solo lectura. Las rutas *_KEY_PATH /
+      # *_CERT_PATH del .env deben apuntar a /app/certs/...
+      - ./certs:/app/certs:ro
     depends_on:
       db:
         condition: service_healthy
