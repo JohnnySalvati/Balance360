@@ -20,7 +20,7 @@ from balance360.models.base import Base, TimestampMixin
 class Entity(Base, TimestampMixin):
     __tablename__ = "entities"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(30), unique=True)
+    name: Mapped[str] = mapped_column(String(150), unique=True)
     condicion_iva: Mapped[CondicionIva] = mapped_column(Enum(CondicionIva))
     tax_id: Mapped[str | None] = mapped_column(String(13))
     iibb_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), server_default="0", nullable=False)
