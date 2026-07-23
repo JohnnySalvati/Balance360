@@ -18,10 +18,8 @@ def add_serial_to_line(db: Session, serial_str: str, invoice_line: InvoiceLine) 
         _validate_for_sale(serial_number, invoice_line)
         serial_number_crud.update(
             db,
-            serial_number,
-            SerialNumberUpdate(  # type: ignore
-                sale_line_id=invoice_line.id, status=SerialStatus.reserved
-            ),
+            serial_number,  # type: ignore
+            SerialNumberUpdate(sale_line_id=invoice_line.id, status=SerialStatus.reserved),
         )
     else:
         _validate_for_purchase(serial_number, invoice_line)

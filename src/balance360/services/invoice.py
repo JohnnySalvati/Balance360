@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,7 @@ from balance360.dtos.invoice_request import (
     VoucherData,
     VoucherInfo,
 )
-from balance360.enums import DocType, InvoiceType, SerialStatus, TransactionType
+from balance360.enums import Concepto, DocType, InvoiceType, SerialStatus, TransactionType
 from balance360.exceptions import (
     InvoiceAuthorizationError,
     InvoiceConfirmationError,
@@ -128,6 +128,10 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
         iva_detail=iva_detail,
         tributes=tributes,
         total=invoice.total,
+        concepto=invoice.concepto,
+        from_date=invoice.from_date,
+        to_date=invoice.to_date,
+        due_date=invoice.due_date,
     )
 
     invoice_request = InvoiceRequest(
@@ -168,6 +172,19 @@ def validate_authorization(invoice: Invoice):
 
     if invoice.invoice_type == InvoiceType.purchase:
         raise InvoiceAuthorizationError("No se puede autorizar una compra")
+
+    if invoice.concepto is not Concepto.products:
+        if not (invoice.from_date and invoice.to_date and invoice.due_date):
+            raise InvoiceAuthorizationError("Las tres fechas son requeridas")
+        margin = 10
+    else:
+        margin = 5
+
+    today = date.today()
+    if invoice.date > today + timedelta(days=margin) or invoice.date < today - timedelta(
+        days=margin
+    ):
+        raise InvoiceAuthorizationError(f"Fecha fuera del rango de +-{margin} dias")
 
 
 def validate_confirmation(db: Session, invoice: Invoice):

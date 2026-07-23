@@ -121,6 +121,43 @@
                                value="{{ invoice.number if invoice.number else '' }}"
                                class="border rounded px-3 py-2 text-sm">
                     </div>
+
+                    <div class="flex flex-col gap-1 w-52">
+                        <label class="text-xs text-gray-500">Concepto</label>
+                        <select name="concepto" id="concepto-select"
+                                onchange="toggleConcepto(this.value)"
+                                class="border rounded px-2 py-2 text-sm">
+                            {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
+                            {% for c in concepto %}
+                            <option value="{{ c.value }}"
+                                    {{ "selected" if c == invoice.concepto else "" }}>
+                                {{ concepto_labels[c.value] }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div id="service-dates" class="flex gap-4 items-end"
+                     style="{{ '' if invoice.concepto.value != 'products' else 'display:none' }}">
+                    <div class="flex flex-col gap-1 w-44">
+                        <label class="text-xs text-gray-500">Servicio desde</label>
+                        <input type="date" name="from_date"
+                               value="{{ invoice.from_date if invoice.from_date else '' }}"
+                               class="border rounded px-3 py-2 text-sm">
+                    </div>
+                    <div class="flex flex-col gap-1 w-44">
+                        <label class="text-xs text-gray-500">Servicio hasta</label>
+                        <input type="date" name="to_date"
+                               value="{{ invoice.to_date if invoice.to_date else '' }}"
+                               class="border rounded px-3 py-2 text-sm">
+                    </div>
+                    <div class="flex flex-col gap-1 w-44">
+                        <label class="text-xs text-gray-500">Vto. de pago</label>
+                        <input type="date" name="due_date"
+                               value="{{ invoice.due_date if invoice.due_date else '' }}"
+                               class="border rounded px-3 py-2 text-sm">
+                    </div>
                 </div>
             </div>
 
@@ -143,6 +180,16 @@ function toggleFormal(checked) {
     document.getElementById('formal-fields').style.display = checked ? 'flex' : 'none';
 }
 
+function toggleConcepto(value) {
+    const wrap = document.getElementById('service-dates');
+    const show = value !== 'products';
+    wrap.style.display = show ? 'flex' : 'none';
+    wrap.querySelectorAll('input').forEach(input => {
+        input.required = show;
+        if (!show) input.value = '';
+    });
+}
+
 function filterContacts(invoiceType) {
     const select = document.getElementById('contact-select');
     const options = select.querySelectorAll('option');
@@ -154,5 +201,6 @@ function filterContacts(invoiceType) {
 }
 
 filterContacts(document.getElementById('invoice-type').value);
+toggleConcepto(document.getElementById('concepto-select').value);
 </script>
 {% endblock %}

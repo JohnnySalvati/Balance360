@@ -7,14 +7,24 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, pkcs7
 from cryptography.x509 import load_pem_x509_certificate
+from requests.exceptions import RequestException
 from zeep import Client
+from zeep.cache import SqliteCache
+from zeep.exceptions import Fault
+from zeep.transports import Transport
 
 from balance360.database import settings
+from balance360.exceptions import ArcaError, WsaaError
 
 WSAA_URL = {
     "homo": "https://wsaahomo.afip.gov.ar/ws/services/LoginCms?WSDL",
     "prod": "https://wsaa.afip.gov.ar/ws/services/LoginCms?WSDL",
 }
+
+
+def build_client(url: str) -> Client:
+    transport = Transport(timeout=30, operation_timeout=30, cache=SqliteCache())
+    return Client(url, transport=transport)
 
 
 class TicketManager:
@@ -50,7 +60,7 @@ class TicketManager:
 
 def build_tra(service: str) -> str:
     timestamp = int(datetime.now().timestamp())
-    generation_time = datetime.now(timezone.utc).isoformat()
+    generation_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
     expiration_time = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -72,7 +82,7 @@ def sign(xml: str) -> bytes:
     cert_path = settings.cert_path
 
     if not cert_path or not private_key_path:
-        raise ValueError("Certificados de ARCA no configurados")
+        raise ArcaError("Certificados de ARCA no configurados")
 
     with open(cert_path, "rb") as cert_file:
         cert_data = cert_file.read()
@@ -107,9 +117,13 @@ def arca_query(service: str) -> dict:
 
     xml_signed = sign(xml)
 
-    client = Client(WSAA_URL[settings.afip_env])
-    response = client.service.loginCms(in0=base64.b64encode(xml_signed).decode("utf-8"))
-
+    try:
+        client = build_client(WSAA_URL[settings.afip_env])
+        response = client.service.loginCms(in0=base64.b64encode(xml_signed).decode("utf-8"))
+    except Fault as e:
+        raise WsaaError(f"ARCA: {e}") from e
+    except RequestException as e:
+        raise ArcaError("No se puede conectar con ARCA, reintenta en unos minutos") from e
     return parse_xml(response, service)
 
 

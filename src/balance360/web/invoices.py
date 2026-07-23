@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 from decimal import Decimal
 from uuid import UUID
 
@@ -29,6 +30,7 @@ from balance360.crud import product as product_crud
 from balance360.crud import serial_number as serial_number_crud
 from balance360.dependencies import Period, get_current_user, get_db, get_period
 from balance360.enums import (
+    Concepto,
     InvoiceType,
     IvaAliquot,
     SerialStatus,
@@ -36,10 +38,10 @@ from balance360.enums import (
     VoucherType,
 )
 from balance360.exceptions import (
+    ArcaError,
     InvoiceAuthorizationError,
     InvoiceConfirmationError,
     InvoicePaymentError,
-    WsfeError,
 )
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
@@ -57,10 +59,12 @@ from balance360.services import product_match
 from balance360.services import product_match as product_match_service
 from balance360.services import serial_number as serial_number_service
 from balance360.services.serial_number import SerialValidationError
-from balance360.web.responses import toast_error
+from balance360.web.responses import format_validation_error, toast_error
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/invoices")
+
+logger = logging.getLogger(__name__)
 
 
 def get_invoice_or_404(invoice_id: UUID, db: Session = Depends(get_db)) -> Invoice:
@@ -158,12 +162,13 @@ def new_invoice_form(request: Request, db: Session = Depends(get_db)):
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),
             "voucher_type": VoucherType,
+            "concepto": Concepto,
         },
     )
 
 
 @router.get("/{invoice_id}")
-def invoice_edit_form(
+def invoice_detail(
     request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)
 ):
     return templates.TemplateResponse(
@@ -192,6 +197,10 @@ def create_invoice(
     pos: str | None = Form(default=""),
     number: str | None = Form(default=""),
     pdf_lines: str | None = Form(default=""),
+    concepto: str = Form(...),
+    from_date: str | None = Form(default=""),
+    to_date: str | None = Form(default=""),
+    due_date: str | None = Form(default=""),
 ):
     try:
         data = InvoiceCreate(
@@ -205,6 +214,10 @@ def create_invoice(
             voucher_type=VoucherType(voucher_type) if voucher_type else None,
             pos=int(pos) if pos else None,
             number=int(number) if number else None,
+            concepto=Concepto(concepto),
+            from_date=datetime.date.fromisoformat(from_date) if from_date else None,
+            to_date=datetime.date.fromisoformat(to_date) if to_date else None,
+            due_date=datetime.date.fromisoformat(due_date) if due_date else None,
         )
         invoice = invoice_crud.create(db, data)
 
@@ -233,9 +246,30 @@ def create_invoice(
                         iva_aliquot=aliquot,
                     ),
                 )
-    except (ValidationError, ValueError) as e:
+    except ValidationError as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{format_validation_error(e)}</p>')
+    except ValueError as e:
         return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
+
+
+@router.get("/{invoice_id}/edit")
+def edit_invoice_form(
+    request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/edit_form.html",
+        context={
+            "invoice": invoice,
+            "invoice_type": InvoiceType,
+            "entities": entity_crud.get_all(db),
+            "contacts": contact_crud.get_all(db),
+            "categories": category_crud.get_all(db),
+            "voucher_type": VoucherType,
+            "concepto": Concepto,
+        },
+    )
 
 
 @router.patch("/{invoice_id}", response_class=HTMLResponse)
@@ -252,21 +286,31 @@ def update_invoice(
     voucher_type: str | None = Form(default=""),
     pos: str | None = Form(default=""),
     number: str | None = Form(default=""),
+    concepto: str | None = Form(default=""),
+    from_date: str | None = Form(default=""),
+    to_date: str | None = Form(default=""),
+    due_date: str | None = Form(default=""),
 ):
-    data = InvoiceUpdate(
-        invoice_type=InvoiceType(invoice_type) if invoice_type else None,
-        entity_id=UUID(entity_id) if entity_id else None,
-        contact_id=UUID(contact_id) if contact_id else None,
-        category_id=UUID(category_id) if category_id else None,
-        date=datetime.date.fromisoformat(date) if date else None,
-        formal=bool(formal),
-        tax_only=bool(tax_only),
-        voucher_type=VoucherType(voucher_type) if voucher_type else None,
-        pos=int(pos) if pos else None,
-        number=int(number) if number else None,
-    )
     try:
+        data = InvoiceUpdate(
+            invoice_type=InvoiceType(invoice_type) if invoice_type else None,
+            entity_id=UUID(entity_id) if entity_id else None,
+            contact_id=UUID(contact_id) if contact_id else None,
+            category_id=UUID(category_id) if category_id else None,
+            date=datetime.date.fromisoformat(date) if date else None,
+            formal=bool(formal),
+            tax_only=bool(tax_only),
+            voucher_type=VoucherType(voucher_type) if voucher_type else None,
+            pos=int(pos) if pos else None,
+            number=int(number) if number else None,
+            concepto=Concepto(concepto) if concepto else None,
+            from_date=datetime.date.fromisoformat(from_date) if from_date else None,
+            to_date=datetime.date.fromisoformat(to_date) if to_date else None,
+            due_date=datetime.date.fromisoformat(due_date) if due_date else None,
+        )
         invoice = invoice_crud.update(db, data, invoice)
+    except ValidationError as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{format_validation_error(e)}</p>')
     except ValueError as e:
         return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
 
@@ -414,7 +458,8 @@ def authorize_invoice(
         invoice_service.authorize_invoice(db, invoice)
     except InvoiceAuthorizationError as e:
         return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
-    except WsfeError as e:
+    except ArcaError as e:
+        logger.exception("Invoice ID: %s", invoice.id)
         return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
 
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
@@ -450,19 +495,17 @@ def create_invoice_tribute(
     base_amount: str = Form(...),
     rate: str = Form(...),
 ):
-
-    data = InvoiceTributeCreate(
-        invoice_id=invoice.id,
-        tribute_type=TributeType[tribute_type],
-        description=description,
-        base_amount=Decimal(base_amount),
-        rate=Decimal(rate),
-    )
-
     try:
+        data = InvoiceTributeCreate(
+            invoice_id=invoice.id,
+            tribute_type=TributeType[tribute_type],
+            description=description,
+            base_amount=Decimal(base_amount),
+            rate=Decimal(rate),
+        )
         invoice_tribute_crud.create(db, data)
     except ValidationError as e:
-        return toast_error(str(e))
+        return toast_error(format_validation_error(e))
 
     return templates.TemplateResponse(
         request=request,
@@ -492,24 +535,6 @@ def delete_invoice_tribute(
 @router.get("/{invoice_id}/tributes/close-form", response_class=HTMLResponse)
 def close_tribute_form(invoice_id: UUID):
     return HTMLResponse("")
-
-
-@router.get("/{invoice_id}/edit")
-def edit_invoice_form(
-    request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)
-):
-    return templates.TemplateResponse(
-        request=request,
-        name="invoices/edit_form.html",
-        context={
-            "invoice": invoice,
-            "invoice_type": InvoiceType,
-            "entities": entity_crud.get_all(db),
-            "contacts": contact_crud.get_all(db),
-            "categories": category_crud.get_all(db),
-            "voucher_type": VoucherType,
-        },
-    )
 
 
 @router.post("/parse-pdf")

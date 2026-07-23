@@ -11,8 +11,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
     database_url: str
     database_test_url: str | None = None
-    private_key_path: Path | None = None
-    cert_path: Path | None = None
+    homo_private_key_path: Path | None = None
+    prod_private_key_path: Path | None = None
+    homo_cert_path: Path | None = None
+    prod_cert_path: Path | None = None
     SECRET_KEY: str
     afip_env: Literal["homo", "prod"]
 
@@ -24,6 +26,20 @@ class Settings(BaseSettings):
         elif value.startswith("postgres://"):
             value = value.replace("postgres://", "postgresql+psycopg://", 1)
         return value
+
+    @property
+    def private_key_path(self):
+        if self.afip_env == "homo":
+            return self.homo_private_key_path
+        else:
+            return self.prod_private_key_path
+
+    @property
+    def cert_path(self):
+        if self.afip_env == "homo":
+            return self.homo_cert_path
+        else:
+            return self.prod_cert_path
 
 
 settings = Settings()  # type: ignore

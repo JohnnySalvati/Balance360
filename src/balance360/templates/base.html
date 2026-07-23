@@ -53,6 +53,19 @@
             showToast(e.detail.message, e.detail.type || "error");
         });
 
+        // Red de seguridad: htmx solo hace swap con respuestas 2xx, así que sin esto
+        // un 500 no toca el DOM y el usuario no ve absolutamente nada.
+        document.body.addEventListener("htmx:responseError", (e) => {
+            showToast(
+                `Ocurrió un error inesperado (${e.detail.xhr.status}). Revisá el log del servidor.`,
+                "error"
+            );
+        });
+
+        document.body.addEventListener("htmx:sendError", () => {
+            showToast("No se pudo contactar al servidor. Verificá la conexión.", "error");
+        });
+
         // Caso 3: regla existente con ECC diferente — confirmar antes de modificarla
         document.body.addEventListener("showRuleConflict", (e) => {
             const btn = document.querySelector(`#${e.detail.row_id} [id^="create-rule-btn"]`);

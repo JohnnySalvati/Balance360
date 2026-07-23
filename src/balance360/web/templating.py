@@ -18,3 +18,4 @@ templates.env.filters["cuit"] = format_cuit
 
 templates.env.globals["current_year"] = lambda: date.today().year
 templates.env.globals["current_month"] = lambda: date.today().month
+templates.env.globals["today"] = lambda: date.today().isoformat()

@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from zeep import Client
+from requests.exceptions import RequestException
+from zeep.exceptions import Fault
 
 from balance360.database import settings
 from balance360.dtos.invoice_request import InvoiceRequest
-from balance360.enums import VoucherType
-from balance360.exceptions import WsfeError
+from balance360.enums import Concepto, VoucherType
+from balance360.exceptions import ArcaError, WsfeError
+from balance360.services.arca import build_client
 
 WSDL_URL = {
     "homo": "https://wswhomo.afip.gov.ar/wsfev1/service.asmx?WSDL",
@@ -30,23 +32,30 @@ voucher_type_code = {
     VoucherType.NCC: 53,
 }
 
+concepto_code = {Concepto.products: 1, Concepto.services: 2, Concepto.both: 3}
+
 
 def get_last_voucher_number(
     cuit: str, pos: int, voucher_type: VoucherType, token: str, sign: str
 ) -> int:
-    client = Client(WSDL_URL[settings.afip_env])
 
-    response = client.service.FECompUltimoAutorizado(
-        Auth={"Token": token, "Sign": sign, "Cuit": cuit},
-        PtoVta=pos,
-        CbteTipo=voucher_type_code[voucher_type],
-    )
+    try:
+        client = build_client(WSDL_URL[settings.afip_env])
+
+        response = client.service.FECompUltimoAutorizado(
+            Auth={"Token": token, "Sign": sign, "Cuit": cuit},
+            PtoVta=pos,
+            CbteTipo=voucher_type_code[voucher_type],
+        )
+    except Fault as e:
+        raise WsfeError(f"ARCA: {e}") from e
+    except RequestException as e:
+        raise ArcaError("No se puede conectar con ARCA, reintenta en unos minutos") from e
 
     return response.CbteNro or 0
 
 
 def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
-    client = Client(WSDL_URL[settings.afip_env])
 
     last_voucher = get_last_voucher_number(
         cuit=invoice_request.auth.cuit,
@@ -61,7 +70,7 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
     imp_trib = sum(line.amount for line in invoice_request.voucher_data.tributes)
 
     FECAEDetRequest = {
-        "Concepto": 1,
+        "Concepto": concepto_code[invoice_request.voucher_data.concepto],
         "CondicionIVAReceptorId": invoice_request.voucher_data.receiver_condicion_iva.value,
         "DocTipo": invoice_request.voucher_data.receiver_doc_type.value,
         "DocNro": int(invoice_request.voucher_data.receiver_doc_number),
@@ -102,21 +111,43 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
             ]
         }
 
-    response = client.service.FECAESolicitar(
-        Auth={
-            "Token": invoice_request.auth.token,
-            "Sign": invoice_request.auth.sign,
-            "Cuit": invoice_request.auth.cuit,
-        },
-        FeCAEReq={
-            "FeCabReq": {
-                "CantReg": 1,
-                "PtoVta": invoice_request.voucher_info.pos,
-                "CbteTipo": voucher_type_code[invoice_request.voucher_info.voucher_type],
+    if invoice_request.voucher_data.concepto is not Concepto.products:
+        if (
+            invoice_request.voucher_data.from_date
+            and invoice_request.voucher_data.to_date
+            and invoice_request.voucher_data.due_date
+        ):
+            FECAEDetRequest["FchServDesde"] = invoice_request.voucher_data.from_date.strftime(
+                "%Y%m%d"
+            )
+            FECAEDetRequest["FchServHasta"] = invoice_request.voucher_data.to_date.strftime(
+                "%Y%m%d"
+            )
+            FECAEDetRequest["FchVtoPago"] = invoice_request.voucher_data.due_date.strftime("%Y%m%d")
+
+    try:
+        client = build_client(WSDL_URL[settings.afip_env])
+
+        response = client.service.FECAESolicitar(
+            Auth={
+                "Token": invoice_request.auth.token,
+                "Sign": invoice_request.auth.sign,
+                "Cuit": invoice_request.auth.cuit,
             },
-            "FeDetReq": {"FECAEDetRequest": [FECAEDetRequest]},
-        },
-    )
+            FeCAEReq={
+                "FeCabReq": {
+                    "CantReg": 1,
+                    "PtoVta": invoice_request.voucher_info.pos,
+                    "CbteTipo": voucher_type_code[invoice_request.voucher_info.voucher_type],
+                },
+                "FeDetReq": {"FECAEDetRequest": [FECAEDetRequest]},
+            },
+        )
+    except Fault as e:
+        raise WsfeError(f"ARCA: {e}") from e
+    except RequestException as e:
+        raise ArcaError("No se puede conectar con ARCA, reintenta en unos minutos") from e
+
     if response.Errors:
         raise WsfeError(
             " --- ".join([f"{error.Code}: {error.Msg}" for error in response.Errors.Err])

@@ -4,7 +4,7 @@ from decimal import Decimal
 from pydantic import BaseModel
 
 from balance360.dtos.auth import Auth
-from balance360.enums import CondicionIva, DocType, VoucherType
+from balance360.enums import Concepto, CondicionIva, DocType, VoucherType
 
 
 class IvaDetail(BaseModel):
@@ -29,6 +29,10 @@ class VoucherData(BaseModel):
     iva_detail: list[IvaDetail]
     tributes: list[Tribute]
     total: Decimal
+    concepto: Concepto
+    from_date: datetime.date | None
+    to_date: datetime.date | None
+    due_date: datetime.date | None
 
 
 class VoucherInfo(BaseModel):

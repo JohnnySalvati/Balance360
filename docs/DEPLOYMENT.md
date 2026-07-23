@@ -17,6 +17,12 @@ Producción corre en la **VM** (Ubuntu 24.04) detrás de **srv-nginx** (.9), que
    ```
 3. Commit + push a GitHub (rama `fastapi`).
 
+git status                      # ver qué cambió
+git add -A                      # o archivos puntuales: git add src/balance360/...
+git commit -m "descripcion del cambio"
+git push
+
+
 ### En la VM
 
 ```bash

@@ -8,7 +8,7 @@ archivos = [
 ]
 
 for nombre in archivos:
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"ARCHIVO: {nombre}")
     wb = openpyxl.load_workbook(nombre, read_only=True, data_only=True)
     for sheet in wb.sheetnames:

@@ -3,7 +3,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from balance360.enums import InvoiceType, VoucherType
+from balance360.enums import Concepto, InvoiceType, VoucherType
 
 
 class InvoiceCreate(BaseModel):
@@ -22,6 +22,10 @@ class InvoiceCreate(BaseModel):
     authorized: bool = False
     cae: str | None = None
     cae_expiry: datetime.date | None = None
+    concepto: Concepto = Concepto.products
+    from_date: datetime.date | None = None
+    to_date: datetime.date | None = None
+    due_date: datetime.date | None = None
 
     @model_validator(mode="after")
     def check_number(self):
@@ -32,6 +36,17 @@ class InvoiceCreate(BaseModel):
             if self.invoice_type == InvoiceType.purchase and not self.number:
                 raise ValueError("Se necesita numero de comprobante")
 
+        return self
+
+    @model_validator(mode="after")
+    def check_dates(self):
+        if self.concepto is not Concepto.products:
+            if not (self.from_date and self.to_date and self.due_date):
+                raise ValueError("Fecha desde, hasta y vencimiento son obligatorias")
+            if self.from_date > self.to_date:
+                raise ValueError("La fecha desde no puede ser mayor que la fecha hasta")
+            if self.due_date < self.to_date:
+                raise ValueError("La fecha de vencimiento debe ser mayor o igual a la fecha hasta")
         return self
 
 
@@ -51,6 +66,10 @@ class InvoiceUpdate(BaseModel):
     authorized: bool | None = None
     cae: str | None = None
     cae_expiry: datetime.date | None = None
+    concepto: Concepto | None = None
+    from_date: datetime.date | None = None
+    to_date: datetime.date | None = None
+    due_date: datetime.date | None = None
 
 
 class InvoiceRead(BaseModel):

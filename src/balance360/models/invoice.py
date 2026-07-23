@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, Date, Enum, ForeignKey, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from balance360.enums import InvoiceType, IvaAliquot, VoucherType
+from balance360.enums import Concepto, InvoiceType, IvaAliquot, VoucherType
 from balance360.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
@@ -39,6 +39,13 @@ class Invoice(Base, TimestampMixin):
     authorized: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     cae: Mapped[str | None] = mapped_column(String(14))
     cae_expiry: Mapped[datetime.date | None] = mapped_column(Date)
+    concepto: Mapped[Concepto] = mapped_column(
+        Enum(Concepto), default=Concepto.products, server_default=Concepto.products.name
+    )
+    from_date: Mapped[datetime.date | None] = mapped_column(Date)
+    to_date: Mapped[datetime.date | None] = mapped_column(Date)
+    due_date: Mapped[datetime.date | None] = mapped_column(Date)
+
     entity: Mapped["Entity"] = relationship(back_populates="invoices", order_by="Entity.name")
     contact: Mapped["Contact"] = relationship(back_populates="invoices", order_by="Contact.name")
     category: Mapped["Category|None"] = relationship(

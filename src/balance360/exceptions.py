@@ -40,5 +40,13 @@ class ImportServiceError(Exception):
     pass
 
 
-class WsfeError(Exception):
+class ArcaError(Exception):
+    pass
+
+
+class WsfeError(ArcaError):
+    pass
+
+
+class WsaaError(ArcaError):
     pass

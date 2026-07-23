@@ -93,3 +93,9 @@ class ImportRowStatus(enum.Enum):
     needs_review = "needs_review"
     imported = "imported"
     discarded = "discarded"
+
+
+class Concepto(enum.Enum):
+    products = "products"
+    services = "services"
+    both = "both"
