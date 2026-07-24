@@ -1,0 +1,24 @@
+{% for fi in fiscal_identities %}
+<tr id="fi-row-{{ fi.id }}" class="hover:bg-gray-50">
+    <td class="px-4 py-3 font-medium text-gray-800">{{ fi.name }}</td>
+    <td class="px-4 py-3 text-gray-600 font-mono">{{ fi.tax_id | cuit }}</td>
+    <td class="px-4 py-3 text-gray-600">{{ fi.condicion_iva.name | replace('_', ' ') | title }}</td>
+    <td class="px-4 py-3 text-right text-gray-600">{{ fi.iibb_rate }}%</td>
+    <td class="px-4 py-3 text-right">
+        <div class="flex justify-end gap-3">
+            <button hx-get="/config/entities/{{ entity.id }}/fiscal_identities/{{ fi.id }}/edit-form"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
+            <button hx-delete="/config/entities/{{ entity.id }}/fiscal_identities/{{ fi.id }}"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
+                    hx-target="#fi-row-{{ fi.id }}"
+                    hx-swap="outerHTML"
+                    class="text-red-400 hover:text-red-600 text-xs">✕</button>
+        </div>
+    </td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">Sin identidades fiscales.</td></tr>
+{% endfor %}

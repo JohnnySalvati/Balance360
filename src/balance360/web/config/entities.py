@@ -57,26 +57,13 @@ def new_entity_form(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/", response_class=HTMLResponse)
 def create_entity(
-    request: Request,
     db: Session = Depends(get_db),
     name: str = Form(...),
-    tax_id: str = Form(default=""),
-    condicion_iva: str = Form(...),
-    iibb_rate: str = Form(...),
-    address: str | None = Form(default=""),
-    iibb: str | None = Form(default=""),
-    start_date: str | None = Form(default=""),
 ):
     entity_crud.create(
         db,
         EntityCreate(
             name=name,
-            tax_id=tax_id or None,
-            condicion_iva=CondicionIva[condicion_iva],
-            iibb_rate=Decimal(iibb_rate),
-            address=address or None,
-            iibb=iibb or None,
-            start_date=date.fromisoformat(start_date) if start_date else None,
         ),
     )
     response = HTMLResponse('<div id="modal"></div>')
@@ -108,24 +95,12 @@ def update_entity(
     entity: Entity = Depends(get_entity_or_404),
     db: Session = Depends(get_db),
     name: str = Form(...),
-    tax_id: str = Form(default=""),
-    condicion_iva: str = Form(...),
-    iibb_rate: Decimal = Form(...),
-    address: str | None = Form(default=""),
-    iibb: str | None = Form(default=""),
-    start_date: str | None = Form(default=""),
 ):
     entity_crud.update(
         db,
         entity,
         EntityUpdate(
             name=name,
-            tax_id=tax_id or None,
-            condicion_iva=CondicionIva[condicion_iva],
-            iibb_rate=iibb_rate,
-            address=address or None,
-            iibb=iibb or None,
-            start_date=date.fromisoformat(start_date) if start_date else None,
         ),
     )
     response = HTMLResponse('<div id="modal"></div>')

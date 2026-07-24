@@ -30,6 +30,12 @@
         {% elif invoice.confirmed %}
             <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pendiente de pago</span>
         {% endif %}
+        {% if invoice.authorized %}
+        <a href="/invoices/{{ invoice.id }}/pdf" target="_blank"
+           class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+            Imprimir / PDF
+        </a>
+        {% endif %}
         <a href="/invoices/?invoice_type={{ invoice.invoice_type.value }}" class="text-sm text-blue-600 hover:underline">← Volver</a>
     </div>
 </div>

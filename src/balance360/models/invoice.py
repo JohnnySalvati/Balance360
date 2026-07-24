@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from balance360.models.invoice_line import InvoiceLine
     from balance360.models.invoice_tribute import InvoiceTribute
     from balance360.models.transaction import Transaction
+    from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.models.money import money
 
 
@@ -45,6 +46,7 @@ class Invoice(Base, TimestampMixin):
     from_date: Mapped[datetime.date | None] = mapped_column(Date)
     to_date: Mapped[datetime.date | None] = mapped_column(Date)
     due_date: Mapped[datetime.date | None] = mapped_column(Date)
+    fiscal_identity_id: Mapped[uuid.UUID|None] = mapped_column(ForeignKey("fiscal_identities.id"))
 
     entity: Mapped["Entity"] = relationship(back_populates="invoices", order_by="Entity.name")
     contact: Mapped["Contact"] = relationship(back_populates="invoices", order_by="Contact.name")
@@ -62,6 +64,9 @@ class Invoice(Base, TimestampMixin):
     )
     attachments: Mapped[list["Attachment"]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan"
+    )
+    fiscal_identity: Mapped["FiscalIdentity|None"] = relationship(
+        back_populates="invoices"
     )
 
     @dataclass

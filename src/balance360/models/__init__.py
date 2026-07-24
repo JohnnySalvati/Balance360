@@ -7,6 +7,7 @@ from balance360.models.currency import Currency
 from balance360.models.entity import Entity
 from balance360.models.entity_membership import EntityMembership
 from balance360.models.exchange_rate import ExchangeRate
+from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.models.import_batch import ImportBatch
 from balance360.models.import_row import ImportRow
 from balance360.models.import_rule import ImportRule

@@ -15,6 +15,7 @@ from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.transaction import Transaction
+from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.services.exchange_rate import conversion_factor
 
 
@@ -513,11 +514,10 @@ def get_iibb_on_sales(
         select(
             Entity.id.label("entity_id"),
             Entity.name.label("entity_name"),
-            Entity.iibb_rate.label("iibb_rate"),
             func.sum(
                 InvoiceLine.quantity
                 * InvoiceLine.unit_price
-                * Entity.iibb_rate
+                * FiscalIdentity.iibb_rate
                 / 100
                 * nc_case
                 * conversion_factor(
@@ -535,6 +535,7 @@ def get_iibb_on_sales(
         .where(Invoice.invoice_type == InvoiceType.sale)
         .join_from(Entity, Invoice)
         .join_from(Invoice, InvoiceLine)
+        .join_from(Invoice, FiscalIdentity)
         .group_by(Entity.id)
         .order_by(Entity.name)
     )
@@ -545,7 +546,6 @@ def get_iibb_on_sales(
         {
             "entity_id": row.entity_id,
             "entity_name": row.entity_name,
-            "iibb_rate": row.iibb_rate,
             "entity_total": row.entity_total,
         }
         for row in rows

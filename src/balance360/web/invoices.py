@@ -833,7 +833,7 @@ def update_lines(
 def download_pdf(
     invoice: Invoice = Depends(get_invoice_or_404),
 ):
-    if not invoice.cae:
+    if not invoice.authorized:
         raise HTTPException(status_code=404, detail="Comprobante no autorizado")
 
     qr = build_qr(invoice)

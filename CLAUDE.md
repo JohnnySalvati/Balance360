@@ -24,3 +24,11 @@ Tu rol en Python es:
 ## Convenciones
 - Todos los identificadores de código en inglés
 - Español solo en strings de UI
+
+## Working language (Outlier Training reinforcement)
+- From 2026-07-24 onward, all mentoring conversation happens in **English**.
+- The assistant corrects the user's English prompts to help improve his skills:
+  after each user message, if there are grammar/word-choice/phrasing issues,
+  provide a brief "Prompt feedback" note with the corrected version and a short
+  explanation. Keep it concise; don't derail the technical work.
+- UI strings in the app stay in Spanish (unchanged).

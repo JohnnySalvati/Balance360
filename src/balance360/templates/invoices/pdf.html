@@ -101,14 +101,15 @@
 
     <div class="head-wrap">
       <div class="head">
+        {% set fi = invoice.fiscal_identity %}
         <div class="head-cell left">
           {% if logo %}<img src="{{ logo }}" alt="" style="max-height:1.6cm;max-width:6cm;margin-bottom:4px;">{% endif %}
           <div class="fantasia">{{ invoice.entity.name }}</div>
           <div class="emisor-fields">
-            <div class="field"><b>Razón Social:</b> {{ invoice.entity.name }}</div>
-            <div class="field"><b>Domicilio Comercial:</b> {{ invoice.entity.address or "" }}</div>
+            <div class="field"><b>Razón Social:</b> {{ fi.name }}</div>
+            <div class="field"><b>Domicilio Comercial:</b> {{ fi.address or "" }}</div>
             <div class="field"><b>Condición frente al IVA:</b>
-                {{ iva_cond.get(invoice.entity.condicion_iva.name, invoice.entity.condicion_iva.name) }}</div>
+                {{ iva_cond.get(fi.condicion_iva.name, fi.condicion_iva.name) }}</div>
           </div>
         </div>
         <div class="head-cell right">
@@ -117,10 +118,10 @@
               &nbsp;&nbsp;&nbsp; <b>Comp. Nro:</b> {{ "%08d"|format(invoice.number) }}</div>
           <div class="field"><b>Fecha de Emisión:</b> {{ invoice.date.strftime("%d/%m/%Y") }}</div>
           <div class="gap"></div>
-          <div class="field"><b>CUIT:</b> {{ invoice.entity.tax_id | cuit }}</div>
-          <div class="field"><b>Ingresos Brutos:</b> {{ invoice.entity.iibb or "" }}</div>
+          <div class="field"><b>CUIT:</b> {{ fi.tax_id | cuit }}</div>
+          <div class="field"><b>Ingresos Brutos:</b> {{ fi.iibb or "" }}</div>
           <div class="field"><b>Fecha de Inicio de Actividades:</b>
-              {{ invoice.entity.start_date.strftime("%d/%m/%Y") if invoice.entity.start_date else "" }}</div>
+              {{ fi.start_date.strftime("%d/%m/%Y") if fi.start_date else "" }}</div>
         </div>
       </div>
       <div class="letterbox">
@@ -169,11 +170,14 @@
         </thead>
         <tbody>
           {% for line in invoice.invoice_lines %}
+          {# En la A los precios van netos (IVA discriminado aparte); en la B/C van con IVA incluido. #}
+          {% set disp_unit = line.unit_price if discriminate else line.unit_price * (1 + line.iva_rate / 100) %}
+          {% set disp_sub = line.net_amount if discriminate else line.net_amount * (1 + line.iva_rate / 100) %}
           <tr>
             <td>{{ line.description or (line.product.name if line.product else "—") }}</td>
             <td class="num">{{ line.quantity }}</td>
-            <td class="num">{{ line.unit_price | currency }}</td>
-            <td class="num">{{ line.net_amount | currency }}</td>
+            <td class="num">{{ disp_unit | currency }}</td>
+            <td class="num">{{ disp_sub | currency }}</td>
             {% if discriminate %}
             <td class="num">{{ line.iva_rate }}%</td>
             <td class="num">{{ (line.net_amount * (1 + line.iva_rate / 100)) | currency }}</td>
@@ -197,7 +201,8 @@
               <div><span class="lbl">IVA {{ item.aliquot.rate }}%:</span><span class="val">{{ item.iva_amount | currency }}</span></div>
             {% endfor %}
           {% else %}
-            <div><span class="lbl">Subtotal:</span><span class="val">{{ invoice.net_total | currency }}</span></div>
+            {# B/C: no se discrimina IVA; el subtotal es con IVA (total menos tributos). #}
+            <div><span class="lbl">Subtotal:</span><span class="val">{{ (invoice.total - trib_total) | currency }}</span></div>
           {% endif %}
           {% if trib_total %}
           <div><span class="lbl">Importe Otros Tributos:</span><span class="val">{{ trib_total | currency }}</span></div>

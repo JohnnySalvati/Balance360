@@ -38,7 +38,6 @@
             <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
                 <tr>
                     <th class="px-4 py-3">Entidad</th>
-                    <th class="px-4 py-3 text-right">Alícuota</th>
                     <th class="px-4 py-3 text-right">IIBB a pagar</th>
                 </tr>
             </thead>
@@ -46,17 +45,16 @@
                 {% for r in iibb_by_entity.by_entity %}
                 <tr class="hover:bg-gray-50">
                     <td class="px-4 py-3 text-gray-700">{{ r.entity_name }}</td>
-                    <td class="px-4 py-3 text-right text-gray-500">{{ r.iibb_rate }}%</td>
                     <td class="px-4 py-3 text-right font-mono">{{ r.entity_total | currency }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400">Sin ventas en el período.</td></tr>
+                <tr><td colspan="2" class="px-4 py-6 text-center text-gray-400">Sin ventas en el período.</td></tr>
                 {% endfor %}
             </tbody>
             {% if iibb_by_entity.by_entity %}
             <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-semibold">
                 <tr>
-                    <td class="px-4 py-3 uppercase text-xs text-gray-600" colspan="2">Total a pagar</td>
+                    <td class="px-4 py-3 uppercase text-xs text-gray-600">Total a pagar</td>
                     <td class="px-4 py-3 text-right font-mono">{{ iibb_by_entity.total | currency }}</td>
                 </tr>
             </tfoot>

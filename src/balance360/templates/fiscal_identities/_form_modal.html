@@ -1,0 +1,91 @@
+{% set is_edit = fiscal_identity is defined and fiscal_identity %}
+{% set base_url = "/config/entities/" ~ entity.id ~ "/fiscal_identities" %}
+{% set action_url = base_url ~ "/" ~ fiscal_identity.id if is_edit else base_url %}
+{% set title = "Editar identidad fiscal" if is_edit else "Nueva identidad fiscal" %}
+
+<div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">{{ title }}</h2>
+            <button hx-get="/config/entities/close-modal"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+        </div>
+
+        <form {% if is_edit %}hx-patch="{{ action_url }}"{% else %}hx-post="{{ action_url }}"{% endif %}
+              hx-target="#modal"
+              hx-swap="outerHTML"
+              class="flex flex-col gap-3">
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Razón Social</label>
+                <input type="text" name="name" required maxlength="150"
+                       value="{{ fiscal_identity.name if is_edit else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">CUIT</label>
+                <input type="text" name="tax_id" required inputmode="numeric" pattern="\d{11}"
+                       maxlength="11" placeholder="11 dígitos, sin guiones"
+                       value="{{ fiscal_identity.tax_id if is_edit else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Condición IVA</label>
+                <select name="condicion_iva" required class="border rounded px-3 py-2 text-sm">
+                    {% for c in condicion_iva %}
+                    <option value="{{ c.name }}"
+                            {% if is_edit and fiscal_identity.condicion_iva == c %}selected{% endif %}>
+                        {{ c.name | replace('_', ' ') | title }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Alícuota IIBB (%)</label>
+                <input type="number" name="iibb_rate" required step="0.01" min="0"
+                       value="{{ fiscal_identity.iibb_rate if is_edit else '0' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Domicilio comercial</label>
+                <input type="text" name="address" required maxlength="200"
+                       value="{{ fiscal_identity.address if is_edit else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Ingresos Brutos</label>
+                <input type="text" name="iibb" required maxlength="50"
+                       value="{{ fiscal_identity.iibb if is_edit else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Inicio de actividades</label>
+                <input type="date" name="start_date" required
+                       value="{{ fiscal_identity.start_date.isoformat() if is_edit else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex justify-end gap-2 mt-2">
+                <button type="button"
+                        hx-get="/config/entities/close-modal"
+                        hx-target="#modal"
+                        hx-swap="outerHTML"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -96,11 +96,12 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
     token = ticket["token"]
     sign = ticket["sign"]
 
-    assert invoice.entity.tax_id
+    assert invoice.fiscal_identity
+    assert invoice.fiscal_identity.tax_id
     assert invoice.pos
     assert invoice.voucher_type
 
-    auth = Auth(cuit=invoice.entity.tax_id, token=token, sign=sign)
+    auth = Auth(cuit=invoice.fiscal_identity.tax_id, token=token, sign=sign)
 
     voucher_info = VoucherInfo(pos=invoice.pos, voucher_type=invoice.voucher_type)
 
@@ -155,8 +156,11 @@ def authorize_invoice(db: Session, invoice: Invoice):
 
 
 def validate_authorization(invoice: Invoice):
-    if not invoice.entity.tax_id:
-        raise InvoiceAuthorizationError("La entidad no posee CUIT")
+    if not invoice.fiscal_identity:
+        raise InvoiceAuthorizationError("El comprobante no tiene una identidad fiscal emisora asignada")
+
+    if not invoice.fiscal_identity.tax_id:
+        raise InvoiceAuthorizationError("La identidad fiscal no posee CUIT")
 
     if not invoice.pos or not invoice.voucher_type:
         raise InvoiceAuthorizationError("El tipo y punto de venta del comprobante son obligatorios")
