@@ -1,15 +1,12 @@
 import uuid
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
-
-from balance360.enums import CondicionIva
-from balance360.services.text import digits_only
+from pydantic import BaseModel, ConfigDict
 
 
 class EntityCreate(BaseModel):
     name: str
+
 
 class EntityRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -22,6 +19,7 @@ class EntityRead(BaseModel):
 
 class EntityUpdate(BaseModel):
     name: str | None = None
+
 
 class EntityShort(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -11,7 +11,7 @@
 {% set iva_cond = {"INSCRIPTO": "IVA Responsable Inscripto", "MONOTRIBUTO": "Responsable Monotributo",
                    "EXENTO": "IVA Sujeto Exento", "FINAL": "Consumidor Final"} %}
 {% set letter = letters.get(vt, vt) %}
-{% set discriminate = letter == "A" %}
+{% set discriminate = invoice.discriminates_iva %}
 <!DOCTYPE html>
 <html lang="es">
 <head>

@@ -1,17 +1,19 @@
 from __future__ import annotations
+
 import uuid
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from sqlalchemy import Date, Enum, ForeignKey, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Uuid, ForeignKey, String, Enum, Date, Numeric
 
 if TYPE_CHECKING:
     from balance360.models.entity import Entity
     from balance360.models.invoice import Invoice
 from balance360.enums import CondicionIva
 from balance360.models.base import Base, TimestampMixin
+
 
 class FiscalIdentity(Base, TimestampMixin):
     __tablename__ = "fiscal_identities"

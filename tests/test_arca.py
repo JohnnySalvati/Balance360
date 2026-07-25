@@ -51,14 +51,6 @@ def test_contact_create():
     assert contact.tax_id is None
 
 
-def test_entity_create():
-    entity = EntityCreate(name="test", tax_id="30-50321810-7", condicion_iva=CondicionIva.INSCRIPTO)
-    assert entity.tax_id == "30503218107"
-
-    entity = EntityCreate(name="test", tax_id=None, condicion_iva=CondicionIva.INSCRIPTO)
-    assert entity.tax_id is None
-
-
 def test_ticket_env_isolation(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
 

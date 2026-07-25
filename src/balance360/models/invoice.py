@@ -15,10 +15,10 @@ if TYPE_CHECKING:
     from balance360.models.category import Category
     from balance360.models.contact import Contact
     from balance360.models.entity import Entity
+    from balance360.models.fiscal_identity import FiscalIdentity
     from balance360.models.invoice_line import InvoiceLine
     from balance360.models.invoice_tribute import InvoiceTribute
     from balance360.models.transaction import Transaction
-    from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.models.money import money
 
 
@@ -46,7 +46,7 @@ class Invoice(Base, TimestampMixin):
     from_date: Mapped[datetime.date | None] = mapped_column(Date)
     to_date: Mapped[datetime.date | None] = mapped_column(Date)
     due_date: Mapped[datetime.date | None] = mapped_column(Date)
-    fiscal_identity_id: Mapped[uuid.UUID|None] = mapped_column(ForeignKey("fiscal_identities.id"))
+    fiscal_identity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("fiscal_identities.id"))
 
     entity: Mapped["Entity"] = relationship(back_populates="invoices", order_by="Entity.name")
     contact: Mapped["Contact"] = relationship(back_populates="invoices", order_by="Contact.name")
@@ -65,9 +65,7 @@ class Invoice(Base, TimestampMixin):
     attachments: Mapped[list["Attachment"]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan"
     )
-    fiscal_identity: Mapped["FiscalIdentity|None"] = relationship(
-        back_populates="invoices"
-    )
+    fiscal_identity: Mapped["FiscalIdentity|None"] = relationship(back_populates="invoices")
 
     @dataclass
     class IvaBreakdown:
@@ -77,16 +75,23 @@ class Invoice(Base, TimestampMixin):
 
     @property
     def iva_breakdown(self) -> list[IvaBreakdown]:
-        iva_aliquots = {}
+        results = {}
         for line in self.invoice_lines:
-            current = iva_aliquots.get(line.iva_aliquot, (Decimal(0), Decimal(0)))
-            iva_aliquots[line.iva_aliquot] = (
-                current[0] + money(line.iva_rate * line.net_amount / 100),
-                current[1] + money(line.net_amount),
-            )
+            net_amount, iva_amount = results.get(line.iva_aliquot, (Decimal(0), Decimal(0)))
+            if self.discriminates_iva:
+                results[line.iva_aliquot] = (
+                    net_amount + money(line.net_amount),
+                    iva_amount + money(line.iva_rate * line.net_amount / 100),
+                )
+            else:
+                derived_net = money(line.gross_amount / (1 + line.iva_rate / 100))
+                results[line.iva_aliquot] = (
+                    net_amount + derived_net,
+                    iva_amount + money(line.gross_amount - derived_net),
+                )
         return [
-            self.IvaBreakdown(aliquot=key, iva_amount=value[0], net_amount=value[1])
-            for key, value in iva_aliquots.items()
+            self.IvaBreakdown(aliquot=key, net_amount=value[0], iva_amount=value[1])
+            for key, value in results.items()
         ]
 
     @property
@@ -100,3 +105,7 @@ class Invoice(Base, TimestampMixin):
     @property
     def net_total(self) -> Decimal:
         return sum((iva_item.net_amount for iva_item in self.iva_breakdown), Decimal(0))
+
+    @property
+    def discriminates_iva(self) -> bool:
+        return self.voucher_type in (VoucherType.A, VoucherType.NCA)

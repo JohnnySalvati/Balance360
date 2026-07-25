@@ -1,11 +1,11 @@
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
 
-from balance360.services.text import format_cuit
 from balance360.models.money import money
+from balance360.services.text import format_cuit
 
 templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
 

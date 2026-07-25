@@ -17,7 +17,11 @@ def get_by_id(db: Session, fiscal_identity_id: uuid.UUID) -> FiscalIdentity | No
 
 
 def get_for_entity(db: Session, entity_id: uuid.UUID) -> list[FiscalIdentity]:
-    fiscal_identities = db.execute(select(FiscalIdentity).where(FiscalIdentity.entity_id == entity_id)).scalars().all()
+    fiscal_identities = (
+        db.execute(select(FiscalIdentity).where(FiscalIdentity.entity_id == entity_id))
+        .scalars()
+        .all()
+    )
     return list(fiscal_identities)
 
 

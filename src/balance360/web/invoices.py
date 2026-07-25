@@ -843,7 +843,7 @@ def download_pdf(
     try:
         from weasyprint import HTML
     except (ImportError, OSError):
-        return HTMLResponse(html)   # dev local sin GTK → preview HTML
+        return HTMLResponse(html)  # dev local sin GTK → preview HTML
     return Response(
         content=HTML(string=html).write_pdf(),
         media_type="application/pdf",

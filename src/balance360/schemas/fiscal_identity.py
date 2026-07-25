@@ -14,9 +14,9 @@ class FiscalIdentityCreate(BaseModel):
     tax_id: str
     condicion_iva: CondicionIva
     iibb_rate: Decimal = Decimal(0)
-    address: str 
-    iibb: str 
-    start_date: date 
+    address: str
+    iibb: str
+    start_date: date
 
     @field_validator("tax_id")
     @classmethod
@@ -42,7 +42,7 @@ class FiscalIdentityRead(BaseModel):
 
 
 class FiscalIdentityUpdate(BaseModel):
-    entity_id: uuid.UUID|None = None
+    entity_id: uuid.UUID | None = None
     name: str | None = None
     tax_id: str | None = None
     condicion_iva: CondicionIva | None = None

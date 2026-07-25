@@ -11,11 +11,11 @@ from balance360.models.account import Account
 from balance360.models.category import Category
 from balance360.models.currency import Currency
 from balance360.models.entity import Entity
+from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.transaction import Transaction
-from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.services.exchange_rate import conversion_factor
 
 

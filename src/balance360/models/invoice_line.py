@@ -41,21 +41,17 @@ class InvoiceLine(Base, TimestampMixin):
         foreign_keys="SerialNumber.sale_line_id", back_populates="sale_line", passive_deletes=True
     )
 
-
     @property
     def net_amount(self) -> Decimal:
         return self.quantity * self.unit_price
-
 
     @property
     def gross_unit_price(self) -> Decimal:
         return money(self.unit_price * (1 + self.iva_rate / 100))
 
-
     @property
     def gross_amount(self) -> Decimal:
-        return  self.gross_unit_price * self.quantity
-
+        return self.gross_unit_price * self.quantity
 
     @validates("iva_aliquot")
     def validates_iva_aliquot(self, key, value) -> IvaAliquot:

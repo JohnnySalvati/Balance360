@@ -20,18 +20,27 @@ from balance360.models.contact import Contact
 from balance360.models.currency import Currency
 from balance360.models.entity import Entity
 from balance360.models.exchange_rate import ExchangeRate
+from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.models.import_rule import ImportRule
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.services.import_rule import Classification
 
 
-def make_entity(db: Session, name="Test", condicion_iva=CondicionIva.INSCRIPTO):
-    entity = Entity(id=uuid.uuid4(), name=name, condicion_iva=condicion_iva)
+def make_entity(db: Session, name="Test"):
+    entity = Entity(id=uuid.uuid4(), name=name)
     db.add(entity)
     db.commit()
     db.refresh(entity)
     return entity
+
+
+def make_fiscal_identity(db: Session, entity_id, name="Test", condicion_iva=CondicionIva.INSCRIPTO):
+    fiscal_identity = FiscalIdentity(id=uuid.uuid4(), entity_id=entity_id, name=name, condicion_iva=condicion_iva)
+    db.add(fiscal_identity)
+    db.commit()
+    db.refresh(fiscal_identity)
+    return fiscal_identity
 
 
 def make_contact(
@@ -92,15 +101,18 @@ def make_category(db: Session, name: str = "Compras", parent_id: uuid.UUID | Non
 def make_invoice(
     db: Session,
     invoice_type=InvoiceType.purchase,
+    fiscal_identity=None,
     entity_id=None,
     contact_id=None,
     category_id=None,
     date=None,
 ):
+    entity_id = entity_id or make_entity(db).id
     invoice = Invoice(
         id=uuid.uuid4(),
         invoice_type=invoice_type,
-        entity_id=entity_id or make_entity(db).id,
+        entity_id=entity_id,
+        fiscal_identity=fiscal_identity or make_fiscal_identity(db, entity_id=entity_id),
         contact_id=contact_id or make_contact(db).id,
         category_id=category_id,
         date=date if date else datetime.date.today(),

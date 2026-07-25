@@ -157,7 +157,9 @@ def authorize_invoice(db: Session, invoice: Invoice):
 
 def validate_authorization(invoice: Invoice):
     if not invoice.fiscal_identity:
-        raise InvoiceAuthorizationError("El comprobante no tiene una identidad fiscal emisora asignada")
+        raise InvoiceAuthorizationError(
+            "El comprobante no tiene una identidad fiscal emisora asignada"
+        )
 
     if not invoice.fiscal_identity.tax_id:
         raise InvoiceAuthorizationError("La identidad fiscal no posee CUIT")
