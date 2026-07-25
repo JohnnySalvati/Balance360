@@ -1,8 +1,8 @@
 {# Representación impresa del comprobante (RG 1415), copiando el layout de ARCA.
    Contexto: invoice (autorizado) y qr (data URI). Se renderiza con el env de Jinja
    (usa los filtros currency y cuit).
-   NOTA: para clavar el formato de ARCA, el filtro `currency` debería dar formato
-   argentino ($ 1.420.542,99). Hoy usa formato US ($ 1,420,542.99). #}
+   NOTA: el filtro `currency` da formato argentino ($ 1.420.542,99) y redondea vía
+   money() (ROUND_HALF_UP), unificado con el resto de la app. #}
 {% set vt = invoice.voucher_type.value %}
 {% set letters = {"A": "A", "B": "B", "C": "C", "NCA": "A", "NCB": "B", "NCC": "C"} %}
 {% set codes = {"A": "01", "B": "06", "C": "11", "NCA": "03", "NCB": "08", "NCC": "53"} %}
@@ -134,7 +134,7 @@
     <div class="box">
       <div class="cols">
         <div><div class="field"><b>CUIT:</b> {{ invoice.contact.tax_id | cuit }}</div></div>
-        <div><div class="field"><b>Apellido y Nombre / Razón Social:</b> {{ invoice.contact.name }}</div></div>
+        <div><div class="field"><b>Razón Social:</b> {{ invoice.contact.name }}</div></div>
       </div>
       <div class="cols">
         <div><div class="field"><b>Condición frente al IVA:</b>
@@ -171,8 +171,8 @@
         <tbody>
           {% for line in invoice.invoice_lines %}
           {# En la A los precios van netos (IVA discriminado aparte); en la B/C van con IVA incluido. #}
-          {% set disp_unit = line.unit_price if discriminate else line.unit_price * (1 + line.iva_rate / 100) %}
-          {% set disp_sub = line.net_amount if discriminate else line.net_amount * (1 + line.iva_rate / 100) %}
+          {% set disp_unit = line.unit_price if discriminate else line.gross_unit_price %}
+          {% set disp_sub = line.net_amount if discriminate else line.gross_amount %}
           <tr>
             <td>{{ line.description or (line.product.name if line.product else "—") }}</td>
             <td class="num">{{ line.quantity }}</td>
@@ -180,7 +180,7 @@
             <td class="num">{{ disp_sub | currency }}</td>
             {% if discriminate %}
             <td class="num">{{ line.iva_rate }}%</td>
-            <td class="num">{{ (line.net_amount * (1 + line.iva_rate / 100)) | currency }}</td>
+            <td class="num">{{ line.gross_amount | currency }}</td>
             {% endif %}
           </tr>
           {% endfor %}
