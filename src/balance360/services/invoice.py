@@ -2,6 +2,8 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
+from balance360.crud import invoice as invoice_crud
+from balance360.crud import invoice_line as invoice_line_crud
 from balance360.crud import transaction as transaction_crud
 from balance360.dtos.auth import Auth
 from balance360.dtos.invoice_request import (
@@ -18,17 +20,20 @@ from balance360.enums import (
     InvoiceType,
     SerialStatus,
     TransactionType,
-    VoucherType
+    VoucherType,
 )
 from balance360.exceptions import (
     InvoiceAuthorizationError,
     InvoiceConfirmationError,
+    InvoiceCreditNoteError,
     InvoiceDeleteError,
     InvoicePaymentError,
     InvoiceRequestError,
 )
 from balance360.models.account import Account
 from balance360.models.invoice import Invoice
+from balance360.schemas.invoice import InvoiceCreate
+from balance360.schemas.invoice_line import InvoiceLineCreate
 from balance360.schemas.transaction import TransactionCreate
 from balance360.services.arca import get_access_ticket
 from balance360.services.stock import get_product_stock
@@ -41,15 +46,27 @@ def confirm_invoice(db: Session, invoice: Invoice):
     validate_confirmation(db, invoice)
     invoice.confirmed = True
 
-    for invoice_line in invoice.invoice_lines:
-        if not invoice_line.product or not invoice_line.product.track_serial:
-            continue
-        if invoice.invoice_type == InvoiceType.purchase:
-            for serial in invoice_line.purchased_serials:
-                serial.status = SerialStatus.available
-        else:
-            for serial in invoice_line.sold_serials:
-                serial.status = SerialStatus.sold
+    if invoice.is_nc:
+        assert invoice.related_invoice
+
+        for invoice_line in invoice.related_invoice.invoice_lines:
+            if invoice.invoice_type == InvoiceType.purchase:
+                for serial in invoice_line.purchased_serials:
+                    serial.status = SerialStatus.returned
+            else:
+                for serial in invoice_line.sold_serials:
+                    serial.status = SerialStatus.available
+
+    else:
+        for invoice_line in invoice.invoice_lines:
+            if not invoice_line.product or not invoice_line.product.track_serial:
+                continue
+            if invoice.invoice_type == InvoiceType.purchase:
+                for serial in invoice_line.purchased_serials:
+                    serial.status = SerialStatus.available
+            else:
+                for serial in invoice_line.sold_serials:
+                    serial.status = SerialStatus.sold
 
     db.flush()
 
@@ -131,12 +148,11 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
         for tribute in invoice.invoice_tributes
     ]
 
-    if invoice.voucher_type in (VoucherType.NCA, VoucherType.NCB, VoucherType.NCC):
-
+    if invoice.is_nc:
         valid_vouchers = {
             VoucherType.NCA: VoucherType.A,
             VoucherType.NCB: VoucherType.B,
-            VoucherType.NCC: VoucherType.C
+            VoucherType.NCC: VoucherType.C,
         }
 
         if not invoice.related_invoice:
@@ -154,13 +170,15 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
         assert invoice.related_invoice.fiscal_identity
         assert invoice.related_invoice.fiscal_identity.tax_id
 
-        associated_vouchers = [AssociatedVoucher(
-            tipo=voucher_type_code[invoice.related_invoice.voucher_type],
-            pos=invoice.related_invoice.pos,
-            number=invoice.related_invoice.number,
-            cuit=int(invoice.related_invoice.fiscal_identity.tax_id),
-            date=invoice.related_invoice.date
-        )]
+        associated_vouchers = [
+            AssociatedVoucher(
+                tipo=voucher_type_code[invoice.related_invoice.voucher_type],
+                pos=invoice.related_invoice.pos,
+                number=invoice.related_invoice.number,
+                cuit=int(invoice.related_invoice.fiscal_identity.tax_id),
+                date=invoice.related_invoice.date,
+            )
+        ]
     else:
         associated_vouchers = []
 
@@ -176,9 +194,8 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
         from_date=invoice.from_date,
         to_date=invoice.to_date,
         due_date=invoice.due_date,
-        associated_vouchers=associated_vouchers
+        associated_vouchers=associated_vouchers,
     )
-
 
     invoice_request = InvoiceRequest(
         auth=auth, voucher_info=voucher_info, voucher_data=voucher_data
@@ -244,38 +261,61 @@ def validate_confirmation(db: Session, invoice: Invoice):
     if not invoice.invoice_lines:
         raise InvoiceConfirmationError("El comprobante no tiene items")
 
-    for invoice_line in invoice.invoice_lines:
-        if not invoice_line.product:
-            continue
+    if invoice.is_nc:
+        assert invoice.related_invoice
 
-        if invoice.invoice_type == InvoiceType.sale:
-            if not invoice_line.product.track_serial:
-                stock = get_product_stock(db, invoice_line.product.id, invoice.entity_id)
-                if stock < invoice_line.quantity:
-                    raise InvoiceConfirmationError("Stock insuficiente")
+        if invoice.invoice_type == InvoiceType.purchase:
+            for invoice_line in invoice.related_invoice.invoice_lines:
+                if not invoice_line.product:
+                    continue
+
+                if not invoice_line.product.track_serial:
+                    stock = get_product_stock(db, invoice_line.product.id, invoice.entity_id)
+                    if stock < invoice_line.quantity:
+                        raise InvoiceConfirmationError("Stock insuficiente")
+                else:
+                    for serial in invoice_line.purchased_serials:
+                        if serial.status != SerialStatus.available:
+                            raise InvoiceConfirmationError(f"El serial {serial} no esta disponible")
+    else:
+        for invoice_line in invoice.invoice_lines:
+            if not invoice_line.product:
                 continue
-            if invoice_line.quantity != len(invoice_line.sold_serials):
-                raise InvoiceConfirmationError("Cantidad erronea de seriales")
-            for serial in invoice_line.sold_serials:
-                if serial.product_id != invoice_line.product_id:
-                    raise InvoiceConfirmationError("El serial no corresponde a este producto")
-                if serial.status != SerialStatus.reserved:
-                    raise InvoiceConfirmationError("El serial no esta reservado")
-                if serial.purchase_line.invoice.entity_id != invoice.entity_id:
-                    raise InvoiceConfirmationError("El serial no fue comprado por esta entidad")
-        else:
-            if not invoice_line.product.track_serial:
-                continue
-            if invoice_line.quantity != len(invoice_line.purchased_serials):
-                raise InvoiceConfirmationError("Cantidad erronea de seriales")
-            for serial in invoice_line.purchased_serials:
-                if serial.product_id != invoice_line.product_id:
-                    raise InvoiceConfirmationError("El serial no corresponde a este producto")
-                if serial.status != SerialStatus.pending:
-                    raise InvoiceConfirmationError("El serial no esta pendiente")
+
+            if invoice.invoice_type == InvoiceType.sale:
+                if not invoice_line.product.track_serial:
+                    stock = get_product_stock(db, invoice_line.product.id, invoice.entity_id)
+                    if stock < invoice_line.quantity:
+                        raise InvoiceConfirmationError("Stock insuficiente")
+                else:
+                    if invoice_line.quantity != len(invoice_line.sold_serials):
+                        raise InvoiceConfirmationError("Cantidad erronea de seriales")
+                    for serial in invoice_line.sold_serials:
+                        if serial.product_id != invoice_line.product_id:
+                            raise InvoiceConfirmationError(
+                                "El serial no corresponde a este producto"
+                            )
+                        if serial.status != SerialStatus.reserved:
+                            raise InvoiceConfirmationError("El serial no esta reservado")
+                        if serial.purchase_line.invoice.entity_id != invoice.entity_id:
+                            raise InvoiceConfirmationError(
+                                "El serial no fue comprado por esta entidad"
+                            )
+            else:
+                if not invoice_line.product.track_serial:
+                    continue
+                if invoice_line.quantity != len(invoice_line.purchased_serials):
+                    raise InvoiceConfirmationError("Cantidad erronea de seriales")
+                for serial in invoice_line.purchased_serials:
+                    if serial.product_id != invoice_line.product_id:
+                        raise InvoiceConfirmationError("El serial no corresponde a este producto")
+                    if serial.status != SerialStatus.pending:
+                        raise InvoiceConfirmationError("El serial no esta pendiente")
 
 
 def validate_payment(invoice: Invoice):
+    if invoice.is_nc:
+        raise InvoicePaymentError("No se puede registrar un pago para una NC")
     if not invoice.confirmed:
         raise InvoicePaymentError("El comprobante no esta confirmado")
     if invoice.paid:
@@ -304,3 +344,57 @@ def validate_unconfirmation(invoice: Invoice):
                             f"El serial {serial} ha sido vendido o reservado"
                         )
 
+
+def create_credit_note(db: Session, original: Invoice):
+    if original.invoice_type == InvoiceType.sale:
+        if not original.authorized:
+            raise InvoiceCreditNoteError("El comprobante original no esta autorizado")
+    else:
+        if not original.confirmed:
+            raise InvoiceCreditNoteError("El comprobante original no esta confirmado")
+
+    assert original.voucher_type
+
+    invoice_letter = {
+        VoucherType.A: VoucherType.NCA,
+        VoucherType.B: VoucherType.NCB,
+        VoucherType.C: VoucherType.NCC,
+    }
+
+    data = InvoiceCreate(
+        invoice_type=original.invoice_type,
+        entity_id=original.entity_id,
+        contact_id=original.contact_id,
+        category_id=original.category_id,
+        date=date.today(),
+        formal=original.formal,
+        tax_only=original.tax_only,
+        voucher_type=invoice_letter[original.voucher_type],
+        pos=original.pos,
+        confirmed=False,
+        paid=False,
+        authorized=False,
+        concepto=original.concepto,
+        from_date=original.from_date,
+        to_date=original.to_date,
+        due_date=original.due_date,
+        related_invoice_id=original.id,
+    )
+
+    nc_invoice = invoice_crud.create(db, data)
+
+    nc_invoice.fiscal_identity_id = original.fiscal_identity_id
+
+    for line in original.invoice_lines:
+        data = InvoiceLineCreate(
+            invoice_id=nc_invoice.id,
+            product_id=line.product_id,
+            description=line.description,
+            quantity=line.quantity,
+            unit_price=line.unit_price,
+            iva_aliquot=line.iva_aliquot,
+        )
+
+        invoice_line_crud.create(db, data)
+
+    return nc_invoice

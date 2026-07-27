@@ -40,6 +40,7 @@ class SerialStatus(enum.Enum):
     available = "available"
     reserved = "reserved"
     sold = "sold"
+    returned = "returned"
 
 
 class IvaAliquot(enum.Enum):

@@ -116,3 +116,7 @@ class Invoice(Base, TimestampMixin):
     @property
     def discriminates_iva(self) -> bool:
         return self.voucher_type in (VoucherType.A, VoucherType.NCA)
+
+    @property
+    def is_nc(self) -> bool:
+        return self.voucher_type in (VoucherType.NCA, VoucherType.NCB, VoucherType.NCC)

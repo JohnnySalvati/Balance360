@@ -2,10 +2,10 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
-from sqlalchemy import case, func, select
+from sqlalchemy import and_, case, func, not_, or_, select
 from sqlalchemy.orm import Session
 
-from balance360.enums import InvoiceType
+from balance360.enums import InvoiceType, VoucherType
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.product import Product
@@ -18,6 +18,14 @@ class Stock:
     stock_qty: int
     unit_price: Decimal
     valuation: Decimal
+
+
+is_nc = Invoice.voucher_type.in_((VoucherType.NCA, VoucherType.NCB, VoucherType.NCC))
+
+is_positive = or_(
+    and_(Invoice.invoice_type == InvoiceType.purchase, not_(is_nc)),
+    and_(Invoice.invoice_type == InvoiceType.sale, is_nc),
+)
 
 
 def get_stock_summary(db: Session, entity_id: uuid.UUID | None = None) -> list[Stock]:
@@ -42,7 +50,7 @@ def get_stock_summary(db: Session, entity_id: uuid.UUID | None = None) -> list[S
             Product.name,
             func.sum(
                 case(
-                    (Invoice.invoice_type == InvoiceType.purchase, InvoiceLine.quantity),
+                    (is_positive, InvoiceLine.quantity),
                     else_=-InvoiceLine.quantity,
                 )
             ).label("stock_qty"),
@@ -77,7 +85,7 @@ def get_product_stock(db, product_id, entity_id) -> int:
         select(
             func.sum(
                 case(
-                    (Invoice.invoice_type == InvoiceType.purchase, InvoiceLine.quantity),
+                    (is_positive, InvoiceLine.quantity),
                     else_=-InvoiceLine.quantity,
                 )
             ).label("stock_qty"),

@@ -5,7 +5,6 @@ from balance360.database import settings
 from balance360.enums import CondicionIva, ContactType, DocType, IvaAliquot
 from balance360.models.money import money
 from balance360.schemas.contact import ContactCreate
-from balance360.schemas.entity import EntityCreate
 from balance360.services.arca import TicketManager
 from balance360.services.text import digits_only, format_cuit
 from tests import factories
