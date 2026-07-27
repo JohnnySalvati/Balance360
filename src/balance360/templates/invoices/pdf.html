@@ -155,6 +155,18 @@
     </div>
     {% endif %}
 
+    {# ── Comprobante asociado (NC) ── #}
+    {% if invoice.related_invoice %}
+    {% set rel = invoice.related_invoice %}
+    {% set rel_letter = letters.get(rel.voucher_type.value, rel.voucher_type.value) %}
+    <div class="box">
+      <div class="field"><b>Comprobante asociado:</b>
+          {{ titles.get(rel.voucher_type.value, "COMPROBANTE") }} {{ rel_letter }}
+          {{ "%05d"|format(rel.pos) }}-{{ "%08d"|format(rel.number) }}
+          &nbsp;&nbsp; <b>Fecha:</b> {{ rel.date.strftime("%d/%m/%Y") }}</div>
+    </div>
+    {% endif %}
+
     {# ── Ítems ── #}
     <div class="body">
     <div class="items-box">

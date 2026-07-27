@@ -47,6 +47,7 @@ class Invoice(Base, TimestampMixin):
     to_date: Mapped[datetime.date | None] = mapped_column(Date)
     due_date: Mapped[datetime.date | None] = mapped_column(Date)
     fiscal_identity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("fiscal_identities.id"))
+    related_invoice_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("invoices.id"))
 
     entity: Mapped["Entity"] = relationship(back_populates="invoices", order_by="Entity.name")
     contact: Mapped["Contact"] = relationship(back_populates="invoices", order_by="Contact.name")
@@ -65,7 +66,13 @@ class Invoice(Base, TimestampMixin):
     attachments: Mapped[list["Attachment"]] = relationship(
         back_populates="invoice", cascade="all, delete-orphan"
     )
-    fiscal_identity: Mapped["FiscalIdentity|None"] = relationship(back_populates="invoices")
+    fiscal_identity: Mapped["FiscalIdentity | None"] = relationship(back_populates="invoices")
+    related_invoice: Mapped["Invoice | None"] = relationship(
+        "Invoice", remote_side=[id], back_populates="related_credit_notes"
+    )
+    related_credit_notes: Mapped[list["Invoice"]] = relationship(
+        "Invoice", back_populates="related_invoice"
+    )
 
     @dataclass
     class IvaBreakdown:

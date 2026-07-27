@@ -35,8 +35,16 @@ def make_entity(db: Session, name="Test"):
     return entity
 
 
-def make_fiscal_identity(db: Session, entity_id, name="Test", condicion_iva=CondicionIva.INSCRIPTO):
-    fiscal_identity = FiscalIdentity(id=uuid.uuid4(), entity_id=entity_id, name=name, condicion_iva=condicion_iva)
+def make_fiscal_identity(
+    db: Session, entity_id, name="Test", condicion_iva=CondicionIva.INSCRIPTO, tax_id=None
+):
+    fiscal_identity = FiscalIdentity(
+        id=uuid.uuid4(),
+        entity_id=entity_id,
+        name=name,
+        condicion_iva=condicion_iva,
+        tax_id=tax_id or str(uuid.uuid4().int)[:11],
+    )
     db.add(fiscal_identity)
     db.commit()
     db.refresh(fiscal_identity)

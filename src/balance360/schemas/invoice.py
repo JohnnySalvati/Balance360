@@ -26,6 +26,7 @@ class InvoiceCreate(BaseModel):
     from_date: datetime.date | None = None
     to_date: datetime.date | None = None
     due_date: datetime.date | None = None
+    related_invoice_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def check_number(self):
@@ -70,6 +71,7 @@ class InvoiceUpdate(BaseModel):
     from_date: datetime.date | None = None
     to_date: datetime.date | None = None
     due_date: datetime.date | None = None
+    related_invoice_id: uuid.UUID | None = None
 
 
 class InvoiceRead(BaseModel):

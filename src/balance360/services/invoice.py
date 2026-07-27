@@ -5,18 +5,27 @@ from sqlalchemy.orm import Session
 from balance360.crud import transaction as transaction_crud
 from balance360.dtos.auth import Auth
 from balance360.dtos.invoice_request import (
+    AssociatedVoucher,
     InvoiceRequest,
     IvaDetail,
     Tribute,
     VoucherData,
     VoucherInfo,
 )
-from balance360.enums import Concepto, DocType, InvoiceType, SerialStatus, TransactionType
+from balance360.enums import (
+    Concepto,
+    DocType,
+    InvoiceType,
+    SerialStatus,
+    TransactionType,
+    VoucherType
+)
 from balance360.exceptions import (
     InvoiceAuthorizationError,
     InvoiceConfirmationError,
     InvoiceDeleteError,
     InvoicePaymentError,
+    InvoiceRequestError,
 )
 from balance360.models.account import Account
 from balance360.models.invoice import Invoice
@@ -25,6 +34,7 @@ from balance360.services.arca import get_access_ticket
 from balance360.services.stock import get_product_stock
 from balance360.services.text import digits_only
 from balance360.services.wsfe import authorize_invoice as wsfe_authorize_invoice
+from balance360.services.wsfe import voucher_type_code
 
 
 def confirm_invoice(db: Session, invoice: Invoice):
@@ -121,6 +131,39 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
         for tribute in invoice.invoice_tributes
     ]
 
+    if invoice.voucher_type in (VoucherType.NCA, VoucherType.NCB, VoucherType.NCC):
+
+        valid_vouchers = {
+            VoucherType.NCA: VoucherType.A,
+            VoucherType.NCB: VoucherType.B,
+            VoucherType.NCC: VoucherType.C
+        }
+
+        if not invoice.related_invoice:
+            raise InvoiceRequestError("La NC no tiene comprobante asociado")
+
+        if valid_vouchers[invoice.voucher_type] != invoice.related_invoice.voucher_type:
+            raise InvoiceRequestError(
+                f"""Para una {invoice.voucher_type}
+                  se espera una factura {valid_vouchers[invoice.voucher_type]}"""
+            )
+
+        assert invoice.related_invoice.voucher_type
+        assert invoice.related_invoice.pos
+        assert invoice.related_invoice.number
+        assert invoice.related_invoice.fiscal_identity
+        assert invoice.related_invoice.fiscal_identity.tax_id
+
+        associated_vouchers = [AssociatedVoucher(
+            tipo=voucher_type_code[invoice.related_invoice.voucher_type],
+            pos=invoice.related_invoice.pos,
+            number=invoice.related_invoice.number,
+            cuit=int(invoice.related_invoice.fiscal_identity.tax_id),
+            date=invoice.related_invoice.date
+        )]
+    else:
+        associated_vouchers = []
+
     voucher_data = VoucherData(
         date=invoice.date,
         receiver_condicion_iva=invoice.contact.condicion_iva,
@@ -133,7 +176,9 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
         from_date=invoice.from_date,
         to_date=invoice.to_date,
         due_date=invoice.due_date,
+        associated_vouchers=associated_vouchers
     )
+
 
     invoice_request = InvoiceRequest(
         auth=auth, voucher_info=voucher_info, voucher_data=voucher_data
@@ -258,3 +303,4 @@ def validate_unconfirmation(invoice: Invoice):
                         raise InvoiceConfirmationError(
                             f"El serial {serial} ha sido vendido o reservado"
                         )
+

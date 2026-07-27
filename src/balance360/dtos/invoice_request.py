@@ -21,6 +21,14 @@ class Tribute(BaseModel):
     amount: Decimal
 
 
+class AssociatedVoucher(BaseModel):
+    tipo: int
+    pos: int
+    number: int
+    cuit: int
+    date: datetime.date
+
+
 class VoucherData(BaseModel):
     date: datetime.date
     receiver_condicion_iva: CondicionIva
@@ -33,6 +41,7 @@ class VoucherData(BaseModel):
     from_date: datetime.date | None
     to_date: datetime.date | None
     due_date: datetime.date | None
+    associated_vouchers: list[AssociatedVoucher] = []
 
 
 class VoucherInfo(BaseModel):

@@ -111,6 +111,21 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
             ]
         }
 
+    if invoice_request.voucher_data.associated_vouchers:
+
+        FECAEDetRequest["CbtesAsoc"] = {
+            "CbteAsoc": [
+                {
+                    "Tipo": associated_voucher.tipo,
+                    "PtoVta": associated_voucher.pos,
+                    "Nro": associated_voucher.number,
+                    "Cuit": associated_voucher.cuit,
+                    "CbteFch": associated_voucher.date.strftime("%Y%m%d")
+                }
+                for associated_voucher in invoice_request.voucher_data.associated_vouchers
+            ]
+        }
+
     if invoice_request.voucher_data.concepto is not Concepto.products:
         if (
             invoice_request.voucher_data.from_date
