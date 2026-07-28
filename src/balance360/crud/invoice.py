@@ -45,13 +45,6 @@ def create(db: Session, data: InvoiceCreate) -> Invoice:
 def update(db: Session, data: InvoiceUpdate, invoice: Invoice) -> Invoice:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(invoice, field, value)
-
-    if invoice.formal:
-        if not invoice.pos:
-            raise ValueError("Se necesita punto de venta")
-        if invoice.invoice_type == InvoiceType.purchase and not invoice.number:
-            raise ValueError("Se necesita numero de comprobante")
-
     db.flush()
     db.refresh(invoice)
     return invoice

@@ -29,17 +29,6 @@ class InvoiceCreate(BaseModel):
     related_invoice_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
-    def check_number(self):
-        if self.formal:
-            if not self.pos:
-                raise ValueError("Se necesita punto de venta")
-
-            if self.invoice_type == InvoiceType.purchase and not self.number:
-                raise ValueError("Se necesita numero de comprobante")
-
-        return self
-
-    @model_validator(mode="after")
     def check_dates(self):
         if self.concepto is not Concepto.products:
             if not (self.from_date and self.to_date and self.due_date):

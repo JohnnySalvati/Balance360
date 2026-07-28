@@ -162,6 +162,26 @@
     </div>
     {% endif %}
 
+    {# Emitir NC — venta autorizada o compra confirmada, y que no sea ya una NC #}
+    {% if not invoice.is_nc and not invoice.related_credit_notes and (
+          (invoice.invoice_type.value == "sale" and invoice.authorized) or
+          (invoice.invoice_type.value == "purchase" and invoice.confirmed)) %}
+    <div class="bg-white rounded shadow p-6 flex justify-between items-center">
+        <p class="text-sm text-gray-500">Emitir nota de crédito por este comprobante</p>
+        <div class="flex items-center gap-3">
+            <span id="credit-note-error" class="text-sm text-red-600"></span>
+            <button hx-post="/invoices/{{ invoice.id }}/credit-note"
+                    hx-target="#credit-note-error"
+                    hx-swap="innerHTML"
+                    hx-trigger="confirmedDelete"
+                    data-confirm-delete
+                    class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">
+                Emitir NC
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
     {# Register payment — confirmado y no pagado #}
     {% if invoice.confirmed and not invoice.paid %}
     <div class="bg-white rounded shadow p-6 flex justify-between items-center">

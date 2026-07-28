@@ -41,7 +41,9 @@ from balance360.exceptions import (
     ArcaError,
     InvoiceAuthorizationError,
     InvoiceConfirmationError,
+    InvoiceCreditNoteError,
     InvoicePaymentError,
+    
 )
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
@@ -849,3 +851,16 @@ def download_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": 'inline; filename="comprobante.pdf"'},
     )
+
+
+@router.post("/{invoice_id}/credit-note")
+def create_credit_note(
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db),
+):
+    try:
+        nc = invoice_service.create_credit_note(db=db, original=invoice)
+    except InvoiceCreditNoteError as e:
+        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+
+    return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{nc.id}"})
