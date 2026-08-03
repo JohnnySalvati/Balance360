@@ -6,17 +6,10 @@ import pytest
 from balance360.enums import InvoiceType, IvaAliquot, VoucherType
 from balance360.exceptions import InvoiceRequestError
 from balance360.services.invoice import _build_invoice_request
+from tests.conftest import _fake_ticket
 from tests import factories
 
 EMITTER_CUIT = "30500010012"
-
-
-def _fake_ticket(monkeypatch):
-    # _build_invoice_request calls get_access_ticket("wsfe"); keep it off the network.
-    monkeypatch.setattr(
-        "balance360.services.invoice.get_access_ticket",
-        lambda service: {"token": "tok", "sign": "sig"},
-    )
 
 
 def _make_sale(db, fiscal_identity, entity_id, voucher_type, related=None, pos=5, number=None):

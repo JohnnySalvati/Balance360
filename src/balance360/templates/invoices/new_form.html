@@ -18,7 +18,7 @@
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Tipo de comprobante</label>
                     <select name="invoice_type" id="invoice-type" required
-                            onchange="filterContacts(this.value); toggleNumberField(this.value); toggleFiscalIdentity(this.value)"
+                            onchange="filterContacts(this.value); toggleNumberField(this.value); toggleFiscalIdentity(this.value); applyVoucherFilter()"
                             class="border rounded px-3 py-2 text-sm">
                         {% for t in invoice_type %}
                         <option value="{{ t.value }}">
@@ -64,6 +64,7 @@
             <div id="fiscal-identity-field" class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Identidad fiscal (emisor)</label>
                 <select name="fiscal_identity_id" id="fiscal-identity-select"
+                        onchange="applyVoucherFilter()"
                         class="border rounded px-3 py-2 text-sm">
                     {% include "invoices/_fiscal_identity_options.html" %}
                 </select>
@@ -384,10 +385,46 @@ function toggleFiscalIdentity(invoiceType) {
     select.disabled = !show;
 }
 
+// Letras permitidas por condición IVA del emisor (ventas).
+const VOUCHER_BY_CONDICION = {
+    INSCRIPTO: ['A', 'B', 'NCA', 'NCB', 'ND'],
+    MONOTRIBUTO: ['C', 'NCC'],
+    EXENTO: ['C', 'NCC'],
+    FINAL: [],
+};
+
+function applyVoucherFilter() {
+    const voucherSelect = document.getElementById('voucher-type-select');
+    if (!voucherSelect) return;
+    // Sin restricción en compras: el emisor es el proveedor, la letra es la suya.
+    let allowed = null;
+    if (document.getElementById('invoice-type').value === 'sale') {
+        const fiSelect = document.getElementById('fiscal-identity-select');
+        const opt = fiSelect ? fiSelect.options[fiSelect.selectedIndex] : null;
+        const condicion = opt ? opt.dataset.condicion : null;
+        allowed = VOUCHER_BY_CONDICION[condicion] || null;
+    }
+    let firstVisible = null;
+    for (const o of voucherSelect.options) {
+        if (o.value === '') continue;  // placeholder siempre visible
+        const visible = !allowed || allowed.includes(o.value);
+        o.hidden = !visible;
+        if (visible && !firstVisible) firstVisible = o;
+    }
+    const cur = voucherSelect.options[voucherSelect.selectedIndex];
+    if (cur && cur.hidden) voucherSelect.value = firstVisible ? firstVisible.value : '';
+}
+
+// Recalcular las letras cuando cambian las identidades por cambio de entidad.
+document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (e.target.id === 'fiscal-identity-select') applyVoucherFilter();
+});
+
 // apply filter on page load based on default selected type
 const initialType = document.getElementById('invoice-type').value;
 filterContacts(initialType);
 toggleNumberField(initialType);
 toggleFiscalIdentity(initialType);
+applyVoucherFilter();
 </script>
 {% endblock %}

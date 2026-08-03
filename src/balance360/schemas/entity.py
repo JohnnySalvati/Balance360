@@ -23,6 +23,7 @@ class EntityUpdate(BaseModel):
     name: str | None = None
     fiscal_identity_ids: list[uuid.UUID] = []
 
+
 class EntityShort(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

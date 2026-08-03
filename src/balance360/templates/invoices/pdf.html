@@ -182,9 +182,10 @@
         </thead>
         <tbody>
           {% for line in invoice.invoice_lines %}
-          {# En la A los precios van netos (IVA discriminado aparte); en la B/C van con IVA incluido. #}
-          {% set disp_unit = line.unit_price if discriminate else line.gross_unit_price %}
-          {% set disp_sub = line.net_amount if discriminate else line.gross_amount %}
+          {# A y C van netos; solo la B lleva IVA incluido en el precio. #}
+          {% set gross_display = invoice.applies_iva and not discriminate %}
+          {% set disp_unit = line.gross_unit_price if gross_display else line.unit_price %}
+          {% set disp_sub = line.gross_amount if gross_display else line.net_amount %}
           <tr>
             <td>{{ line.description or (line.product.name if line.product else "—") }}</td>
             <td class="num">{{ line.quantity }}</td>
@@ -209,7 +210,7 @@
         <div class="t">
           {% if discriminate %}
             <div><span class="lbl">Importe Neto Gravado:</span><span class="val">{{ invoice.net_total | currency }}</span></div>
-            {% for item in invoice.iva_breakdown %}
+            {% for item in invoice.iva_breakdown if item.iva_amount %}
               <div><span class="lbl">IVA {{ item.aliquot.rate }}%:</span><span class="val">{{ item.iva_amount | currency }}</span></div>
             {% endfor %}
           {% else %}

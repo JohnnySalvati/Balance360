@@ -26,5 +26,7 @@ class FiscalIdentity(Base, TimestampMixin):
     iibb: Mapped[str | None] = mapped_column(String(50))
     start_date: Mapped[date | None] = mapped_column(Date)
 
-    entities: Mapped[list[Entity]] = relationship(secondary="entity_fiscal_identities",back_populates="fiscal_identities")
+    entities: Mapped[list[Entity]] = relationship(
+        secondary="entity_fiscal_identities", back_populates="fiscal_identities"
+    )
     invoices: Mapped[list[Invoice]] = relationship(back_populates="fiscal_identity")

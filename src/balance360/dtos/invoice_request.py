@@ -34,7 +34,7 @@ class VoucherData(BaseModel):
     receiver_condicion_iva: CondicionIva
     receiver_doc_type: DocType
     receiver_doc_number: int
-    iva_detail: list[IvaDetail]
+    iva_detail: list[IvaDetail] | None
     tributes: list[Tribute]
     total: Decimal
     concepto: Concepto

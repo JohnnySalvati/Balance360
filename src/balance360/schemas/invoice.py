@@ -37,7 +37,9 @@ class InvoiceCreate(BaseModel):
             if self.from_date > self.to_date:
                 raise ValueError("La fecha desde no puede ser mayor que la fecha hasta")
             if self.due_date < self.date:
-                raise ValueError("La fecha de vencimiento debe ser mayor o igual a la fecha del comprobante")
+                raise ValueError(
+                    "La fecha de vencimiento debe ser mayor o igual a la fecha del comprobante"
+                )
         return self
 
 
@@ -72,8 +74,11 @@ class InvoiceUpdate(BaseModel):
             if self.from_date > self.to_date:
                 raise ValueError("La fecha desde no puede ser mayor que la fecha hasta")
             if self.date and self.due_date < self.date:
-                raise ValueError("La fecha de vencimiento debe ser mayor o igual a la fecha del comprobante")
+                raise ValueError(
+                    "La fecha de vencimiento debe ser mayor o igual a la fecha del comprobante"
+                )
         return self
+
 
 class InvoiceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

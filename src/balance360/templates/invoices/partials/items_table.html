@@ -3,8 +3,8 @@
     <colgroup>
         <col class="w-2/5">
         <col class="w-1/12">
-        <col class="w-1/6">
         <col class="w-1/12">
+        <col class="w-1/6">
         <col class="w-1/6">
         {% if not invoice.confirmed %}<col class="w-1/12">{% endif %}
     </colgroup>
@@ -12,8 +12,8 @@
         <tr>
             <th class="px-4 py-3">Descripción</th>
             <th class="px-4 py-3 text-right">Cantidad</th>
-            <th class="px-4 py-3 text-right">Precio unit.</th>
             <th class="px-4 py-3 text-right">IVA</th>
+            <th class="px-4 py-3 text-right">Precio unit.</th>
             <th class="px-4 py-3 text-right">Subtotal</th>
             {% if not invoice.confirmed %}
             <th class="px-4 py-3"></th>
@@ -50,6 +50,23 @@
                 {% endif %}
             </td>
             <td class="px-4 py-3 text-right text-gray-600">{{ line.quantity }}</td>
+            <td class="px-4 py-3 text-right text-gray-400 text-xs">
+                {% if sale_edit %}
+                <select id="iva-{{ line.id }}" name="iva_aliquot"
+                        hx-patch="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
+                        hx-trigger="change"
+                        hx-target="#items-table"
+                        hx-swap="innerHTML"
+                        onchange="lineFromNet('{{ line.id }}')"
+                        class="w-full border rounded px-1 py-1 text-xs text-gray-600">
+                    {% for a in iva_aliquots %}
+                    <option value="{{ a.name }}" data-rate="{{ a.rate }}" {% if a == line.iva_aliquot %}selected{% endif %}>{{ a.rate }}%</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                {{ line.iva_aliquot.rate }}%
+                {% endif %}
+            </td>
             <td class="px-4 py-3 text-right text-gray-600">
                 {% if sale_edit %}
                 <div class="flex items-center gap-1">
@@ -71,23 +88,6 @@
                 </div>
                 {% else %}
                 {{ line.unit_price | currency }}
-                {% endif %}
-            </td>
-            <td class="px-4 py-3 text-right text-gray-400 text-xs">
-                {% if sale_edit %}
-                <select id="iva-{{ line.id }}" name="iva_aliquot"
-                        hx-patch="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
-                        hx-trigger="change"
-                        hx-target="#items-table"
-                        hx-swap="innerHTML"
-                        onchange="lineFromNet('{{ line.id }}')"
-                        class="w-full border rounded px-1 py-1 text-xs text-gray-600">
-                    {% for a in iva_aliquots %}
-                    <option value="{{ a.name }}" data-rate="{{ a.rate }}" {% if a == line.iva_aliquot %}selected{% endif %}>{{ a.rate }}%</option>
-                    {% endfor %}
-                </select>
-                {% else %}
-                {{ line.iva_aliquot.rate }}%
                 {% endif %}
             </td>
             <td class="px-4 py-3 text-right font-medium">{{ (line.quantity * line.unit_price) | currency }}</td>
@@ -129,7 +129,7 @@
             <td class="px-4 py-2 text-right text-gray-600">{{ invoice.net_total | currency }}</td>
             {% if not invoice.confirmed %}<td></td>{% endif %}
         </tr>
-        {% for item in invoice.iva_breakdown %}
+        {% for item in invoice.iva_breakdown if item.iva_amount %}
         <tr>
             <td colspan="4" class="px-4 py-2 text-right text-gray-500">IVA {{ item.aliquot.rate }}%</td>
             <td class="px-4 py-2 text-right text-gray-600">{{ item.iva_amount | currency }}</td>

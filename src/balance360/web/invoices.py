@@ -43,7 +43,6 @@ from balance360.exceptions import (
     InvoiceConfirmationError,
     InvoiceCreditNoteError,
     InvoicePaymentError,
-    
 )
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
@@ -154,14 +153,9 @@ def invoice_page(
     )
 
 
-
 @router.get("/fiscal-identities")
-def fiscal_identities(
-    request: Request, 
-    db: Session = Depends(get_db),
-    entity_id: str = Query(...)
-):
-    
+def fiscal_identities(request: Request, db: Session = Depends(get_db), entity_id: str = Query(...)):
+
     entity = entity_crud.get_by_id(db, UUID(entity_id))
 
     return templates.TemplateResponse(
@@ -169,17 +163,14 @@ def fiscal_identities(
         name="invoices/_fiscal_identity_options.html",
         context={
             "fiscal_identities": entity.fiscal_identities if entity else [],
-            "selected_fiscal_identity_id": None
-        }
+            "selected_fiscal_identity_id": None,
+        },
     )
-   
+
 
 @router.get("/new")
-def new_invoice_form(
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    
+def new_invoice_form(request: Request, db: Session = Depends(get_db)):
+
     entities = entity_crud.get_all(db)
 
     return templates.TemplateResponse(

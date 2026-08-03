@@ -29,7 +29,6 @@ from balance360.exceptions import (
     InvoiceDeleteError,
     InvoicePaymentError,
     InvoiceRequestError,
-
 )
 from balance360.models.account import Account
 from balance360.models.invoice import Invoice
@@ -59,7 +58,6 @@ def confirm_invoice(db: Session, invoice: Invoice):
                     serial.status = SerialStatus.available
                     serial.sale_line_id = None
     else:
-
         for invoice_line in invoice.invoice_lines:
             if not invoice_line.product or not invoice_line.product.track_serial:
                 continue
@@ -100,8 +98,8 @@ def register_payment(db: Session, invoice: Invoice, account: Account, payment_da
         description=f"{'Compra' if invoice.invoice_type == InvoiceType.purchase else 'Venta'} {ref} {invoice.contact.name}",
         amount=invoice.total,
         type=TransactionType.expense
-            if invoice.invoice_type == InvoiceType.purchase
-            else TransactionType.income,
+        if invoice.invoice_type == InvoiceType.purchase
+        else TransactionType.income,
         account_id=account.id,
         entity_id=invoice.entity_id,
         contact_id=invoice.contact_id,
@@ -129,7 +127,6 @@ def delete_invoice(db: Session, invoice: Invoice):
 
     invoice_crud.delete(db, invoice)
     db.flush()
-
 
 
 def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
@@ -163,11 +160,10 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
     ]
 
     if invoice.is_nc:
-
         valid_vouchers = {
             VoucherType.NCA: VoucherType.A,
             VoucherType.NCB: VoucherType.B,
-            VoucherType.NCC: VoucherType.C
+            VoucherType.NCC: VoucherType.C,
         }
 
         if not invoice.related_invoice:
@@ -185,13 +181,15 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
         assert invoice.related_invoice.fiscal_identity
         assert invoice.related_invoice.fiscal_identity.tax_id
 
-        associated_vouchers = [AssociatedVoucher(
-            tipo=voucher_type_code[invoice.related_invoice.voucher_type],
-            pos=invoice.related_invoice.pos,
-            number=invoice.related_invoice.number,
-            cuit=int(invoice.related_invoice.fiscal_identity.tax_id),
-            date=invoice.related_invoice.date
-        )]
+        associated_vouchers = [
+            AssociatedVoucher(
+                tipo=voucher_type_code[invoice.related_invoice.voucher_type],
+                pos=invoice.related_invoice.pos,
+                number=invoice.related_invoice.number,
+                cuit=int(invoice.related_invoice.fiscal_identity.tax_id),
+                date=invoice.related_invoice.date,
+            )
+        ]
     else:
         associated_vouchers = []
 
@@ -200,16 +198,15 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
         receiver_condicion_iva=invoice.contact.condicion_iva,
         receiver_doc_type=invoice.contact.doc_type,
         receiver_doc_number=int(digits_only(invoice.contact.tax_id) or "0"),
-        iva_detail=iva_detail,
+        iva_detail=iva_detail if invoice.applies_iva else None,
         tributes=tributes,
         total=invoice.total,
         concepto=invoice.concepto,
         from_date=invoice.from_date,
         to_date=invoice.to_date,
         due_date=invoice.due_date,
-        associated_vouchers=associated_vouchers
+        associated_vouchers=associated_vouchers,
     )
-
 
     invoice_request = InvoiceRequest(
         auth=auth, voucher_info=voucher_info, voucher_data=voucher_data
@@ -284,11 +281,9 @@ def validate_confirmation(db: Session, invoice: Invoice):
             raise InvoiceConfirmationError("Se necesita numero de comprobante")
 
     if invoice.is_nc:
-
         assert invoice.related_invoice
 
         if invoice.invoice_type == InvoiceType.purchase:
-
             for invoice_line in invoice.related_invoice.invoice_lines:
                 if not invoice_line.product:
                     continue
@@ -316,11 +311,15 @@ def validate_confirmation(db: Session, invoice: Invoice):
                         raise InvoiceConfirmationError("Cantidad erronea de seriales")
                     for serial in invoice_line.sold_serials:
                         if serial.product_id != invoice_line.product_id:
-                            raise InvoiceConfirmationError("El serial no corresponde a este producto")
+                            raise InvoiceConfirmationError(
+                                "El serial no corresponde a este producto"
+                            )
                         if serial.status != SerialStatus.reserved:
                             raise InvoiceConfirmationError("El serial no esta reservado")
                         if serial.purchase_line.invoice.entity_id != invoice.entity_id:
-                            raise InvoiceConfirmationError("El serial no fue comprado por esta entidad")
+                            raise InvoiceConfirmationError(
+                                "El serial no fue comprado por esta entidad"
+                            )
             else:
                 if not invoice_line.product.track_serial:
                     continue
@@ -374,7 +373,7 @@ def create_credit_note(db: Session, original: Invoice):
     else:
         if not original.confirmed:
             raise InvoiceCreditNoteError("El comprobante original no esta confirmado")
-        
+
     assert original.voucher_type
 
     invoice_letter = {
@@ -400,7 +399,7 @@ def create_credit_note(db: Session, original: Invoice):
         from_date=original.from_date,
         to_date=original.to_date,
         due_date=original.due_date,
-        related_invoice_id=original.id
+        related_invoice_id=original.id,
     )
 
     nc_invoice = invoice_crud.create(db, data)
@@ -408,7 +407,6 @@ def create_credit_note(db: Session, original: Invoice):
     nc_invoice.fiscal_identity_id = original.fiscal_identity_id
 
     for line in original.invoice_lines:
-
         data = InvoiceLineCreate(
             invoice_id=nc_invoice.id,
             product_id=line.product_id,
@@ -421,4 +419,3 @@ def create_credit_note(db: Session, original: Invoice):
         invoice_line_crud.create(db, data)
 
     return nc_invoice
-

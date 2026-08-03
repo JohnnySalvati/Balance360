@@ -51,9 +51,7 @@ def new_entity_form(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request=request,
         name="config/entities/_form_modal.html",
-        context={
-            "fiscal_identities": fiscal_identity_crud.get_all(db)
-        },
+        context={"fiscal_identities": fiscal_identity_crud.get_all(db)},
     )
 
 
@@ -61,14 +59,11 @@ def new_entity_form(request: Request, db: Session = Depends(get_db)):
 def create_entity(
     db: Session = Depends(get_db),
     name: str = Form(...),
-    fiscal_identity_ids: list[uuid.UUID] = Form(default=[])
+    fiscal_identity_ids: list[uuid.UUID] = Form(default=[]),
 ):
     entity_crud.create(
         db,
-        EntityCreate(
-            name=name,
-            fiscal_identity_ids=fiscal_identity_ids
-        ),
+        EntityCreate(name=name, fiscal_identity_ids=fiscal_identity_ids),
     )
     response = HTMLResponse('<div id="modal"></div>')
     response.headers["HX-Trigger"] = "refreshRows"
@@ -86,7 +81,7 @@ def entity_edit_form(
         name="config/entities/_form_modal.html",
         context={
             "entity": entity_crud.get_by_id(db, entity_id),
-            "fiscal_identities": fiscal_identity_crud.get_all(db)
+            "fiscal_identities": fiscal_identity_crud.get_all(db),
         },
     )
 
@@ -103,15 +98,12 @@ def update_entity(
     entity: Entity = Depends(get_entity_or_404),
     db: Session = Depends(get_db),
     name: str = Form(...),
-    fiscal_identity_ids: list[uuid.UUID] = Form(default=[])
+    fiscal_identity_ids: list[uuid.UUID] = Form(default=[]),
 ):
     entity_crud.update(
         db,
         entity,
-        EntityUpdate(
-            name=name,
-            fiscal_identity_ids=fiscal_identity_ids
-        ),
+        EntityUpdate(name=name, fiscal_identity_ids=fiscal_identity_ids),
     )
     response = HTMLResponse('<div id="modal"></div>')
     response.headers["HX-Trigger"] = "refreshRows"

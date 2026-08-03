@@ -65,8 +65,16 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
         sign=invoice_request.auth.sign,
     )
 
-    imp_neto = sum(line.base_imp for line in invoice_request.voucher_data.iva_detail)
-    imp_iva = sum(line.amount for line in invoice_request.voucher_data.iva_detail)
+    imp_neto = (
+        sum(line.base_imp for line in invoice_request.voucher_data.iva_detail)
+        if invoice_request.voucher_data.iva_detail
+        else invoice_request.voucher_data.total
+    )
+    imp_iva = (
+        sum(line.amount for line in invoice_request.voucher_data.iva_detail)
+        if invoice_request.voucher_data.iva_detail
+        else 0
+    )
     imp_trib = sum(line.amount for line in invoice_request.voucher_data.tributes)
 
     FECAEDetRequest = {
@@ -81,7 +89,14 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
         "ImpTotConc": 0,
         "ImpNeto": imp_neto,
         "ImpOpEx": 0,
-        "Iva": {
+        "ImpIVA": imp_iva,
+        "ImpTrib": imp_trib,
+        "MonId": "PES",
+        "MonCotiz": 1,
+    }
+
+    if invoice_request.voucher_data.iva_detail:
+        FECAEDetRequest["Iva"] = {
             "AlicIva": [
                 {
                     "Id": alic_iva_item.id,
@@ -90,12 +105,7 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
                 }
                 for alic_iva_item in invoice_request.voucher_data.iva_detail
             ]
-        },
-        "ImpIVA": imp_iva,
-        "ImpTrib": imp_trib,
-        "MonId": "PES",
-        "MonCotiz": 1,
-    }
+        }
 
     if invoice_request.voucher_data.tributes:
         FECAEDetRequest["Tributos"] = {

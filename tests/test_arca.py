@@ -2,11 +2,13 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from balance360.database import settings
-from balance360.enums import CondicionIva, ContactType, DocType, IvaAliquot
+from balance360.enums import CondicionIva, ContactType, DocType, IvaAliquot, VoucherType
 from balance360.models.money import money
 from balance360.schemas.contact import ContactCreate
 from balance360.services.arca import TicketManager
+from balance360.services.invoice import _build_invoice_request
 from balance360.services.text import digits_only, format_cuit
+from tests.conftest import _fake_ticket
 from tests import factories
 
 
@@ -88,3 +90,36 @@ def test_iva_breakdown(db):
         ),
         None,
     ) == Decimal("26.37")
+
+
+def test_invoice_c(db, monkeypatch):
+    _fake_ticket(monkeypatch)
+    monotribute_identity = factories.make_fiscal_identity(
+        db, condicion_iva=CondicionIva.MONOTRIBUTO
+    )
+    invoice = factories.make_invoice(
+        db, fiscal_identity=monotribute_identity, voucher_type=VoucherType.C
+    )
+    line = factories.make_invoice_line(
+        db, invoice_id=invoice.id, unit_price=Decimal("125.55"), iva_aliquot=IvaAliquot.standard
+    )
+    assert invoice.total == invoice.net_total
+
+    assert line.net_amount == invoice.total
+
+
+def test_invoice_request_c(db, monkeypatch):
+    _fake_ticket(monkeypatch)
+
+    monotribute_identity = factories.make_fiscal_identity(
+        db, condicion_iva=CondicionIva.MONOTRIBUTO
+    )
+    invoice = factories.make_invoice(
+        db, fiscal_identity=monotribute_identity, voucher_type=VoucherType.C
+    )
+    line = factories.make_invoice_line(
+        db, invoice_id=invoice.id, unit_price=Decimal("125.55"), iva_aliquot=IvaAliquot.standard
+    )
+    request = _build_invoice_request(invoice)
+
+    assert request.voucher_data.iva_detail is None

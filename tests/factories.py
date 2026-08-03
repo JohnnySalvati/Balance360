@@ -13,6 +13,7 @@ from balance360.enums import (
     InvoiceType,
     IvaAliquot,
     TransactionType,
+    VoucherType,
 )
 from balance360.models.account import Account
 from balance360.models.category import Category
@@ -114,6 +115,8 @@ def make_invoice(
     category_id=None,
     date=None,
     formal=True,
+    pos=1,
+    voucher_type=None,
 ):
     entity_id = entity_id or make_entity(db).id
     invoice = Invoice(
@@ -124,7 +127,9 @@ def make_invoice(
         contact_id=contact_id or make_contact(db).id,
         category_id=category_id,
         date=date if date else datetime.date.today(),
-        formal=formal
+        formal=formal,
+        pos=pos,
+        voucher_type=voucher_type if voucher_type else VoucherType.A,
     )
     db.add(invoice)
     db.commit()

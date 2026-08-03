@@ -90,12 +90,14 @@ class Invoice(Base, TimestampMixin):
                     net_amount + money(line.net_amount),
                     iva_amount + money(line.iva_rate * line.net_amount / 100),
                 )
-            else:
+            elif self.applies_iva:
                 derived_net = money(line.gross_amount / (1 + line.iva_rate / 100))
                 results[line.iva_aliquot] = (
                     net_amount + derived_net,
                     iva_amount + money(line.gross_amount - derived_net),
                 )
+            else:
+                results[line.iva_aliquot] = (net_amount + money(line.net_amount), Decimal(0))
         return [
             self.IvaBreakdown(aliquot=key, net_amount=value[0], iva_amount=value[1])
             for key, value in results.items()
@@ -120,3 +122,7 @@ class Invoice(Base, TimestampMixin):
     @property
     def is_nc(self) -> bool:
         return self.voucher_type in (VoucherType.NCA, VoucherType.NCB, VoucherType.NCC)
+
+    @property
+    def applies_iva(self) -> bool:
+        return self.voucher_type not in (VoucherType.C, VoucherType.NCC)

@@ -25,6 +25,7 @@ def get_fiscal_identity_or_404(fiscal_identity_id: uuid.UUID, db: Session = Depe
         raise HTTPException(status_code=404, detail="Fiscal identity not found")
     return fiscal_identity
 
+
 @router.get("/", response_class=HTMLResponse, name="fiscal_identities")
 def fiscal_identity_page(
     request: Request,
@@ -99,9 +100,7 @@ def create_fiscal_identity(
     return response
 
 
-@router.get(
-    "/{fiscal_identity_id}/edit-form", response_class=HTMLResponse
-)
+@router.get("/{fiscal_identity_id}/edit-form", response_class=HTMLResponse)
 def fiscal_identity_edit_form(
     request: Request,
     fiscal_identity: FiscalIdentity = Depends(get_fiscal_identity_or_404),
@@ -149,9 +148,11 @@ def delete_fiscal_identity(
     db: Session = Depends(get_db),
 ):
     if fiscal_identity.invoices:
-        return toast_error(f"No se puede eliminar, la identidad fiscal esta asociada a {','.join(f'{invoice.pos}-{invoice.number}' for invoice in fiscal_identity.invoices)}")
+        return toast_error(
+            f"No se puede eliminar, la identidad fiscal esta asociada a {','.join(f'{invoice.pos}-{invoice.number}' for invoice in fiscal_identity.invoices)}"
+        )
     fiscal_identity_crud.delete(db, fiscal_identity)
-    
+
     response = HTMLResponse("")
     response.headers["HX-Trigger"] = "refreshFiscalIdentities"
     return response
