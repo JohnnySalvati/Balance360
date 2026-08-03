@@ -5,32 +5,21 @@
 
 <div class="space-y-8">
 
-    {# ---- Familia: Resultados ---- #}
+    {# ==== Fuente: Comprobantes (base devengado) ==== #}
     <section class="rounded-xl border border-gray-300 bg-gray-200 p-5 shadow-inner">
-        <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Resultados</h2>
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            Basado en comprobantes
+        </h2>
+        <!-- <p class="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded px-3 py-2 mb-4">
+            Se calculan sobre los comprobantes emitidos y recibidos (base devengado),
+            netos de notas de crédito. No reflejan si el dinero fue efectivamente cobrado o pagado.
+        </p> -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <a href="/reports/pl"
-               class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
-                <h3 class="text-lg font-semibold mb-1">P&amp;L por período</h3>
-                <p class="text-sm text-gray-500">Ingresos y egresos mensuales agrupados por año.</p>
-            </a>
-            <a href="/reports/pl/category"
-               class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
-                <h3 class="text-lg font-semibold mb-1">P&amp;L por categoría</h3>
-                <p class="text-sm text-gray-500">Ingresos y egresos agrupados por categoría.</p>
-            </a>
             <a href="/reports/profit"
                class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
                 <h3 class="text-lg font-semibold mb-1">Ganancia (facturas)</h3>
                 <p class="text-sm text-gray-500">Ventas netas menos compras netas del período, sin IVA.</p>
             </a>
-        </div>
-    </section>
-
-    {# ---- Familia: Impuestos ---- #}
-    <section class="rounded-xl border border-gray-300 bg-gray-200 p-5 shadow-inner">
-        <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Impuestos</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <a href="/reports/iva"
                class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
                 <h3 class="text-lg font-semibold mb-1">IVA — posición del período</h3>
@@ -49,10 +38,26 @@
         </div>
     </section>
 
-    {# ---- Familia: Cuentas y patrimonio ---- #}
+    {# ==== Fuente: Transacciones (base percibido) ==== #}
     <section class="rounded-xl border border-gray-300 bg-gray-200 p-5 shadow-inner">
-        <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Cuentas y patrimonio</h2>
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            Basado en transacciones
+        </h2>
+        <!-- <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-4">
+            Se calculan sobre los movimientos de dinero registrados (base percibido).
+            Las notas de crédito no generan movimiento, por lo que no aparecen aquí.
+        </p> -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <a href="/reports/pl"
+               class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
+                <h3 class="text-lg font-semibold mb-1">P&amp;L por período</h3>
+                <p class="text-sm text-gray-500">Ingresos y egresos mensuales agrupados por año.</p>
+            </a>
+            <a href="/reports/pl/category"
+               class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
+                <h3 class="text-lg font-semibold mb-1">P&amp;L por categoría</h3>
+                <p class="text-sm text-gray-500">Ingresos y egresos agrupados por categoría.</p>
+            </a>
             <a href="/reports/balance"
                class="bg-white rounded shadow p-6 hover:shadow-md transition-shadow">
                 <h3 class="text-lg font-semibold mb-1">Balance por cuenta</h3>

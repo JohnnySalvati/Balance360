@@ -9,7 +9,6 @@ from balance360.services.text import digits_only
 
 
 class FiscalIdentityCreate(BaseModel):
-    entity_id: uuid.UUID
     name: str
     tax_id: str
     condicion_iva: CondicionIva
@@ -28,7 +27,6 @@ class FiscalIdentityCreate(BaseModel):
 class FiscalIdentityRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
-    entity_id: uuid.UUID
     name: str
     tax_id: str | None = None
     condicion_iva: CondicionIva
@@ -42,7 +40,6 @@ class FiscalIdentityRead(BaseModel):
 
 
 class FiscalIdentityUpdate(BaseModel):
-    entity_id: uuid.UUID | None = None
     name: str | None = None
     tax_id: str | None = None
     condicion_iva: CondicionIva | None = None

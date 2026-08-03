@@ -4,16 +4,16 @@
 <div class="shrink-0 flex justify-between items-center mb-6">
     <div>
         <h1 class="text-2xl font-bold">Identidades fiscales</h1>
-        <p class="text-sm text-gray-500">{{ entity.name }}</p>
+        <p class="text-sm text-gray-500">Datos fiscales de emisión (CUIT, condición IVA, IIBB).</p>
     </div>
     <div class="flex gap-2">
-        <button hx-get="/config/entities/{{ entity.id }}/fiscal_identities/new-form"
+        <button hx-get="/config/fiscal_identities/new-form"
                 hx-target="#modal"
                 hx-swap="outerHTML"
                 class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
             + Nueva
         </button>
-        <a href="/config/entities" class="text-sm text-blue-600 hover:underline self-center">← Entidades</a>
+        <a href="/config/" class="text-sm text-blue-600 hover:underline self-center">← Configuración</a>
     </div>
 </div>
 
@@ -30,7 +30,7 @@
         </thead>
         <tbody id="fi-tbody" class="divide-y divide-gray-100"
                hx-trigger="refreshFiscalIdentities from:body"
-               hx-get="/config/entities/{{ entity.id }}/fiscal_identities/rows"
+               hx-get="/config/fiscal_identities/rows"
                hx-target="#fi-tbody"
                hx-swap="innerHTML">
             {% include "fiscal_identities/_rows.html" %}

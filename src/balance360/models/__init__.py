@@ -18,3 +18,4 @@ from balance360.models.product import Product
 from balance360.models.serial_number import SerialNumber
 from balance360.models.transaction import Transaction
 from balance360.models.user import User
+from balance360.models.entity_fiscal_identity import entity_fiscal_identities

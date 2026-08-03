@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, Enum, ForeignKey, Numeric, String, Uuid
+from sqlalchemy import Date, Enum, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
@@ -18,7 +18,6 @@ from balance360.models.base import Base, TimestampMixin
 class FiscalIdentity(Base, TimestampMixin):
     __tablename__ = "fiscal_identities"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    entity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("entities.id"))
     name: Mapped[str] = mapped_column(String(150), unique=True)
     condicion_iva: Mapped[CondicionIva] = mapped_column(Enum(CondicionIva))
     tax_id: Mapped[str] = mapped_column(String(11), unique=True)
@@ -27,5 +26,5 @@ class FiscalIdentity(Base, TimestampMixin):
     iibb: Mapped[str | None] = mapped_column(String(50))
     start_date: Mapped[date | None] = mapped_column(Date)
 
-    entity: Mapped[Entity] = relationship(back_populates="fiscal_identities")
+    entities: Mapped[list[Entity]] = relationship(secondary="entity_fiscal_identities",back_populates="fiscal_identities")
     invoices: Mapped[list[Invoice]] = relationship(back_populates="fiscal_identity")

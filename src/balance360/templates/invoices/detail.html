@@ -52,6 +52,12 @@
             <p class="text-xs text-gray-500">Contacto</p>
             <p class="text-gray-800 font-medium">{{ invoice.contact.name }}</p>
         </div>
+        {% if invoice.fiscal_identity %}
+        <div>
+            <p class="text-xs text-gray-500">Identidad fiscal (emisor)</p>
+            <p class="text-gray-800 font-medium">{{ invoice.fiscal_identity.name }} · {{ invoice.fiscal_identity.tax_id | cuit }}</p>
+        </div>
+        {% endif %}
         <div>
             <p class="text-xs text-gray-500">Categoría</p>
             <p class="text-gray-800">{{ invoice.category.name if invoice.category else "—" }}</p>
@@ -88,7 +94,7 @@
         <div class="flex justify-between items-center px-4 py-3 border-b gap-3">
             <h2 class="text-sm font-semibold text-gray-700">Ítems</h2>
             <div class="flex items-center gap-3">
-                {% if is_sale and not invoice.confirmed %}
+                {% if is_sale and not invoice.confirmed and not invoice.is_nc %}
                 <form hx-post="/invoices/{{ invoice.id }}/scan-serial"
                       hx-target="#items-table"
                       hx-swap="innerHTML"

@@ -535,7 +535,7 @@ def get_iibb_on_sales(
         .where(Invoice.invoice_type == InvoiceType.sale)
         .join_from(Entity, Invoice)
         .join_from(Invoice, InvoiceLine)
-        .join_from(Invoice, FiscalIdentity)
+        .join_from(Invoice, FiscalIdentity, Invoice.fiscal_identity_id == FiscalIdentity.id)
         .group_by(Entity.id)
         .order_by(Entity.name)
     )
@@ -681,9 +681,9 @@ def get_invoice_profit(
             {
                 "entity_id": eid,
                 "entity_name": entity_name,
-                "profit": profit,
+                "profit": profit + taxes,
                 "taxes": taxes,
-                "result": profit - taxes,
+                "result": profit,
             }
         )
         total += profit - taxes

@@ -36,11 +36,10 @@ def make_entity(db: Session, name="Test"):
 
 
 def make_fiscal_identity(
-    db: Session, entity_id, name="Test", condicion_iva=CondicionIva.INSCRIPTO, tax_id=None
+    db: Session, name="Test", condicion_iva=CondicionIva.INSCRIPTO, tax_id=None
 ):
     fiscal_identity = FiscalIdentity(
         id=uuid.uuid4(),
-        entity_id=entity_id,
         name=name,
         condicion_iva=condicion_iva,
         tax_id=tax_id or str(uuid.uuid4().int)[:11],
@@ -114,16 +113,18 @@ def make_invoice(
     contact_id=None,
     category_id=None,
     date=None,
+    formal=True,
 ):
     entity_id = entity_id or make_entity(db).id
     invoice = Invoice(
         id=uuid.uuid4(),
         invoice_type=invoice_type,
         entity_id=entity_id,
-        fiscal_identity=fiscal_identity or make_fiscal_identity(db, entity_id=entity_id),
+        fiscal_identity=fiscal_identity or make_fiscal_identity(db),
         contact_id=contact_id or make_contact(db).id,
         category_id=category_id,
         date=date if date else datetime.date.today(),
+        formal=formal
     )
     db.add(invoice)
     db.commit()

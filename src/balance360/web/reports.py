@@ -110,7 +110,7 @@ def report_balance(
             "total_expense": row.total_expense,
             "balance": row.total_income - row.total_expense,
         }
-        for row in rows
+        for row in rows if row.total_income != 0 or row.total_expense != 0
     ]
 
     return templates.TemplateResponse(

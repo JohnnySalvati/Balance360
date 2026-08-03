@@ -18,7 +18,7 @@
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Tipo de comprobante</label>
                     <select name="invoice_type" id="invoice-type" required
-                            onchange="filterContacts(this.value); toggleNumberField(this.value)"
+                            onchange="filterContacts(this.value); toggleNumberField(this.value); toggleFiscalIdentity(this.value)"
                             class="border rounded px-3 py-2 text-sm">
                         {% for t in invoice_type %}
                         <option value="{{ t.value }}">
@@ -39,7 +39,11 @@
             <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Entidad</label>
-                    <select name="entity_id" required class="border rounded px-3 py-2 text-sm">
+                    <select name="entity_id" required
+                            hx-get="/invoices/fiscal-identities"
+                            hx-target="#fiscal-identity-select"
+                            hx-swap="innerHTML"
+                            class="border rounded px-3 py-2 text-sm">
                         {% for e in entities %}
                         <option value="{{ e.id }}">{{ e.name }}</option>
                         {% endfor %}
@@ -55,6 +59,14 @@
                         {% endfor %}
                     </select>
                 </div>
+            </div>
+
+            <div id="fiscal-identity-field" class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Identidad fiscal (emisor)</label>
+                <select name="fiscal_identity_id" id="fiscal-identity-select"
+                        class="border rounded px-3 py-2 text-sm">
+                    {% include "invoices/_fiscal_identity_options.html" %}
+                </select>
             </div>
 
             <div class="flex flex-col gap-1">
@@ -363,9 +375,19 @@ async function createQuickContact() {
 }
 
 
+function toggleFiscalIdentity(invoiceType) {
+    const field = document.getElementById('fiscal-identity-field');
+    const select = document.getElementById('fiscal-identity-select');
+    const show = invoiceType === 'sale';
+    field.style.display = show ? 'flex' : 'none';
+    // deshabilitado en compras: no se envía el campo (el emisor es el proveedor).
+    select.disabled = !show;
+}
+
 // apply filter on page load based on default selected type
 const initialType = document.getElementById('invoice-type').value;
 filterContacts(initialType);
 toggleNumberField(initialType);
+toggleFiscalIdentity(initialType);
 </script>
 {% endblock %}

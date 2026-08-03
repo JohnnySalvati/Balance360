@@ -38,7 +38,7 @@ def _make_sale(db, fiscal_identity, entity_id, voucher_type, related=None, pos=5
 def test_nc_request_includes_associated_voucher(db, monkeypatch):
     _fake_ticket(monkeypatch)
     entity = factories.make_entity(db)
-    emitter = factories.make_fiscal_identity(db, entity_id=entity.id, tax_id=EMITTER_CUIT)
+    emitter = factories.make_fiscal_identity(db, tax_id=EMITTER_CUIT)
 
     original = _make_sale(db, emitter, entity.id, VoucherType.B, number=1)
     nc = _make_sale(db, emitter, entity.id, VoucherType.NCB, related=original)
@@ -57,7 +57,7 @@ def test_nc_request_includes_associated_voucher(db, monkeypatch):
 def test_plain_invoice_has_no_associated_vouchers(db, monkeypatch):
     _fake_ticket(monkeypatch)
     entity = factories.make_entity(db)
-    emitter = factories.make_fiscal_identity(db, entity_id=entity.id, tax_id=EMITTER_CUIT)
+    emitter = factories.make_fiscal_identity(db, tax_id=EMITTER_CUIT)
 
     invoice = _make_sale(db, emitter, entity.id, VoucherType.B, number=1)
 
@@ -68,7 +68,7 @@ def test_plain_invoice_has_no_associated_vouchers(db, monkeypatch):
 def test_nc_without_related_invoice_raises(db, monkeypatch):
     _fake_ticket(monkeypatch)
     entity = factories.make_entity(db)
-    emitter = factories.make_fiscal_identity(db, entity_id=entity.id, tax_id=EMITTER_CUIT)
+    emitter = factories.make_fiscal_identity(db, tax_id=EMITTER_CUIT)
 
     nc = _make_sale(db, emitter, entity.id, VoucherType.NCB)
 
@@ -79,7 +79,7 @@ def test_nc_without_related_invoice_raises(db, monkeypatch):
 def test_nc_letter_mismatch_raises(db, monkeypatch):
     _fake_ticket(monkeypatch)
     entity = factories.make_entity(db)
-    emitter = factories.make_fiscal_identity(db, entity_id=entity.id, tax_id=EMITTER_CUIT)
+    emitter = factories.make_fiscal_identity(db, tax_id=EMITTER_CUIT)
 
     original = _make_sale(db, emitter, entity.id, VoucherType.A, number=1)
     nc = _make_sale(db, emitter, entity.id, VoucherType.NCB, related=original)

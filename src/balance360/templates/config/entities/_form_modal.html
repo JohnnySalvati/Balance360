@@ -1,6 +1,7 @@
 {% set is_edit = entity is defined and entity %}
 {% set action_url = "/config/entities/" ~ entity.id if is_edit else "/config/entities/" %}
 {% set title = "Editar entidad" if is_edit else "Nueva entidad" %}
+{% set selected_ids = (entity.fiscal_identities | map(attribute='id') | list) if is_edit else [] %}
 
 <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
@@ -24,13 +25,33 @@
                        class="border rounded px-3 py-2 text-sm">
             </div>
 
-            {% if is_edit %}
-            <p class="text-xs text-gray-400">
-                Los datos fiscales (CUIT, condición IVA, IIBB, domicilio) se administran en
-                <a href="/config/entities/{{ entity.id }}/fiscal_identities"
-                   class="text-blue-600 hover:underline">Identidades fiscales</a>.
-            </p>
-            {% endif %}
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Identidades fiscales</label>
+                {% if fiscal_identities %}
+                <div class="border rounded max-h-40 overflow-y-auto divide-y">
+                    {% for fi in fiscal_identities %}
+                    <label class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" name="fiscal_identity_ids" value="{{ fi.id }}"
+                               {% if fi.id in selected_ids %}checked{% endif %}
+                               class="rounded border-gray-300">
+                        <span class="flex-1">{{ fi.name }}</span>
+                        {% if fi.tax_id %}
+                        <span class="text-xs text-gray-400 font-mono">{{ fi.tax_id }}</span>
+                        {% endif %}
+                    </label>
+                    {% endfor %}
+                </div>
+                <p class="text-xs text-gray-400">
+                    Las identidades se crean en
+                    <a href="/config/fiscal_identities/" class="text-blue-600 hover:underline">Identidades fiscales</a>.
+                </p>
+                {% else %}
+                <p class="text-xs text-gray-400">
+                    No hay identidades fiscales todavía. Creá una en
+                    <a href="/config/fiscal_identities/" class="text-blue-600 hover:underline">Identidades fiscales</a>.
+                </p>
+                {% endif %}
+            </div>
 
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"

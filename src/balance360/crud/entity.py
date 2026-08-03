@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from balance360.crud import fiscal_identity as fiscal_identity_crud
 from balance360.models.entity import Entity
 from balance360.models.entity_membership import EntityMembership
 from balance360.schemas.entity import EntityCreate, EntityUpdate
@@ -37,7 +38,10 @@ def get_by_id(db: Session, entity_id: uuid.UUID) -> Entity | None:
 
 
 def create(db: Session, data: EntityCreate) -> Entity:
-    db_entity = Entity(**data.model_dump())
+    data_dict = data.model_dump()
+    fiscal_identity_ids = data_dict.pop("fiscal_identity_ids")
+    db_entity = Entity(**data_dict)
+    db_entity.fiscal_identities = fiscal_identity_crud.get_by_ids(db, fiscal_identity_ids)
     db.add(db_entity)
     db.flush()
     db.refresh(db_entity)
@@ -50,8 +54,12 @@ def delete(db: Session, entity: Entity):
 
 
 def update(db: Session, entity: Entity, data: EntityUpdate):
-    for field, value in data.model_dump(exclude_unset=True).items():
+    data_dict = data.model_dump(exclude_unset=True)
+    fiscal_identity_ids = data_dict.pop("fiscal_identity_ids", None)
+    for field, value in data_dict.items():
         setattr(entity, field, value)
+    if fiscal_identity_ids is not None:
+        entity.fiscal_identities = fiscal_identity_crud.get_by_ids(db, fiscal_identity_ids)
     db.flush()
     db.refresh(entity)
     return entity

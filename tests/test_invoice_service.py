@@ -16,7 +16,7 @@ def test_without_invoice_lines(db):
 
 
 def test_confirm_without_payment(db):
-    invoice = factories.make_invoice(db)
+    invoice = factories.make_invoice(db, formal=False)
     factories.make_invoice_line(db, invoice.id)
     confirm_invoice(db, invoice)
     assert invoice.confirmed
@@ -24,7 +24,7 @@ def test_confirm_without_payment(db):
 
 
 def test_confirm_with_payment(db):
-    invoice = factories.make_invoice(db)
+    invoice = factories.make_invoice(db, formal=False)
     factories.make_invoice_line(db, invoice.id)
     account = factories.make_account(db)
     confirm_invoice(db, invoice)

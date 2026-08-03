@@ -15,16 +15,6 @@ def get_all(db: Session) -> list[FiscalIdentity]:
 def get_by_id(db: Session, fiscal_identity_id: uuid.UUID) -> FiscalIdentity | None:
     return db.get(FiscalIdentity, fiscal_identity_id)
 
-
-def get_for_entity(db: Session, entity_id: uuid.UUID) -> list[FiscalIdentity]:
-    fiscal_identities = (
-        db.execute(select(FiscalIdentity).where(FiscalIdentity.entity_id == entity_id))
-        .scalars()
-        .all()
-    )
-    return list(fiscal_identities)
-
-
 def create(db: Session, data: FiscalIdentityCreate) -> FiscalIdentity:
     db_fiscal_identity = FiscalIdentity(**data.model_dump())
     db.add(db_fiscal_identity)
@@ -44,3 +34,7 @@ def update(db: Session, fiscal_identity: FiscalIdentity, data: FiscalIdentityUpd
     db.flush()
     db.refresh(fiscal_identity)
     return fiscal_identity
+
+def get_by_ids(db: Session, fiscal_identity_ids: list[uuid.UUID]) -> list[FiscalIdentity]:
+    fiscal_identities = db.execute(select(FiscalIdentity).where(FiscalIdentity.id.in_(fiscal_identity_ids))).scalars().all()
+    return list(fiscal_identities)

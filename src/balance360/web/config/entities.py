@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from balance360.crud import entity as entity_crud
 from balance360.crud import entity_membership as entity_membership_crud
+from balance360.crud import fiscal_identity as fiscal_identity_crud
 from balance360.crud import user as user_crud
 from balance360.dependencies import get_db
 from balance360.enums import CondicionIva, Role
@@ -50,7 +51,9 @@ def new_entity_form(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request=request,
         name="config/entities/_form_modal.html",
-        context={"condicion_iva": CondicionIva},
+        context={
+            "fiscal_identities": fiscal_identity_crud.get_all(db)
+        },
     )
 
 
@@ -58,11 +61,13 @@ def new_entity_form(request: Request, db: Session = Depends(get_db)):
 def create_entity(
     db: Session = Depends(get_db),
     name: str = Form(...),
+    fiscal_identity_ids: list[uuid.UUID] = Form(default=[])
 ):
     entity_crud.create(
         db,
         EntityCreate(
             name=name,
+            fiscal_identity_ids=fiscal_identity_ids
         ),
     )
     response = HTMLResponse('<div id="modal"></div>')
@@ -71,13 +76,17 @@ def create_entity(
 
 
 @router.get("/{entity_id}/edit-form", response_class=HTMLResponse)
-def entity_edit_form(request: Request, entity_id: uuid.UUID, db: Session = Depends(get_db)):
+def entity_edit_form(
+    request: Request,
+    entity_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
     return templates.TemplateResponse(
         request=request,
         name="config/entities/_form_modal.html",
         context={
             "entity": entity_crud.get_by_id(db, entity_id),
-            "condicion_iva": CondicionIva,
+            "fiscal_identities": fiscal_identity_crud.get_all(db)
         },
     )
 
@@ -94,12 +103,14 @@ def update_entity(
     entity: Entity = Depends(get_entity_or_404),
     db: Session = Depends(get_db),
     name: str = Form(...),
+    fiscal_identity_ids: list[uuid.UUID] = Form(default=[])
 ):
     entity_crud.update(
         db,
         entity,
         EntityUpdate(
             name=name,
+            fiscal_identity_ids=fiscal_identity_ids
         ),
     )
     response = HTMLResponse('<div id="modal"></div>')

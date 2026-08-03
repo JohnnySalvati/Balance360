@@ -154,14 +154,42 @@ def invoice_page(
     )
 
 
+
+@router.get("/fiscal-identities")
+def fiscal_identities(
+    request: Request, 
+    db: Session = Depends(get_db),
+    entity_id: str = Query(...)
+):
+    
+    entity = entity_crud.get_by_id(db, UUID(entity_id))
+
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/_fiscal_identity_options.html",
+        context={
+            "fiscal_identities": entity.fiscal_identities if entity else [],
+            "selected_fiscal_identity_id": None
+        }
+    )
+   
+
 @router.get("/new")
-def new_invoice_form(request: Request, db: Session = Depends(get_db)):
+def new_invoice_form(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    
+    entities = entity_crud.get_all(db)
+
     return templates.TemplateResponse(
         request=request,
         name="invoices/new_form.html",
         context={
             "invoice_type": InvoiceType,
-            "entities": entity_crud.get_all(db),
+            "entities": entities,
+            "fiscal_identities": entities[0].fiscal_identities if entities else [],
+            "selected_fiscal_identity_id": None,
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),
             "voucher_type": VoucherType,
@@ -191,6 +219,7 @@ def create_invoice(
     db: Session = Depends(get_db),
     invoice_type: str = Form(...),
     entity_id: str = Form(...),
+    fiscal_identity_id: str | None = Form(default=""),
     contact_id: str = Form(...),
     category_id: str | None = Form(default=""),
     date: str = Form(...),
@@ -209,6 +238,7 @@ def create_invoice(
         data = InvoiceCreate(
             invoice_type=InvoiceType(invoice_type),
             entity_id=UUID(entity_id),
+            fiscal_identity_id=UUID(fiscal_identity_id) if fiscal_identity_id else None,
             contact_id=UUID(contact_id),
             category_id=UUID(category_id) if category_id else None,
             date=datetime.date.fromisoformat(date),
@@ -258,7 +288,9 @@ def create_invoice(
 
 @router.get("/{invoice_id}/edit")
 def edit_invoice_form(
-    request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)
+    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db),
 ):
     return templates.TemplateResponse(
         request=request,
@@ -267,6 +299,8 @@ def edit_invoice_form(
             "invoice": invoice,
             "invoice_type": InvoiceType,
             "entities": entity_crud.get_all(db),
+            "fiscal_identities": invoice.entity.fiscal_identities,
+            "selected_fiscal_identity_id": invoice.fiscal_identity_id,
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),
             "voucher_type": VoucherType,
@@ -281,6 +315,7 @@ def update_invoice(
     db: Session = Depends(get_db),
     invoice_type: str | None = Form(default=""),
     entity_id: str | None = Form(default=""),
+    fiscal_identity_id: str | None = Form(default=""),
     contact_id: str | None = Form(default=""),
     category_id: str | None = Form(default=""),
     date: str | None = Form(default=""),
@@ -298,6 +333,7 @@ def update_invoice(
         data = InvoiceUpdate(
             invoice_type=InvoiceType(invoice_type) if invoice_type else None,
             entity_id=UUID(entity_id) if entity_id else None,
+            fiscal_identity_id=UUID(fiscal_identity_id) if fiscal_identity_id else None,
             contact_id=UUID(contact_id) if contact_id else None,
             category_id=UUID(category_id) if category_id else None,
             date=datetime.date.fromisoformat(date) if date else None,

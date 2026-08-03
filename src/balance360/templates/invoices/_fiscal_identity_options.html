@@ -1,0 +1,7 @@
+<option value="">— Seleccionar identidad —</option>
+{% for fi in fiscal_identities %}
+<option value="{{ fi.id }}"
+        {% if selected_fiscal_identity_id is defined and fi.id == selected_fiscal_identity_id %}selected{% endif %}>
+    {{ fi.name }} — {{ fi.tax_id | cuit }}
+</option>
+{% endfor %}

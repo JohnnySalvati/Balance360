@@ -24,4 +24,4 @@ class Entity(Base, TimestampMixin):
     invoices: Mapped[list["Invoice"]] = relationship(back_populates="entity")
     entity_memberships: Mapped[list["EntityMembership"]] = relationship(back_populates="entity")
     import_rules: Mapped[list["ImportRule"]] = relationship(back_populates="entity")
-    fiscal_identities: Mapped[list[FiscalIdentity]] = relationship(back_populates="entity")
+    fiscal_identities: Mapped[list["FiscalIdentity"]] = relationship(secondary="entity_fiscal_identities", back_populates="entities")

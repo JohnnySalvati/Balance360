@@ -73,7 +73,7 @@
                 <td class="px-4 py-3 text-gray-700">{{ inv.entity.name }}</td>
                 <td class="px-4 py-3 text-gray-800">{{ inv.contact.name }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ inv.category.name if inv.category else "—" }}</td>
-                <td class="px-4 py-3 text-right font-medium">{{ inv.total | currency }}</td>
+                <td class="px-4 py-3 text-right font-medium">{{ (-inv.total if inv.is_nc else inv.total) | currency }}</td>
                 <td class="px-4 py-3 flex gap-1 flex-wrap">
                     {% if not inv.confirmed %}
                         <span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Borrador</span>
@@ -93,6 +93,15 @@
                 <td colspan="7" class="px-4 py-6 text-center text-gray-400">No hay comprobantes cargados.</td>
             </tr>
             {% endfor %}
+            {% if invoices %}
+            {% set ns = namespace(total=0) %}
+            {% for inv in invoices %}{% set ns.total = ns.total + (-inv.total if inv.is_nc else inv.total) %}{% endfor %}
+            <tr class="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-800">
+                <td class="px-4 py-3" colspan="5">Total ({{ invoices|length }})</td>
+                <td class="px-4 py-3 text-right">{{ ns.total | currency }}</td>
+                <td></td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>

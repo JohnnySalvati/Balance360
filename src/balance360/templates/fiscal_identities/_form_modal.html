@@ -1,6 +1,6 @@
 {% set is_edit = fiscal_identity is defined and fiscal_identity %}
-{% set base_url = "/config/entities/" ~ entity.id ~ "/fiscal_identities" %}
-{% set action_url = base_url ~ "/" ~ fiscal_identity.id if is_edit else base_url %}
+{% set base_url = "/config/fiscal_identities" %}
+{% set action_url = base_url ~ "/" ~ fiscal_identity.id if is_edit else base_url ~ "/" %}
 {% set title = "Editar identidad fiscal" if is_edit else "Nueva identidad fiscal" %}
 
 <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
