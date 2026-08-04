@@ -36,3 +36,11 @@ def db(engine, tables):
     session.close()
     transaction.rollback()
     connection.close()
+
+
+def _fake_ticket(monkeypatch):
+    # _build_invoice_request calls get_access_ticket("wsfe"); keep it off the network.
+    monkeypatch.setattr(
+        "balance360.services.invoice.get_access_ticket",
+        lambda service: {"token": "tok", "sign": "sig"},
+    )

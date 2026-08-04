@@ -22,6 +22,7 @@
            class="w-full border rounded px-2 py-1 text-right text-sm">
 </td>
 <td class="px-4 py-3 text-right align-top bg-blue-50/40">
+    {% if invoice.applies_iva %}
     <select id="iva-aliquot" name="iva_aliquot" required form="new-line-form"
             onchange="recalcFromNet(); recalcNewLineSubtotal();"
             class="w-full border rounded px-1 py-1 text-xs text-gray-600">
@@ -30,8 +31,14 @@
                 {% if aliquot.name == 'reduced' %}selected{% endif %}>{{ aliquot.rate }}%</option>
         {% endfor %}
     </select>
+    {% else %}
+    {# Sin IVA (comprobante C): la alícuota no aplica, se guarda exenta. #}
+    <span class="text-gray-300 text-xs">—</span>
+    <input type="hidden" name="iva_aliquot" value="exempt" form="new-line-form">
+    {% endif %}
 </td>
 <td class="px-4 py-3 text-right align-top bg-blue-50/40">
+    {% if invoice.applies_iva %}
     <div class="flex items-center gap-1">
         <span class="text-gray-400 text-xs shrink-0">Neto</span>
         <input id="unit-price-net" type="number" name="unit_price" step="0.01" min="0" required form="new-line-form"
@@ -44,6 +51,11 @@
                oninput="recalcFromGross()"
                class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-50">
     </div>
+    {% else %}
+    <input id="unit-price-net" type="number" name="unit_price" step="0.01" min="0" required form="new-line-form"
+           oninput="recalcNewLineSubtotal()" placeholder="Importe"
+           class="w-full border rounded px-2 py-1 text-right text-sm">
+    {% endif %}
 </td>
 <td class="px-4 py-3 text-right align-top font-medium bg-blue-50/40">
     <span id="new-line-subtotal" class="text-gray-700">—</span>

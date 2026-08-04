@@ -70,7 +70,6 @@ def test_a_invoice_stays_net_first(db):
         (VoucherType.NCB, False),
         (VoucherType.C, False),
         (VoucherType.NCC, False),
-        (VoucherType.ND, False),
     ],
 )
 def test_discriminates_iva(db, voucher_type, expected):

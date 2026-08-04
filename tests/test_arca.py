@@ -98,7 +98,7 @@ def test_invoice_c(db, monkeypatch):
         db, condicion_iva=CondicionIva.MONOTRIBUTO
     )
     invoice = factories.make_invoice(
-        db, fiscal_identity=monotribute_identity, voucher_type=VoucherType.C
+        db, fiscal_identity_id=monotribute_identity.id, voucher_type=VoucherType.C
     )
     line = factories.make_invoice_line(
         db, invoice_id=invoice.id, unit_price=Decimal("125.55"), iva_aliquot=IvaAliquot.standard
@@ -115,7 +115,7 @@ def test_invoice_request_c(db, monkeypatch):
         db, condicion_iva=CondicionIva.MONOTRIBUTO
     )
     invoice = factories.make_invoice(
-        db, fiscal_identity=monotribute_identity, voucher_type=VoucherType.C
+        db, fiscal_identity_id=monotribute_identity.id, voucher_type=VoucherType.C
     )
     line = factories.make_invoice_line(
         db, invoice_id=invoice.id, unit_price=Decimal("125.55"), iva_aliquot=IvaAliquot.standard

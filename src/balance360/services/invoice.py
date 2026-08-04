@@ -16,6 +16,7 @@ from balance360.dtos.invoice_request import (
 )
 from balance360.enums import (
     Concepto,
+    CondicionIva,
     DocType,
     InvoiceType,
     SerialStatus,
@@ -266,6 +267,29 @@ def validate_authorization(invoice: Invoice):
         raise InvoiceAuthorizationError(f"Fecha fuera del rango de +-{margin} dias")
 
 
+def allowed_for(invoice: Invoice) -> set[VoucherType]:
+    emisor_allowed = {
+        CondicionIva.INSCRIPTO: {VoucherType.A, VoucherType.B, VoucherType.NCA, VoucherType.NCB},
+        CondicionIva.MONOTRIBUTO: {VoucherType.C, VoucherType.NCC},
+        CondicionIva.EXENTO: {VoucherType.C, VoucherType.NCC},
+        CondicionIva.FINAL: set(),
+    }
+    receiver_allowed = {
+        CondicionIva.EXENTO: {VoucherType.B, VoucherType.NCB, VoucherType.C, VoucherType.NCC},
+        CondicionIva.FINAL: {VoucherType.B, VoucherType.NCB, VoucherType.C, VoucherType.NCC},
+        CondicionIva.INSCRIPTO: {VoucherType.A, VoucherType.NCA, VoucherType.C, VoucherType.NCC},
+        CondicionIva.MONOTRIBUTO: {VoucherType.B, VoucherType.NCB, VoucherType.C, VoucherType.NCC},
+    }
+
+    if not invoice.fiscal_identity:
+        return set()
+
+    return (
+        emisor_allowed[invoice.fiscal_identity.condicion_iva]
+        & receiver_allowed[invoice.contact.condicion_iva]
+    )
+
+
 def validate_confirmation(db: Session, invoice: Invoice):
 
     if invoice.confirmed:
@@ -277,8 +301,12 @@ def validate_confirmation(db: Session, invoice: Invoice):
     if invoice.formal:
         if not invoice.pos:
             raise InvoiceConfirmationError("Se necesita punto de venta")
-        if invoice.invoice_type == InvoiceType.purchase and not invoice.number:
-            raise InvoiceConfirmationError("Se necesita numero de comprobante")
+        if invoice.invoice_type == InvoiceType.purchase:
+            if not invoice.number:
+                raise InvoiceConfirmationError("Se necesita numero de comprobante")
+        else:
+            if invoice.voucher_type not in allowed_for(invoice):
+                raise InvoiceConfirmationError("Tipo de comprobante no admitido")
 
     if invoice.is_nc:
         assert invoice.related_invoice

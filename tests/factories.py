@@ -108,27 +108,29 @@ def make_category(db: Session, name: str = "Compras", parent_id: uuid.UUID | Non
 
 def make_invoice(
     db: Session,
-    invoice_type=InvoiceType.purchase,
-    fiscal_identity=None,
+    invoice_type=None,
+    fiscal_identity_id=None,
     entity_id=None,
     contact_id=None,
     category_id=None,
     date=None,
     formal=True,
     pos=1,
+    number=45,
     voucher_type=None,
 ):
     entity_id = entity_id or make_entity(db).id
     invoice = Invoice(
         id=uuid.uuid4(),
-        invoice_type=invoice_type,
+        invoice_type=invoice_type or InvoiceType.purchase,
         entity_id=entity_id,
-        fiscal_identity=fiscal_identity or make_fiscal_identity(db),
+        fiscal_identity_id=fiscal_identity_id or make_fiscal_identity(db).id,
         contact_id=contact_id or make_contact(db).id,
         category_id=category_id,
         date=date if date else datetime.date.today(),
         formal=formal,
         pos=pos,
+        number=number,
         voucher_type=voucher_type if voucher_type else VoucherType.A,
     )
     db.add(invoice)

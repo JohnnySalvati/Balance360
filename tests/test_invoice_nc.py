@@ -14,7 +14,10 @@ EMITTER_CUIT = "30500010012"
 
 def _make_sale(db, fiscal_identity, entity_id, voucher_type, related=None, pos=5, number=None):
     invoice = factories.make_invoice(
-        db, invoice_type=InvoiceType.sale, entity_id=entity_id, fiscal_identity=fiscal_identity
+        db,
+        invoice_type=InvoiceType.sale,
+        entity_id=entity_id,
+        fiscal_identity_id=fiscal_identity.id,
     )
     invoice.voucher_type = voucher_type
     invoice.pos = pos

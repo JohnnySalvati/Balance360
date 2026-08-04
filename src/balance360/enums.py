@@ -32,8 +32,6 @@ class VoucherType(enum.Enum):
     NCA = "NCA"
     NCB = "NCB"
     NCC = "NCC"
-    ND = "ND"
-
 
 class SerialStatus(enum.Enum):
     pending = "pending"

@@ -52,10 +52,13 @@
 
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Contacto</label>
-                    <select name="contact_id" id="contact-select" required class="border rounded px-3 py-2 text-sm">
+                    <select name="contact_id" id="contact-select" required
+                            onchange="applyVoucherFilter()"
+                            class="border rounded px-3 py-2 text-sm">
                         <option value="" data-type="both">— Seleccionar contacto —</option>
                         {% for c in contacts %}
-                        <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}">{{ c.name }}</option>
+                        <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}"
+                                data-condicion="{{ c.condicion_iva.name }}">{{ c.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -385,13 +388,20 @@ function toggleFiscalIdentity(invoiceType) {
     select.disabled = !show;
 }
 
-// Letras permitidas por condición IVA del emisor (ventas).
-const VOUCHER_BY_CONDICION = {
-    INSCRIPTO: ['A', 'B', 'NCA', 'NCB', 'ND'],
-    MONOTRIBUTO: ['C', 'NCC'],
-    EXENTO: ['C', 'NCC'],
-    FINAL: [],
-};
+// Letra según condición IVA del emisor y del receptor (ventas).
+function allowedVouchers(emisor, receptor) {
+    if (emisor === 'MONOTRIBUTO' || emisor === 'EXENTO') return ['C', 'NCC'];
+    if (emisor === 'INSCRIPTO') {
+        return receptor === 'INSCRIPTO' ? ['A', 'NCA'] : ['B', 'NCB'];
+    }
+    return null;  // emisor desconocido → sin restricción
+}
+
+function selectedCondicion(selectId) {
+    const sel = document.getElementById(selectId);
+    const opt = sel ? sel.options[sel.selectedIndex] : null;
+    return opt ? opt.dataset.condicion : null;
+}
 
 function applyVoucherFilter() {
     const voucherSelect = document.getElementById('voucher-type-select');
@@ -399,10 +409,10 @@ function applyVoucherFilter() {
     // Sin restricción en compras: el emisor es el proveedor, la letra es la suya.
     let allowed = null;
     if (document.getElementById('invoice-type').value === 'sale') {
-        const fiSelect = document.getElementById('fiscal-identity-select');
-        const opt = fiSelect ? fiSelect.options[fiSelect.selectedIndex] : null;
-        const condicion = opt ? opt.dataset.condicion : null;
-        allowed = VOUCHER_BY_CONDICION[condicion] || null;
+        allowed = allowedVouchers(
+            selectedCondicion('fiscal-identity-select'),
+            selectedCondicion('contact-select'),
+        );
     }
     let firstVisible = null;
     for (const o of voucherSelect.options) {
