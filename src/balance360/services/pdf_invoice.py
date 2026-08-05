@@ -58,7 +58,11 @@ def _to_decimal(s: str | None) -> Decimal | None:
     """
     if s is None:
         return None
-    cleaned = re.sub(r"[^\d.,]", "", s.strip())  # drop $, %, spaces, letters
+    raw = s.strip()
+    # Keep the sign: "-8.977,04" (leading, e.g. discount rows) or
+    # "8.977,04-" (trailing, printed by some ERPs).
+    negative = bool(re.match(r"^[^\d]*-", raw)) or raw.endswith("-")
+    cleaned = re.sub(r"[^\d.,]", "", raw)  # drop $, %, spaces, letters
     if not cleaned:
         return None
     last_dot = cleaned.rfind(".")
@@ -70,9 +74,10 @@ def _to_decimal(s: str | None) -> Decimal | None:
         digits = re.sub(r"[.,]", "", cleaned[:dec_pos])
         frac = cleaned[dec_pos + 1 :]
     try:
-        return Decimal(f"{digits}.{frac}" if frac else digits)
+        value = Decimal(f"{digits}.{frac}" if frac else digits)
     except InvalidOperation:
         return None
+    return -value if negative else value
 
 
 def _normalize_cuit(s: str) -> str:
@@ -366,6 +371,16 @@ LAYOUTS: list[Layout] = [
             rf"^(?P<code>\S+)\s+(?P<desc>.+?)\s+(?P<qty>\d+,\d+)\s+(?P<price>{N})\s+{N}\s+(?P<iva>\d+,\d+)\s+{N}\s*$"
         ),
         wrap="append",
+    ),
+    # 10. Service invoices (Prosegur, prepagas, etc.): "CONCEPTO [Cantidad] Importe".
+    #     Rows carry only a description and one $ amount (the line TOTAL, so
+    #     qty stays 1 and unit_price == amount). No per-line IVA column: the
+    #     voucher-letter default applies. Discounts come through as negative
+    #     amounts so the line sum still reproduces the printed SUBTOTAL.
+    Layout(
+        name="concepto_importe",
+        signature=re.compile(r"^\s*CONCEPTO\s+(?:Cantidad\s+)?Importe\s*$", re.I),
+        row=re.compile(rf"^(?P<desc>.+?)\s+\$\s*(?P<price>-?{N})\s*$"),
     ),
 ]
 
