@@ -35,14 +35,16 @@
     {% set t_profit = namespace(v=0) %}
     {% set t_taxes = namespace(v=0) %}
     {% set t_result = namespace(v=0) %}
+    {% set t_credit = namespace(v=0) %}
     {% for e in profit.by_entity %}
         {% set t_profit.v = t_profit.v + e.gross_profit %}
         {% set t_taxes.v = t_taxes.v + e.taxes %}
         {% set t_result.v = t_result.v + e.net_profit %}
+        {% set t_credit.v = t_credit.v + e.special_iva_credit %}
     {% endfor %}
 
     {# Resumen #}
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 max-w-3xl">
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6 max-w-5xl">
         <div class="bg-white rounded shadow p-5">
             <p class="text-xs uppercase tracking-wide text-gray-400">Ganancia bruta</p>
             <p class="text-2xl font-bold text-emerald-600 font-mono">{{ t_profit.v | currency }}</p>
@@ -55,10 +57,14 @@
             <p class="text-xs uppercase tracking-wide text-gray-400">Ganancia</p>
             <p class="text-2xl font-bold font-mono {% if t_result.v >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ t_result.v | currency }}</p>
         </div>
+        <div class="bg-white rounded shadow p-5">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Crédito IVA solo imp.</p>
+            <p class="text-2xl font-bold text-teal-600 font-mono">{{ t_credit.v | currency }}</p>
+        </div>
     </div>
 
     {% if profit.by_entity %}
-    <div class="bg-white rounded shadow p-5 mb-6 max-w-3xl">
+    <div class="bg-white rounded shadow p-5 mb-6 max-w-5xl">
         <div style="position: relative; height: 280px;">
             <canvas id="profitChart"></canvas>
         </div>
@@ -66,7 +72,7 @@
     {% endif %}
 
     {# Detalle por entidad #}
-    <div class="bg-white rounded shadow max-w-3xl">
+    <div class="bg-white rounded shadow max-w-5xl">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
                 <tr>
@@ -74,6 +80,7 @@
                     <th class="px-4 py-3 text-right">Ganancia bruta</th>
                     <th class="px-4 py-3 text-right">Impuestos</th>
                     <th class="px-4 py-3 text-right">Ganancia</th>
+                    <th class="px-4 py-3 text-right">Crédito IVA solo imp.</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -83,9 +90,10 @@
                     <td class="px-4 py-3 text-right font-mono text-emerald-600">{{ e.gross_profit | currency }}</td>
                     <td class="px-4 py-3 text-right font-mono text-rose-500">{{ e.taxes | currency }}</td>
                     <td class="px-4 py-3 text-right font-mono font-semibold {% if e.net_profit >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ e.net_profit | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-teal-600">{{ e.special_iva_credit | currency }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="4" class="px-4 py-6 text-center text-gray-400">Sin datos en el período.</td></tr>
+                <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400">Sin datos en el período.</td></tr>
                 {% endfor %}
             </tbody>
             {% if profit.by_entity %}
@@ -95,6 +103,7 @@
                     <td class="px-4 py-3 text-right font-mono text-emerald-600">{{ t_profit.v | currency }}</td>
                     <td class="px-4 py-3 text-right font-mono text-rose-500">{{ t_taxes.v | currency }}</td>
                     <td class="px-4 py-3 text-right font-mono {% if t_result.v >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ t_result.v | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-teal-600">{{ t_credit.v | currency }}</td>
                 </tr>
             </tfoot>
             {% endif %}
@@ -115,7 +124,8 @@
                     datasets: [
                         { label: 'Ganancia bruta',  backgroundColor: '#6ee7b7', data: [{% for e in profit.by_entity %}{{ e.gross_profit }}, {% endfor %}] },
                         { label: 'Impuestos', backgroundColor: '#fda4af', data: [{% for e in profit.by_entity %}{{ e.taxes }}, {% endfor %}] },
-                        { label: 'Ganancia', backgroundColor: '#93c5fd', data: [{% for e in profit.by_entity %}{{ e.net_profit }}, {% endfor %}] }
+                        { label: 'Ganancia', backgroundColor: '#93c5fd', data: [{% for e in profit.by_entity %}{{ e.net_profit }}, {% endfor %}] },
+                        { label: 'Crédito IVA solo imp.', backgroundColor: '#5eead4', data: [{% for e in profit.by_entity %}{{ e.special_iva_credit }}, {% endfor %}] }
                     ]
                 },
                 options: {
