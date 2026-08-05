@@ -43,5 +43,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
-engine = create_engine(settings.database_url)
+engine = create_engine(settings.database_url, echo=False)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)

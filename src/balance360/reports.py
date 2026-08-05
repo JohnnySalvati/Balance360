@@ -18,7 +18,9 @@ from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.transaction import Transaction
 from balance360.services.exchange_rate import conversion_factor
 
-
+nc_case = case(
+    (Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_=1
+)
 @dataclass
 class CategoryNode:
     category: Category
@@ -324,10 +326,6 @@ def get_iva_position(
 
     entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
-    nc_case = case(
-        (Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_=1
-    )
-
     stmt = (
         select(
             Entity.id.label("entity_id"),
@@ -347,6 +345,7 @@ def get_iva_position(
                     )
                 ).filter(
                     Invoice.invoice_type == InvoiceType.sale,
+                    Invoice.applies_iva
                 ),
                 0,
             ).label("debit"),
@@ -365,6 +364,7 @@ def get_iva_position(
                     )
                 ).filter(
                     Invoice.invoice_type == InvoiceType.purchase,
+                    Invoice.applies_iva
                 ),
                 0,
             ).label("credit"),
@@ -506,10 +506,6 @@ def get_iibb_on_sales(
 
     entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
-    nc_case = case(
-        (Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_=1
-    )
-
     stmt = (
         select(
             Entity.id.label("entity_id"),
@@ -570,8 +566,11 @@ def get_invoice_profit(
 
     entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
-    nc_case = case(
-        (Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_=1
+
+    applies_iva_case = case(
+        (Invoice.applies_iva,
+        1 + InvoiceLine.iva_rate/100),
+        else_=1
     )
 
     stmt = (
@@ -606,6 +605,36 @@ def get_invoice_profit(
                 ).filter(Invoice.invoice_type == InvoiceType.purchase),
                 0,
             ).label("net_purchases"),
+            func.coalesce(
+                func.sum(
+                    InvoiceLine.quantity
+                    * InvoiceLine.unit_price
+                    * nc_case
+                    * applies_iva_case
+                    * conversion_factor(
+                        source_id=None,
+                        txn_date=Invoice.date,
+                        target_currency=to_currency,
+                        reference_date=reference_date,
+                    )
+                ).filter(Invoice.invoice_type == InvoiceType.sale),
+                0,
+            ).label("gross_sales"),
+            func.coalesce(
+                func.sum(
+                    InvoiceLine.quantity
+                    * InvoiceLine.unit_price
+                    * nc_case
+                    * applies_iva_case
+                    * conversion_factor(
+                        source_id=None,
+                        txn_date=Invoice.date,
+                        target_currency=to_currency,
+                        reference_date=reference_date,
+                    )
+                ).filter(Invoice.invoice_type == InvoiceType.purchase),
+                0,
+            ).label("gross_purchases"),
         )
         .where(Invoice.date.between(start, end))
         .where(Invoice.confirmed)
@@ -625,6 +654,8 @@ def get_invoice_profit(
             "entity_name": row.entity_name,
             "net_sales": row.net_sales,
             "net_purchases": row.net_purchases,
+            "gross_sales": row.gross_sales,
+            "gross_purchases": row.gross_purchases
         }
         for row in rows
     ]
@@ -673,19 +704,32 @@ def get_invoice_profit(
 
         entity_name = (p or iva or trib or iibb).get("entity_name")
 
-        profit = p.get("net_sales", 0) - p.get("net_purchases", 0)
+        margin = p.get("net_sales", 0) - p.get("net_purchases", 0) 
 
-        taxes = iva.get("position", 0) + trib.get("entity_total", 0) + iibb.get("entity_total", 0)
+        gross_profit = p.get("gross_sales", 0) - p.get("gross_purchases", 0) 
 
+        iva_position = iva.get("position", 0)
+
+        special_iva_credit = (gross_profit - margin) - iva_position
+
+        tributes = trib.get("entity_total", 0)
+
+        iibb = iibb.get("entity_total", 0)
+        
+        taxes = iva_position + tributes + iibb
+
+        net_profit = margin - iibb - tributes
+        
         by_entity.append(
             {
                 "entity_id": eid,
                 "entity_name": entity_name,
-                "profit": profit + taxes,
+                "gross_profit": gross_profit,
                 "taxes": taxes,
-                "result": profit,
+                "special_iva_credit": special_iva_credit,
+                "net_profit": net_profit,
             }
         )
-        total += profit - taxes
+        total += net_profit
 
     return {"by_entity": by_entity, "total": total}

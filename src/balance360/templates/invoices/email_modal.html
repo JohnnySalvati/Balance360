@@ -1,0 +1,59 @@
+<div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">Enviar comprobante por email</h2>
+            <button hx-get="/invoices/close-modal" hx-target="#modal" hx-swap="outerHTML"
+                    class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+        </div>
+
+        <form hx-post="/invoices/{{ invoice.id }}/email"
+              hx-target="#modal"
+              hx-swap="outerHTML"
+              class="flex flex-col gap-3">
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Para</label>
+                <input type="email" name="to" required
+                       value="{{ invoice.contact.email or '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">CC (opcional)</label>
+                <input type="text" name="cc" placeholder="Separar con comas"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Asunto</label>
+                <input type="text" name="subject" required maxlength="200"
+                       value="Comprobante {{ invoice.voucher_type.value }} {{ invoice.pos }}-{{ invoice.number }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Mensaje</label>
+                <textarea name="body" rows="4"
+                          class="border rounded px-3 py-2 text-sm">Estimado/a {{ invoice.contact.name }},
+
+Adjuntamos el comprobante {{ invoice.voucher_type.value }} {{ invoice.pos }}-{{ invoice.number }}.
+
+Saludos.</textarea>
+            </div>
+
+            <p class="text-xs text-gray-400">Se adjuntará el PDF del comprobante autorizado.</p>
+
+            <div class="flex justify-end gap-2 mt-2">
+                <button type="button"
+                        hx-get="/invoices/close-modal" hx-target="#modal" hx-swap="outerHTML"
+                        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700">
+                    Enviar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -298,6 +299,9 @@ def validate_confirmation(db: Session, invoice: Invoice):
     if not invoice.invoice_lines:
         raise InvoiceConfirmationError("El comprobante no tiene items")
 
+    if invoice.tax_only and invoice.invoice_type == InvoiceType.sale:
+        raise InvoiceConfirmationError("Un comprobante no puede venta y solo impositivo simultaneamente")
+
     if invoice.formal:
         if not invoice.pos:
             raise InvoiceConfirmationError("Se necesita punto de venta")
@@ -307,6 +311,15 @@ def validate_confirmation(db: Session, invoice: Invoice):
         else:
             if invoice.voucher_type not in allowed_for(invoice):
                 raise InvoiceConfirmationError("Tipo de comprobante no admitido")
+    else:
+        if invoice.tax_only:
+            raise InvoiceConfirmationError("Un comprobante no puede ser informal y solo impositivo simultaneamente")
+        else:
+            
+            for line in invoice.invoice_lines:
+                if line.iva_rate != Decimal(0):
+                    raise InvoiceConfirmationError("Los items de un comprobante informal no pueden contener IVA")
+
 
     if invoice.is_nc:
         assert invoice.related_invoice

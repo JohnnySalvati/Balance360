@@ -48,6 +48,9 @@
                 <th class="px-4 py-3">Fecha</th>
                 <th class="px-4 py-3">Comprobante</th>
                 <th class="px-4 py-3">Entidad</th>
+                {% if current_type == 'sale' %}
+                <th class="px-4 py-3">Identidad fiscal</th>
+                {% endif %}
                 <th class="px-4 py-3">Contacto</th>
                 <th class="px-4 py-3">Categoría</th>
                 <th class="px-4 py-3 text-right">Total</th>
@@ -71,6 +74,9 @@
                     {% endif %}
                 </td>
                 <td class="px-4 py-3 text-gray-700">{{ inv.entity.name }}</td>
+                {% if current_type == 'sale' %}
+                <td class="px-4 py-3 text-gray-500">{{ inv.fiscal_identity.name if inv.fiscal_identity else "—" }}</td>
+                {% endif %}
                 <td class="px-4 py-3 text-gray-800">{{ inv.contact.name }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ inv.category.name if inv.category else "—" }}</td>
                 <td class="px-4 py-3 text-right font-medium">{{ (-inv.total if inv.is_nc else inv.total) | currency }}</td>
@@ -90,14 +96,14 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="px-4 py-6 text-center text-gray-400">No hay comprobantes cargados.</td>
+                <td colspan="{{ 8 if current_type == 'sale' else 7 }}" class="px-4 py-6 text-center text-gray-400">No hay comprobantes cargados.</td>
             </tr>
             {% endfor %}
             {% if invoices %}
             {% set ns = namespace(total=0) %}
             {% for inv in invoices %}{% set ns.total = ns.total + (-inv.total if inv.is_nc else inv.total) %}{% endfor %}
             <tr class="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-800">
-                <td class="px-4 py-3" colspan="5">Total ({{ invoices|length }})</td>
+                <td class="px-4 py-3" colspan="{{ 6 if current_type == 'sale' else 5 }}">Total ({{ invoices|length }})</td>
                 <td class="px-4 py-3 text-right">{{ ns.total | currency }}</td>
                 <td></td>
             </tr>

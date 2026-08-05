@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 
 from sqlalchemy import select, true
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload, joinedload
 
 from balance360.enums import InvoiceType
 from balance360.models.invoice import Invoice
@@ -25,6 +25,14 @@ def get_all(
         stmt = stmt.where(Invoice.invoice_type == invoice_type)
 
     stmt = stmt.order_by(Invoice.date)
+    stmt = stmt.options(
+        joinedload(Invoice.entity),
+        joinedload(Invoice.contact),
+        joinedload(Invoice.category),
+        joinedload(Invoice.fiscal_identity),
+        selectinload(Invoice.invoice_lines),
+        selectinload(Invoice.invoice_tributes)
+    )
 
     invoices = db.execute(stmt).scalars().all()
     return list(invoices)

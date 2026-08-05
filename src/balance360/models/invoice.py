@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, Enum, ForeignKey, Integer, String, Uuid
+from sqlalchemy import Boolean, Date, Enum, ForeignKey, Integer, String, Uuid, ColumnElement
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from balance360.enums import Concepto, InvoiceType, IvaAliquot, VoucherType
 from balance360.models.base import Base, TimestampMixin
@@ -123,6 +124,11 @@ class Invoice(Base, TimestampMixin):
     def is_nc(self) -> bool:
         return self.voucher_type in (VoucherType.NCA, VoucherType.NCB, VoucherType.NCC)
 
-    @property
+    @hybrid_property
     def applies_iva(self) -> bool:
         return self.voucher_type not in (VoucherType.C, VoucherType.NCC)
+    
+    @applies_iva.inplace.expression
+    @classmethod
+    def _applies_iva_expression(cls) -> ColumnElement[bool]:
+        return cls.voucher_type.notin_([VoucherType.C, VoucherType.NCC])

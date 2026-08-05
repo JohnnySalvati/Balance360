@@ -92,7 +92,8 @@
                     Comprobante formal
                 </label>
                 <label id="tax-only-field" class="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" name="tax_only" id="tax-only-check" value="true">
+                    <input type="checkbox" name="tax_only" id="tax-only-check" value="true"
+                           onchange="toggleTaxOnly(this.checked)">
                     Solo impositivo
                 </label>
             </div>
@@ -230,6 +231,35 @@ function toggleFormal(checked) {
     }
 }
 
+function toggleTaxOnly(checked) {
+    const formalCheck = document.getElementById('formal-check');
+    if (checked) {
+        // Un comprobante solo impositivo es siempre formal: forzar y bloquear.
+        formalCheck.checked = true;
+        toggleFormal(true);
+        formalCheck.disabled = true;
+        ensureFormalHidden(true);
+    } else {
+        formalCheck.disabled = false;
+        ensureFormalHidden(false);
+    }
+}
+
+// Un checkbox deshabilitado no se envía; preservamos el valor con un hidden mientras está bloqueado.
+function ensureFormalHidden(add) {
+    const existing = document.getElementById('formal-hidden');
+    if (add && !existing) {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'formal';
+        hidden.value = 'true';
+        hidden.id = 'formal-hidden';
+        document.getElementById('formal-check').insertAdjacentElement('afterend', hidden);
+    } else if (!add && existing) {
+        existing.remove();
+    }
+}
+
 function toggleConcepto(value) {
     const wrap = document.getElementById('service-dates');
     const show = value !== 'products';
@@ -263,7 +293,10 @@ function toggleNumberField(invoiceType) {
     // "Solo impositivo" solo aplica a compras
     const taxOnlyField = document.getElementById('tax-only-field');
     taxOnlyField.style.display = show ? 'flex' : 'none';
-    if (!show) document.getElementById('tax-only-check').checked = false;
+    if (!show) {
+        document.getElementById('tax-only-check').checked = false;
+        toggleTaxOnly(false);
+    }
 }
 
 async function uploadPdf() {
