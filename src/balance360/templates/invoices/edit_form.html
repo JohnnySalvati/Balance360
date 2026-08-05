@@ -18,7 +18,7 @@
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Tipo de comprobante</label>
                     <select name="invoice_type" id="invoice-type" required
-                            onchange="filterContacts(this.value); toggleFiscalIdentity(this.value); applyVoucherFilter()"
+                            onchange="filterContacts(this.value); toggleTaxOnlyVisibility(this.value); toggleFiscalIdentity(this.value); applyVoucherFilter()"
                             class="border rounded px-3 py-2 text-sm">
                         {% for t in invoice_type %}
                         <option value="{{ t.value }}"
@@ -101,8 +101,9 @@
                            {{ "checked" if invoice.formal else "" }}>
                     Comprobante formal
                 </label>
-                <label class="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" name="tax_only" value="true"
+                <label id="tax-only-field" class="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" name="tax_only" id="tax-only-check" value="true"
+                           onchange="toggleTaxOnly(this.checked)"
                            {{ "checked" if invoice.tax_only else "" }}>
                     Solo impositivo
                 </label>
@@ -196,6 +197,45 @@ function toggleFormal(checked) {
     document.getElementById('formal-fields').style.display = checked ? 'flex' : 'none';
 }
 
+function toggleTaxOnly(checked) {
+    const formalCheck = document.getElementById('formal-check');
+    if (checked) {
+        // Un comprobante solo impositivo es siempre formal: forzar y bloquear.
+        formalCheck.checked = true;
+        toggleFormal(true);
+        formalCheck.disabled = true;
+        ensureFormalHidden(true);
+    } else {
+        formalCheck.disabled = false;
+        ensureFormalHidden(false);
+    }
+}
+
+// Un checkbox deshabilitado no se envía; preservamos el valor con un hidden mientras está bloqueado.
+function ensureFormalHidden(add) {
+    const existing = document.getElementById('formal-hidden');
+    if (add && !existing) {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'formal';
+        hidden.value = 'true';
+        hidden.id = 'formal-hidden';
+        document.getElementById('formal-check').insertAdjacentElement('afterend', hidden);
+    } else if (!add && existing) {
+        existing.remove();
+    }
+}
+
+// "Solo impositivo" solo aplica a compras: en ventas se oculta y destilda.
+function toggleTaxOnlyVisibility(invoiceType) {
+    const show = invoiceType === 'purchase';
+    document.getElementById('tax-only-field').style.display = show ? 'flex' : 'none';
+    if (!show) {
+        document.getElementById('tax-only-check').checked = false;
+        toggleTaxOnly(false);
+    }
+}
+
 function toggleConcepto(value) {
     const wrap = document.getElementById('service-dates');
     const show = value !== 'products';
@@ -269,6 +309,8 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
 filterContacts(document.getElementById('invoice-type').value);
 toggleConcepto(document.getElementById('concepto-select').value);
 toggleFiscalIdentity(document.getElementById('invoice-type').value);
+toggleTaxOnlyVisibility(document.getElementById('invoice-type').value);
+if (document.getElementById('tax-only-check').checked) toggleTaxOnly(true);
 applyVoucherFilter();
 </script>
 {% endblock %}
