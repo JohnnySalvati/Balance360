@@ -4,6 +4,7 @@
 <div class="shrink-0 flex justify-between items-center mb-4">
     <h1 class="text-2xl font-bold">Comprobantes</h1>
     <a href="/invoices/new"
+       onclick="sessionStorage.setItem('invoicesReturn', location.href)"
        class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
         + Nuevo
     </a>
@@ -59,7 +60,7 @@
         </thead>
         <tbody id="invoice-tbody" class="divide-y divide-gray-100">
             {% for inv in invoices %}
-            <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='/invoices/{{ inv.id }}'">
+            <tr class="cursor-pointer {% if inv.tax_only %}bg-amber-50 hover:bg-amber-100{% else %}hover:bg-gray-50{% endif %}" onclick="sessionStorage.setItem('invoicesReturn', location.href); location.href='/invoices/{{ inv.id }}'">
                 <td class="px-4 py-3 text-gray-700">{{ inv.date }}</td>
                 <td class="px-4 py-3 text-gray-500">
                     {% if inv.formal %}

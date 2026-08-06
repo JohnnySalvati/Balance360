@@ -41,7 +41,9 @@
             Enviar por email
         </button>
         {% endif %}
-        <a href="/invoices/?invoice_type={{ invoice.invoice_type.value }}" class="text-sm text-blue-600 hover:underline">← Volver</a>
+        <a href="/invoices/?invoice_type={{ invoice.invoice_type.value }}"
+           onclick="event.preventDefault(); location.href = sessionStorage.getItem('invoicesReturn') || this.getAttribute('href')"
+           class="text-sm text-blue-600 hover:underline">← Volver</a>
     </div>
 </div>
 
@@ -77,6 +79,23 @@
             <p class="text-xs text-gray-500">Solo impositivo</p>
             <p class="text-gray-800">{{ "Sí" if invoice.tax_only else "No" }}</p>
         </div>
+        <div>
+            <p class="text-xs text-gray-500">Concepto</p>
+            {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
+            <p class="text-gray-800">{{ concepto_labels[invoice.concepto.value] }}</p>
+        </div>
+        {% if invoice.from_date or invoice.to_date %}
+        <div>
+            <p class="text-xs text-gray-500">Período de servicio</p>
+            <p class="text-gray-800">{{ invoice.from_date or "—" }} — {{ invoice.to_date or "—" }}</p>
+        </div>
+        {% endif %}
+        {% if invoice.due_date %}
+        <div>
+            <p class="text-xs text-gray-500">Vto. de pago</p>
+            <p class="text-gray-800">{{ invoice.due_date }}</p>
+        </div>
+        {% endif %}
         {% if invoice.cae %}
         <div>
             <p class="text-xs text-gray-500">CAE</p>
