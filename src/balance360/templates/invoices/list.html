@@ -83,15 +83,15 @@
                 <td class="px-4 py-3 text-right font-medium">{{ (-inv.total if inv.is_nc else inv.total) | currency }}</td>
                 <td class="px-4 py-3 flex gap-1 flex-wrap">
                     {% if not inv.confirmed %}
-                        <span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Borrador</span>
+                        <span title="Comprobante sin confirmar" class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Borrador</span>
                     {% endif %}
                     {% if inv.authorized %}
-                        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Autorizado</span>
+                        <span title="Autorizado por ARCA (con CAE)" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Autorizado ARCA</span>
                     {% endif %}
                     {% if inv.paid %}
-                        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Pagado</span>
+                        <span title="El pago ya fue registrado" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Pagado</span>
                     {% elif inv.confirmed %}
-                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pendiente</span>
+                        <span title="Confirmado, falta registrar el pago" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pago pendiente</span>
                     {% endif %}
                 </td>
             </tr>
