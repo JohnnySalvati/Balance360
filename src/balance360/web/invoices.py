@@ -879,6 +879,29 @@ def download_pdf(
         headers={"Content-Disposition": 'inline; filename="comprobante.pdf"'},
     )
 
+    
+@router.get("/{invoice_id}/render")
+def render_invoice_pdf(
+    invoice: Invoice = Depends(get_invoice_or_404),
+):
+    if not invoice.authorized:
+        raise HTTPException(status_code=404, detail="Comprobante no autorizado")
+
+    qr = build_qr(invoice)
+
+    html = templates.get_template("invoices/pdf.html").render({"invoice": invoice, "qr": qr})
+
+    try:
+        from weasyprint import HTML
+    except (ImportError, OSError):
+        return toast_error('No se pudo generar el PDF')  # dev local sin GTK → raises 
+    return Response(
+        content=HTML(string=html).write_pdf(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="comprobante.pdf"'},
+    )
+
+
 
 @router.post("/{invoice_id}/credit-note")
 def create_credit_note(

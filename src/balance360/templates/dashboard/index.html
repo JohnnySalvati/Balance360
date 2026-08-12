@@ -50,7 +50,11 @@
 
         {# Ingresos vs Egresos — 12 meses #}
         <div class="bg-white rounded shadow p-5 lg:col-span-2">
-            <h2 class="text-sm font-semibold text-gray-700 mb-3">Ingresos vs Egresos (12 meses)</h2>
+            <div class="flex justify-between items-center mb-3 gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Ingresos vs Egresos (12 meses)</h2>
+                <a href="{{ request.url_for('profit_report') }}{% if selected_entity %}?entity_id={{ selected_entity }}{% endif %}"
+                   class="text-xs text-blue-600 hover:underline">Ver ganancia →</a>
+            </div>
             <div class="relative" style="height: 280px;">
                 <canvas id="monthlyChart"></canvas>
             </div>
@@ -124,6 +128,8 @@
     const monthlyLabels  = {{ monthly | map(attribute='label') | list | tojson }};
     const monthlyIncome  = {{ monthly | map(attribute='income') | map('float') | list | tojson }};
     const monthlyExpense = {{ monthly | map(attribute='expense') | map('float') | list | tojson }};
+    const monthlyProfit  = {{ (monthly_profit or []) | map('float') | list | tojson }};
+    const monthlyCash    = monthlyIncome.map((v, i) => v - monthlyExpense[i]);
     const money     = v => '$ ' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const moneyAxis = v => '$ ' + Number(v).toLocaleString('en-US');
 
@@ -134,8 +140,33 @@
             data: {
                 labels: monthlyLabels,
                 datasets: [
-                    { label: 'Ingresos', data: monthlyIncome, backgroundColor: '#10b981' },
-                    { label: 'Egresos',  data: monthlyExpense, backgroundColor: '#ef4444' }
+                    { label: 'Ingresos', data: monthlyIncome, backgroundColor: '#10b981', order: 1 },
+                    { label: 'Egresos',  data: monthlyExpense, backgroundColor: '#ef4444', order: 1 },
+                    {
+                        type: 'line',
+                        order: 0,
+                        label: 'Ganancia (facturas)',
+                        data: monthlyProfit,
+                        borderColor: '#3b82f6',
+                        backgroundColor: '#3b82f6',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        fill: false
+                    },
+                    {
+                        type: 'line',
+                        order: 0,
+                        label: 'Ganancia (caja)',
+                        data: monthlyCash,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: '#8b5cf6',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        pointRadius: 3,
+                        fill: false
+                    }
                 ]
             },
             options: {

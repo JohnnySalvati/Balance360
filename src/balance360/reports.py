@@ -248,6 +248,13 @@ def get_monthly_income_expense(
 
     return rows_data
 
+# def get_monthly_profit(
+#     db: Session,
+#     months: int = 12,
+#     entity_ids: list | None = None,
+#     to_currency: Currency | None = None,
+#     reference_date: date | None = None
+# :)
 
 def get_expenses_by_category(
     db: Session,

@@ -300,7 +300,7 @@ def validate_confirmation(db: Session, invoice: Invoice):
         raise InvoiceConfirmationError("El comprobante no tiene items")
 
     if invoice.tax_only and invoice.invoice_type == InvoiceType.sale:
-        raise InvoiceConfirmationError("Un comprobante no puede venta y solo impositivo simultaneamente")
+        raise InvoiceConfirmationError("Un comprobante no puede ser venta y solo impositivo simultaneamente")
 
     if invoice.formal:
         if not invoice.pos:
@@ -315,7 +315,6 @@ def validate_confirmation(db: Session, invoice: Invoice):
         if invoice.tax_only:
             raise InvoiceConfirmationError("Un comprobante no puede ser informal y solo impositivo simultaneamente")
         else:
-            
             for line in invoice.invoice_lines:
                 if line.iva_rate != Decimal(0):
                     raise InvoiceConfirmationError("Los items de un comprobante informal no pueden contener IVA")

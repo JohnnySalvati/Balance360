@@ -13,6 +13,14 @@ def toast_error(message: str) -> HTMLResponse:
     return response
 
 
+def toast_success(message: str) -> HTMLResponse:
+    response = HTMLResponse('<div id="modal"></div>')
+    response.headers["HX-Trigger"] = json.dumps(
+        {"showToast": {"message": message, "type": "success"}}
+    )
+    return response
+
+
 def format_validation_error(e: ValidationError) -> str:
     result = []
     for error in e.errors():
