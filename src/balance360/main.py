@@ -1,11 +1,14 @@
+import logging
+from html import escape
 from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi import Request as FastAPIRequest
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from balance360.dependencies import get_current_user
+from balance360.exceptions import ArcaError, Balance360Error
 from balance360.models import (  # noqa: F401
     account,
     attachment,
@@ -30,6 +33,9 @@ from balance360.routers import (
 )
 from balance360.web import auth
 from balance360.web import router as web_router
+from balance360.web.responses import toast_error
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Balance360")
 
@@ -53,3 +59,18 @@ app.include_router(auth.router)
 @app.exception_handler(401)
 async def unauthorized_handler(request: FastAPIRequest, exc):
     return RedirectResponse(url="/login/")
+
+
+@app.exception_handler(Balance360Error)
+async def balance360_error_handler(request: FastAPIRequest, exc: Balance360Error):
+    if isinstance(exc, ArcaError):
+        logger.error("%s %s — %s", request.method, request.url.path, exc, exc_info=exc)
+    else:
+        logger.warning("%s %s — %s: %s", request.method, request.url.path, type(exc).__name__, exc)
+
+    if request.headers.get("HX-Request"):
+        return toast_error(str(exc))
+    return HTMLResponse(
+        f"<h1>No se pudo completar la operación</h1><p>{escape(str(exc))}</p>",
+        status_code=400,
+    )

@@ -168,10 +168,10 @@
     {# Authorize action — solo ventas formales confirmadas y no autorizadas #}
     {% if invoice.confirmed and not invoice.authorized and invoice.formal and invoice.invoice_type.value == "sale" %}
     <div class="bg-white rounded shadow p-6 flex justify-between items-center">
-        <div id="authorize-error"></div>
+        {# Los errores de dominio los muestra el toast global (handler en main.py),
+           por eso ya no hay div de error ni hx-target: la respuesta de error viene
+           con HX-Reswap:none y no toca el DOM. #}
         <form hx-post="/invoices/{{ invoice.id }}/authorize"
-              hx-target="#authorize-error"
-              hx-swap="innerHTML"
               hx-indicator="#authorize-spinner"
               hx-disabled-elt="find button"
               class="ml-auto flex items-center gap-3">
@@ -201,10 +201,7 @@
     <div class="bg-white rounded shadow p-6 flex justify-between items-center">
         <p class="text-sm text-gray-500">Emitir nota de crédito por este comprobante</p>
         <div class="flex items-center gap-3">
-            <span id="credit-note-error" class="text-sm text-red-600"></span>
             <button hx-post="/invoices/{{ invoice.id }}/credit-note"
-                    hx-target="#credit-note-error"
-                    hx-swap="innerHTML"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
                     class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">
@@ -227,10 +224,7 @@
     <div id="payment-panel" class="hidden bg-white rounded shadow p-6">
         <h2 class="text-sm font-semibold text-gray-700 mb-4">Registrar pago</h2>
         <form hx-post="/invoices/{{ invoice.id }}/pay"
-              hx-target="#payment-error"
-              hx-swap="innerHTML"
               class="flex flex-col gap-4">
-        <div id="payment-error"></div>
             <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs text-gray-500">Cuenta</label>
@@ -274,10 +268,7 @@
         </button>
 
         <div class="flex items-center gap-3">
-            <span id="confirm-error" class="text-sm text-red-600"></span>
             <button hx-post="/invoices/{{ invoice.id }}/confirm"
-                    hx-target="#confirm-error"
-                    hx-swap="innerHTML"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
                     class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
@@ -288,10 +279,7 @@
     {% elif not invoice.authorized and not invoice.paid %}
     <div class="bg-white rounded shadow p-6 flex justify-end items-center">
         <div class="flex items-center gap-3">
-            <span id="unconfirm-error" class="text-sm text-red-600"></span>
             <button hx-post="/invoices/{{ invoice.id }}/unconfirm"
-                    hx-target="#unconfirm-error"
-                    hx-swap="innerHTML"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
                     class="text-sm text-orange-600 border border-orange-300 px-4 py-2 rounded hover:bg-orange-50">
@@ -379,25 +367,32 @@
     }
 
     // ---- Fila de alta de ítem (inyectada en la tabla) ----
+    // Devuelve null mientras no haya alícuota elegida (la opción placeholder no
+    // tiene data-rate). Antes caía a 0% y el campo "c/IVA" copiaba el neto, que
+    // se leía como "IVA 0" en vez de "todavía no elegiste".
     function currentIvaFactor() {
         const select = document.getElementById('iva-aliquot');
         if (!select) return 1;
-        const rate = parseFloat(select.selectedOptions[0].dataset.rate) || 0;
-        return 1 + rate / 100;
+        const rate = parseFloat(select.selectedOptions[0]?.dataset.rate);
+        return Number.isNaN(rate) ? null : 1 + rate / 100;
     }
     // Neto es lo que se envía (name="unit_price"); "con IVA" es solo ayuda.
     function recalcFromNet() {
         const net = document.getElementById('unit-price-net');
         const gross = document.getElementById('unit-price-gross');
         if (!net || !gross) return;
-        gross.value = net.value === '' ? '' : (parseFloat(net.value) * currentIvaFactor()).toFixed(2);
+        const factor = currentIvaFactor();
+        gross.value = (net.value === '' || factor === null)
+            ? '' : (parseFloat(net.value) * factor).toFixed(2);
         recalcNewLineSubtotal();
     }
     function recalcFromGross() {
         const net = document.getElementById('unit-price-net');
         const gross = document.getElementById('unit-price-gross');
         if (!net || !gross) return;
-        net.value = gross.value === '' ? '' : (parseFloat(gross.value) / currentIvaFactor()).toFixed(2);
+        const factor = currentIvaFactor();
+        net.value = (gross.value === '' || factor === null)
+            ? '' : (parseFloat(gross.value) / factor).toFixed(2);
         recalcNewLineSubtotal();
     }
     // Subtotal neto = cantidad × precio neto (igual criterio que la columna Subtotal).

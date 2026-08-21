@@ -1,5 +1,5 @@
 # association table — two FKs, composite PK, nothing else
-from sqlalchemy import Table, Column, ForeignKey
+from sqlalchemy import Column, ForeignKey, Table
 
 from balance360.models.base import Base
 

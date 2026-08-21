@@ -23,18 +23,6 @@ class AuthorizationResult:
     number: int
 
 
-voucher_type_code = {
-    VoucherType.A: 1,
-    VoucherType.B: 6,
-    VoucherType.C: 11,
-    VoucherType.NCA: 3,
-    VoucherType.NCB: 8,
-    VoucherType.NCC: 53,
-}
-
-concepto_code = {Concepto.products: 1, Concepto.services: 2, Concepto.both: 3}
-
-
 def get_last_voucher_number(
     cuit: str, pos: int, voucher_type: VoucherType, token: str, sign: str
 ) -> int:
@@ -45,7 +33,7 @@ def get_last_voucher_number(
         response = client.service.FECompUltimoAutorizado(
             Auth={"Token": token, "Sign": sign, "Cuit": cuit},
             PtoVta=pos,
-            CbteTipo=voucher_type_code[voucher_type],
+            CbteTipo=voucher_type.arca_code,
         )
     except Fault as e:
         raise WsfeError(f"ARCA: {e}") from e
@@ -78,7 +66,7 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
     imp_trib = sum(line.amount for line in invoice_request.voucher_data.tributes)
 
     FECAEDetRequest = {
-        "Concepto": concepto_code[invoice_request.voucher_data.concepto],
+        "Concepto": invoice_request.voucher_data.concepto.arca_code,
         "CondicionIVAReceptorId": invoice_request.voucher_data.receiver_condicion_iva.value,
         "DocTipo": invoice_request.voucher_data.receiver_doc_type.value,
         "DocNro": int(invoice_request.voucher_data.receiver_doc_number),
@@ -162,7 +150,7 @@ def authorize_invoice(invoice_request: InvoiceRequest) -> AuthorizationResult:
                 "FeCabReq": {
                     "CantReg": 1,
                     "PtoVta": invoice_request.voucher_info.pos,
-                    "CbteTipo": voucher_type_code[invoice_request.voucher_info.voucher_type],
+                    "CbteTipo": invoice_request.voucher_info.voucher_type.arca_code,
                 },
                 "FeDetReq": {"FECAEDetRequest": [FECAEDetRequest]},
             },

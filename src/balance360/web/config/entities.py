@@ -10,7 +10,7 @@ from balance360.crud import entity_membership as entity_membership_crud
 from balance360.crud import fiscal_identity as fiscal_identity_crud
 from balance360.crud import user as user_crud
 from balance360.dependencies import get_db
-from balance360.enums import CondicionIva, Role
+from balance360.enums import Role
 from balance360.models.entity import Entity
 from balance360.models.entity_membership import EntityMembership
 from balance360.schemas.entity import EntityCreate, EntityUpdate

@@ -6,8 +6,8 @@ import pytest
 from balance360.enums import InvoiceType, IvaAliquot, VoucherType
 from balance360.exceptions import InvoiceRequestError
 from balance360.services.invoice import _build_invoice_request
-from tests.conftest import _fake_ticket
 from tests import factories
+from tests.conftest import _fake_ticket
 
 EMITTER_CUIT = "30500010012"
 

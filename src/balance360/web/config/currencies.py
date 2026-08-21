@@ -6,9 +6,7 @@ from sqlalchemy.orm import Session
 
 from balance360.crud import currency as currency_crud
 from balance360.dependencies import get_db
-from balance360.exceptions import CurrencyDeleteError
 from balance360.schemas.currency import CurrencyCreate, CurrencyUpdate
-from balance360.web.responses import toast_error
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/currencies")
@@ -106,9 +104,6 @@ def delete_currency(
     currency=Depends(get_currency_or_404),
     db: Session = Depends(get_db),
 ):
-    try:
-        currency_crud.delete(db, currency)
-    except CurrencyDeleteError as e:
-        return toast_error(str(e))
+    currency_crud.delete(db, currency)
 
     return HTMLResponse("")

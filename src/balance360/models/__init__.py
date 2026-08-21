@@ -5,6 +5,7 @@ from balance360.models.category import Category
 from balance360.models.contact import Contact
 from balance360.models.currency import Currency
 from balance360.models.entity import Entity
+from balance360.models.entity_fiscal_identity import entity_fiscal_identities
 from balance360.models.entity_membership import EntityMembership
 from balance360.models.exchange_rate import ExchangeRate
 from balance360.models.fiscal_identity import FiscalIdentity
@@ -18,4 +19,3 @@ from balance360.models.product import Product
 from balance360.models.serial_number import SerialNumber
 from balance360.models.transaction import Transaction
 from balance360.models.user import User
-from balance360.models.entity_fiscal_identity import entity_fiscal_identities

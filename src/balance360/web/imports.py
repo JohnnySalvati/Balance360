@@ -14,11 +14,9 @@ from balance360.crud import import_row as import_row_crud
 from balance360.crud import transaction as transaction_crud
 from balance360.dependencies import get_db
 from balance360.enums import ImportRowStatus, TransactionType
-from balance360.exceptions import ImportServiceError
 from balance360.schemas.import_row import ImportRowUpdate
 from balance360.schemas.transaction import TransactionCreate
 from balance360.services.import_xlsx import import_workbook
-from balance360.web.responses import toast_error
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/imports")
@@ -38,13 +36,9 @@ def import_page(request: Request, db: Session = Depends(get_db)):
 def upload(request: Request, db: Session = Depends(get_db), file: UploadFile = File(...)):
     contents = file.file.read()
 
-    try:
-        batch = import_workbook(
-            db=db, file_bytes=BytesIO(contents), filename=file.filename or "import.xlsx"
-        )
-    except ImportServiceError as e:
-        return toast_error(str(e))
-
+    batch = import_workbook(
+        db=db, file_bytes=BytesIO(contents), filename=file.filename or "import.xlsx"
+    )
     return Response(status_code=200, headers={"HX-Redirect": f"/imports/{batch.id}"})
 
 

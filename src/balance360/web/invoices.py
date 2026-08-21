@@ -1,6 +1,5 @@
 import datetime
 import json
-import logging
 from decimal import Decimal
 from uuid import UUID
 
@@ -37,13 +36,7 @@ from balance360.enums import (
     TributeType,
     VoucherType,
 )
-from balance360.exceptions import (
-    ArcaError,
-    InvoiceAuthorizationError,
-    InvoiceConfirmationError,
-    InvoiceCreditNoteError,
-    InvoicePaymentError,
-)
+from balance360.exceptions import InvoicePaymentError, InvoicePrintError
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.invoice_tribute import InvoiceTribute
@@ -60,13 +53,10 @@ from balance360.services import product_match
 from balance360.services import product_match as product_match_service
 from balance360.services import serial_number as serial_number_service
 from balance360.services.invoice_pdf import build_qr
-from balance360.services.serial_number import SerialValidationError
 from balance360.web.responses import format_validation_error, toast_error
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/invoices")
-
-logger = logging.getLogger(__name__)
 
 
 def get_invoice_or_404(invoice_id: UUID, db: Session = Depends(get_db)) -> Invoice:
@@ -403,11 +393,7 @@ def confirm_invoice(
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
 ):
-    try:
-        invoice_service.confirm_invoice(db, invoice)
-    except (InvoiceConfirmationError, InvoicePaymentError) as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
-
+    invoice_service.confirm_invoice(db, invoice)
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
 
 
@@ -416,11 +402,7 @@ def unconfirm_invoice(
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
 ):
-    try:
-        invoice_service.unconfirm_invoice(db, invoice)
-    except (InvoiceConfirmationError, InvoicePaymentError) as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
-
+    invoice_service.unconfirm_invoice(db, invoice)
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
 
 
@@ -434,14 +416,11 @@ def pay_invoice(
 
     account = account_crud.get_by_id(db, UUID(account_id))
     if not account:
-        return HTMLResponse('<p class="text-red-600 text-sm">Cuenta no encontrada</p>')
+        raise InvoicePaymentError("Cuenta no encontrada")
 
-    try:
-        invoice_service.register_payment(
-            db, invoice, account, datetime.date.fromisoformat(payment_date)
-        )
-    except InvoicePaymentError as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+    invoice_service.register_payment(
+        db, invoice, account, datetime.date.fromisoformat(payment_date)
+    )
 
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
 
@@ -484,14 +463,7 @@ def authorize_invoice(
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
 ):
-    try:
-        invoice_service.authorize_invoice(db, invoice)
-    except InvoiceAuthorizationError as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
-    except ArcaError as e:
-        logger.exception("Invoice ID: %s", invoice.id)
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
-
+    invoice_service.authorize_invoice(db, invoice)
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
 
 
@@ -717,10 +689,7 @@ def create_serial(
     db: Session = Depends(get_db),
     serial: str = Form(...),
 ):
-    try:
-        serial_number_service.add_serial_to_line(db, serial, invoice_line)
-    except SerialValidationError as e:
-        return toast_error(str(e))
+    serial_number_service.add_serial_to_line(db, serial, invoice_line)
 
     if invoice_line.invoice.invoice_type == InvoiceType.sale:
         return templates.TemplateResponse(
@@ -747,11 +716,7 @@ def delete_serial(
     invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
     serial_number: SerialNumber = Depends(get_invoice_line_serial_or_404),
 ):
-
-    try:
-        serial_number_service.remove_serial_from_line(db, serial_number, invoice_line)
-    except SerialValidationError as e:
-        return toast_error(str(e))
+    serial_number_service.remove_serial_from_line(db, serial_number, invoice_line)
 
     if invoice_line.invoice.invoice_type == InvoiceType.sale:
         response = templates.TemplateResponse(
@@ -831,7 +796,6 @@ def update_lines(
     iva_aliquot: str = Form(default=""),
     db: Session = Depends(get_db),
 ):
-
     if invoice.confirmed:
         raise HTTPException(status_code=404, detail="Invoice confirmed")
 
@@ -862,8 +826,8 @@ def update_lines(
 def download_pdf(
     invoice: Invoice = Depends(get_invoice_or_404),
 ):
-    if not invoice.authorized:
-        raise HTTPException(status_code=404, detail="Comprobante no autorizado")
+    if not invoice.is_printable:
+        raise InvoicePrintError("El comprobante no es IMPRIMIBLE")
 
     qr = build_qr(invoice)
 
@@ -879,13 +843,13 @@ def download_pdf(
         headers={"Content-Disposition": 'inline; filename="comprobante.pdf"'},
     )
 
-    
+
 @router.get("/{invoice_id}/render")
 def render_invoice_pdf(
     invoice: Invoice = Depends(get_invoice_or_404),
 ):
-    if not invoice.authorized:
-        raise HTTPException(status_code=404, detail="Comprobante no autorizado")
+    if not invoice.is_printable:
+        raise InvoicePrintError("El comprobante no es IMPRIMIBLE")
 
     qr = build_qr(invoice)
 
@@ -894,7 +858,7 @@ def render_invoice_pdf(
     try:
         from weasyprint import HTML
     except (ImportError, OSError):
-        return toast_error('No se pudo generar el PDF')  # dev local sin GTK → raises 
+        return toast_error("No se pudo generar el PDF")  # dev local sin GTK → raises
     return Response(
         content=HTML(string=html).write_pdf(),
         media_type="application/pdf",
@@ -902,15 +866,11 @@ def render_invoice_pdf(
     )
 
 
-
 @router.post("/{invoice_id}/credit-note")
 def create_credit_note(
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
 ):
-    try:
-        nc = invoice_service.create_credit_note(db=db, original=invoice)
-    except InvoiceCreditNoteError as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+    nc = invoice_service.create_credit_note(db=db, original=invoice)
 
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{nc.id}"})

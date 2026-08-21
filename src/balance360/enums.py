@@ -26,12 +26,21 @@ class InvoiceType(enum.Enum):
 
 
 class VoucherType(enum.Enum):
-    A = "A"
-    B = "B"
-    C = "C"
-    NCA = "NCA"
-    NCB = "NCB"
-    NCC = "NCC"
+    A = ("A", 1)
+    B = ("B", 6)
+    C = ("C", 11)
+    NCA = ("NCA", 3)
+    NCB = ("NCB", 8)
+    NCC = ("NCC", 53)
+
+    arca_code: int
+
+    def __new__(cls, letter: str, arca_code: int) -> "VoucherType":
+        obj = object.__new__(cls)
+        obj._value_ = letter
+        obj.arca_code = arca_code
+        return obj
+
 
 class SerialStatus(enum.Enum):
     pending = "pending"
@@ -95,6 +104,14 @@ class ImportRowStatus(enum.Enum):
 
 
 class Concepto(enum.Enum):
-    products = "products"
-    services = "services"
-    both = "both"
+    products = ("products", 1)
+    services = ("services", 2)
+    both = ("both", 3)
+
+    arca_code: int
+
+    def __new__(cls, label: str, arca_code: int) -> "Concepto":
+        obj = object.__new__(cls)
+        obj._value_ = label
+        obj.arca_code = arca_code
+        return obj

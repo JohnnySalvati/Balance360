@@ -22,7 +22,11 @@
     </thead>
     <tbody id="lines-tbody" class="divide-y divide-gray-100">
         {% for line in invoice.invoice_lines %}
-        {% set sale_edit = is_sale and not invoice.confirmed and line.product %}
+        {# Editable mientras el comprobante no esté confirmado. No exige producto:
+           las líneas de servicio (solo descripción) también necesitan alícuota y
+           precio. Tampoco exige venta: una compra mal parseada del PDF del
+           proveedor tiene que poder corregirse — su IVA es crédito fiscal. #}
+        {% set line_editable = not invoice.confirmed %}
         <tr>
             <td class="px-4 py-3 text-gray-800">
                 {% if not line.product and not invoice.confirmed %}
@@ -51,7 +55,7 @@
             </td>
             <td class="px-4 py-3 text-right text-gray-600">{{ line.quantity }}</td>
             <td class="px-4 py-3 text-right text-gray-400 text-xs">
-                {% if sale_edit %}
+                {% if line_editable %}
                 <select id="iva-{{ line.id }}" name="iva_aliquot"
                         hx-patch="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
                         hx-trigger="change"
@@ -68,7 +72,7 @@
                 {% endif %}
             </td>
             <td class="px-4 py-3 text-right text-gray-600">
-                {% if sale_edit %}
+                {% if line_editable %}
                 <div class="flex items-center gap-1">
                     <span class="text-gray-400 text-xs shrink-0">Neto</span>
                     <input id="net-{{ line.id }}" type="number" name="unit_price" value="{{ line.unit_price }}" step="0.01" min="0"

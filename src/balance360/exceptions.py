@@ -1,54 +1,62 @@
-class InvoiceAuthorizationError(Exception):
+class Balance360Error(Exception):
+    status = 400
+
+class InvoiceAuthorizationError(Balance360Error):
     pass
 
 
-class InvoicePaymentError(Exception):
+class InvoicePaymentError(Balance360Error):
     pass
 
 
-class InvoiceConfirmationError(Exception):
+class InvoiceConfirmationError(Balance360Error):
     pass
 
 
-class InvoiceDeleteError(Exception):
+class InvoiceDeleteError(Balance360Error):
     pass
 
 
-class InvoiceRequestError(Exception):
+class InvoiceRequestError(Balance360Error):
     pass
 
 
-class InvoiceCreditNoteError(Exception):
+class InvoiceCreditNoteError(Balance360Error):
     pass
 
 
-class RuleConflictError(Exception):
+class InvoicePrintError(Balance360Error):
+    status = 409
+
+
+class RuleConflictError(Balance360Error):
     def __init__(self, pattern: str, count: int) -> None:
+        super().__init__(self)
         self.pattern = pattern
         self.count = count
 
 
-class ProductDeleteError(Exception):
+class ProductDeleteError(Balance360Error):
     pass
 
 
-class SerialValidationError(Exception):
+class SerialValidationError(Balance360Error):
     pass
 
 
-class SyncServiceError(Exception):
+class SyncServiceError(Balance360Error):
     pass
 
 
-class CurrencyDeleteError(Exception):
+class CurrencyDeleteError(Balance360Error):
     pass
 
 
-class ImportServiceError(Exception):
+class ImportServiceError(Balance360Error):
     pass
 
 
-class ArcaError(Exception):
+class ArcaError(Balance360Error):
     pass
 
 
@@ -57,4 +65,8 @@ class WsfeError(ArcaError):
 
 
 class WsaaError(ArcaError):
+    pass
+
+
+class QrValidationError(Balance360Error):
     pass

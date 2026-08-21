@@ -41,7 +41,6 @@ from balance360.services.arca import get_access_ticket
 from balance360.services.stock import get_product_stock
 from balance360.services.text import digits_only
 from balance360.services.wsfe import authorize_invoice as wsfe_authorize_invoice
-from balance360.services.wsfe import voucher_type_code
 
 
 def confirm_invoice(db: Session, invoice: Invoice):
@@ -185,7 +184,7 @@ def _build_invoice_request(invoice: Invoice) -> InvoiceRequest:
 
         associated_vouchers = [
             AssociatedVoucher(
-                tipo=voucher_type_code[invoice.related_invoice.voucher_type],
+                tipo=invoice.related_invoice.voucher_type.arca_code,
                 pos=invoice.related_invoice.pos,
                 number=invoice.related_invoice.number,
                 cuit=int(invoice.related_invoice.fiscal_identity.tax_id),
@@ -300,7 +299,9 @@ def validate_confirmation(db: Session, invoice: Invoice):
         raise InvoiceConfirmationError("El comprobante no tiene items")
 
     if invoice.tax_only and invoice.invoice_type == InvoiceType.sale:
-        raise InvoiceConfirmationError("Un comprobante no puede ser venta y solo impositivo simultaneamente")
+        raise InvoiceConfirmationError(
+            "Un comprobante no puede ser venta y solo impositivo simultaneamente"
+        )
 
     if invoice.formal:
         if not invoice.pos:
@@ -313,12 +314,15 @@ def validate_confirmation(db: Session, invoice: Invoice):
                 raise InvoiceConfirmationError("Tipo de comprobante no admitido")
     else:
         if invoice.tax_only:
-            raise InvoiceConfirmationError("Un comprobante no puede ser informal y solo impositivo simultaneamente")
+            raise InvoiceConfirmationError(
+                "Un comprobante no puede ser informal y solo impositivo simultaneamente"
+            )
         else:
             for line in invoice.invoice_lines:
                 if line.iva_rate != Decimal(0):
-                    raise InvoiceConfirmationError("Los items de un comprobante informal no pueden contener IVA")
-
+                    raise InvoiceConfirmationError(
+                        "Los items de un comprobante informal no pueden contener IVA"
+                    )
 
     if invoice.is_nc:
         assert invoice.related_invoice

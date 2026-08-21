@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from balance360.crud.transaction import get_all
-from balance360.enums import InvoiceType, TransactionType, CondicionIva, VoucherType
+from balance360.enums import CondicionIva, InvoiceType, TransactionType, VoucherType
 from balance360.exceptions import InvoiceConfirmationError
 from balance360.services.invoice import confirm_invoice, register_payment
 from tests import factories

@@ -4,8 +4,8 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from balance360.crud import fiscal_identity as fiscal_identity_crud
 from balance360.dependencies import get_db
@@ -14,7 +14,6 @@ from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.schemas.fiscal_identity import FiscalIdentityCreate, FiscalIdentityUpdate
 from balance360.web.responses import toast_error
 from balance360.web.templating import templates
-
 
 router = APIRouter(prefix="/fiscal_identities")
 

@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     prod_cert_path: Path | None = None
     SECRET_KEY: str
     afip_env: Literal["homo", "prod"]
-    
 
     @field_validator("database_url")
     @classmethod

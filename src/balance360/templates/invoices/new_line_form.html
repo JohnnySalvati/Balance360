@@ -26,9 +26,13 @@
     <select id="iva-aliquot" name="iva_aliquot" required form="new-line-form"
             onchange="recalcFromNet(); recalcNewLineSubtotal();"
             class="w-full border rounded px-1 py-1 text-xs text-gray-600">
+        {# Sin default: la alícuota depende de qué se vende (electrónica 10,5%,
+           servicios y resto 21%). Si hay producto con historial, suggestNewLinePrice
+           la setea desde data-iva; si no, el usuario elige. El select es required,
+           así que el navegador bloquea el envío hasta que haya una opción real. #}
+        <option value="" disabled selected>— Elegir —</option>
         {% for aliquot in iva_aliquots %}
-        <option value="{{ aliquot.name }}" data-rate="{{ aliquot.rate }}"
-                {% if aliquot.name == 'reduced' %}selected{% endif %}>{{ aliquot.rate }}%</option>
+        <option value="{{ aliquot.name }}" data-rate="{{ aliquot.rate }}">{{ aliquot.rate }}%</option>
         {% endfor %}
     </select>
     {% else %}

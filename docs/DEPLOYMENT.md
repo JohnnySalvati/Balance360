@@ -117,6 +117,12 @@ docker compose -f docker-compose.prod.yml exec db sh -c \
   'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > backup_$(date +%Y%m%d).dump
 ```
 
+Bajarlo (PowerShell):
+
+```powershell
+scp johnny@<vm>:~/Balance360/backup_20260820.dump .\prod.dump
+```
+
 ---
 
 ## 5. Referencia: primer arranque en una VM limpia

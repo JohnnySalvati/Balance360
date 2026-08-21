@@ -8,8 +8,8 @@ from balance360.schemas.contact import ContactCreate
 from balance360.services.arca import TicketManager
 from balance360.services.invoice import _build_invoice_request
 from balance360.services.text import digits_only, format_cuit
-from tests.conftest import _fake_ticket
 from tests import factories
+from tests.conftest import _fake_ticket
 
 
 def test_digits_only():

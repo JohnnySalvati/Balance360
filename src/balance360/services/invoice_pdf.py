@@ -3,21 +3,20 @@ import json
 
 import segno
 
+from balance360.exceptions import QrValidationError
 from balance360.models.invoice import Invoice
-from balance360.services.wsfe import voucher_type_code
 
 
 def build_qr(invoice: Invoice) -> str:
-    assert invoice.voucher_type
-    assert invoice.cae
-    assert invoice.fiscal_identity
+    if not (invoice.voucher_type and invoice.cae and invoice.fiscal_identity):
+        raise QrValidationError("Insuficient data to build QR")
 
     invoice_dict = {
         "ver": 1,
         "fecha": invoice.date.isoformat(),
         "cuit": int(invoice.fiscal_identity.tax_id or "0"),
         "ptoVta": invoice.pos,
-        "tipoCmp": voucher_type_code[invoice.voucher_type],
+        "tipoCmp": invoice.voucher_type.arca_code,
         "nroCmp": invoice.number,
         "importe": float(invoice.total),
         "moneda": "PES",
