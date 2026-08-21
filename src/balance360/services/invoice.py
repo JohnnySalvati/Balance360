@@ -268,7 +268,7 @@ def validate_authorization(invoice: Invoice):
 
 
 def allowed_for(invoice: Invoice) -> set[VoucherType]:
-    emisor_allowed = {
+    issuer_allowed = {
         CondicionIva.INSCRIPTO: {VoucherType.A, VoucherType.B, VoucherType.NCA, VoucherType.NCB},
         CondicionIva.MONOTRIBUTO: {VoucherType.C, VoucherType.NCC},
         CondicionIva.EXENTO: {VoucherType.C, VoucherType.NCC},
@@ -284,10 +284,14 @@ def allowed_for(invoice: Invoice) -> set[VoucherType]:
     if not invoice.fiscal_identity:
         return set()
 
-    return (
-        emisor_allowed[invoice.fiscal_identity.condicion_iva]
-        & receiver_allowed[invoice.contact.condicion_iva]
-    )
+    if invoice.invoice_type == InvoiceType.purchase:
+        issuer_condicion = invoice.contact.condicion_iva
+        receiver_condicion = invoice.fiscal_identity.condicion_iva
+    else:
+        issuer_condicion = invoice.fiscal_identity.condicion_iva
+        receiver_condicion = invoice.contact.condicion_iva
+
+    return issuer_allowed[issuer_condicion] & receiver_allowed[receiver_condicion]
 
 
 def validate_confirmation(db: Session, invoice: Invoice):
@@ -309,9 +313,10 @@ def validate_confirmation(db: Session, invoice: Invoice):
         if invoice.invoice_type == InvoiceType.purchase:
             if not invoice.number:
                 raise InvoiceConfirmationError("Se necesita numero de comprobante")
-        else:
-            if invoice.voucher_type not in allowed_for(invoice):
-                raise InvoiceConfirmationError("Tipo de comprobante no admitido")
+        if invoice.fiscal_identity is None:
+            raise InvoiceConfirmationError("Se necesita identidad fiscal")
+        if invoice.voucher_type not in allowed_for(invoice):
+            raise InvoiceConfirmationError("Tipo de comprobante no admitido")
     else:
         if invoice.tax_only:
             raise InvoiceConfirmationError(

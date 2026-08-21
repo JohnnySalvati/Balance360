@@ -61,10 +61,19 @@
             <p class="text-xs text-gray-500">Contacto</p>
             <p class="text-gray-800 font-medium">{{ invoice.contact.name }}</p>
         </div>
-        {% if invoice.fiscal_identity %}
+        {# En una venta nuestra identidad emite; en una compra recibe (emite el proveedor).
+           Se muestra siempre que el comprobante sea formal — aunque falte — porque sin ella
+           no se puede confirmar, y ocultarla dejaba el hueco invisible. #}
+        {% if invoice.formal or invoice.fiscal_identity %}
         <div>
-            <p class="text-xs text-gray-500">Identidad fiscal (emisor)</p>
+            <p class="text-xs text-gray-500">
+                Identidad fiscal ({{ "emisor" if invoice.invoice_type.value == "sale" else "receptor" }})
+            </p>
+            {% if invoice.fiscal_identity %}
             <p class="text-gray-800 font-medium">{{ invoice.fiscal_identity.name }} · {{ invoice.fiscal_identity.tax_id | cuit }}</p>
+            {% else %}
+            <p class="text-amber-600 font-medium">— Sin asignar</p>
+            {% endif %}
         </div>
         {% endif %}
         <div>
@@ -72,7 +81,7 @@
             <p class="text-gray-800">{{ invoice.category.name if invoice.category else "—" }}</p>
         </div>
         <div>
-            <p class="text-xs text-gray-500">CUIT</p>
+            <p class="text-xs text-gray-500">CUIT del contacto</p>
             <p class="text-gray-800">{{ invoice.contact.tax_id | cuit or "—" }}</p>
         </div>
         <div>

@@ -1,6 +1,7 @@
 class Balance360Error(Exception):
     status = 400
 
+
 class InvoiceAuthorizationError(Balance360Error):
     pass
 

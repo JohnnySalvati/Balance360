@@ -130,6 +130,13 @@ Entidades reales: InSoft (empresa), Familia, Escuela. Los clientes son `contact`
   Si una migración necesita limpiar datos, el `UPDATE` va **antes** del constraint, o el
   entrypoint de producción entra en crash-loop.
 - **`.scalars()` descarta las columnas extra** de un select con varias expresiones.
+- **`Column.in_(...)` sobre una columna nullable da `NULL`, no `False`, cuando la columna es
+  `NULL`** (SQL de tres valores). Ese `NULL` se propaga por `and_`/`or_`/`not_` y en un `case()`
+  cae al `else_` aunque la condición "lógicamente" debería ser falsa. Bug real: `is_nc` en
+  `services/stock.py` usaba `Invoice.voucher_type.in_([NCA, NCB, NCC])` para distinguir NC de
+  no-NC; en un comprobante informal `voucher_type` es `NULL`, así que una compra normal (no NC)
+  terminaba restando stock en vez de sumarlo. Fix: `func.coalesce(<in_(...)>, False)` para forzar
+  un booleano real antes de combinarlo con `and_`/`or_`/`not_`.
 - **PostgreSQL: agregar un valor a un enum** requiere `ALTER TYPE ... ADD VALUE`.
 - **`str(None)` es truthy** en un contexto de template.
 - Los `except` que solo devuelven un mensaje ya no existen: van al handler global.

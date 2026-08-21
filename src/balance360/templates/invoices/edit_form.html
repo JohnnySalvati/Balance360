@@ -72,7 +72,7 @@
             </div>
 
             <div id="fiscal-identity-field" class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Identidad fiscal (emisor)</label>
+                <label class="text-xs text-gray-500" id="fiscal-identity-label">Identidad fiscal (emisor)</label>
                 <select name="fiscal_identity_id" id="fiscal-identity-select"
                         onchange="applyVoucherFilter()"
                         class="border rounded px-3 py-2 text-sm">
@@ -257,15 +257,15 @@ function filterContacts(invoiceType) {
 }
 
 function toggleFiscalIdentity(invoiceType) {
-    const field = document.getElementById('fiscal-identity-field');
-    const select = document.getElementById('fiscal-identity-select');
-    const show = invoiceType === 'sale';
-    field.style.display = show ? 'flex' : 'none';
-    // deshabilitado en compras: no se envía el campo (el emisor es el proveedor).
-    select.disabled = !show;
+    // El campo queda visible/habilitado para los dos tipos: en una venta es
+    // nuestra identidad la que emite, en una compra es la que recibe.
+    const label = document.getElementById('fiscal-identity-label');
+    label.textContent = invoiceType === 'sale'
+        ? 'Identidad fiscal (emisor)'
+        : 'Identidad fiscal (receptor)';
 }
 
-// Letra según condición IVA del emisor y del receptor (ventas).
+// Letra según condición IVA del emisor y del receptor.
 function allowedVouchers(emisor, receptor) {
     if (emisor === 'MONOTRIBUTO' || emisor === 'EXENTO') return ['C', 'NCC'];
     if (emisor === 'INSCRIPTO') {
@@ -283,14 +283,13 @@ function selectedCondicion(selectId) {
 function applyVoucherFilter() {
     const voucherSelect = document.getElementById('voucher-type-select');
     if (!voucherSelect) return;
-    // Sin restricción en compras: el emisor es el proveedor, la letra es la suya.
-    let allowed = null;
-    if (document.getElementById('invoice-type').value === 'sale') {
-        allowed = allowedVouchers(
-            selectedCondicion('fiscal-identity-select'),
-            selectedCondicion('contact-select'),
-        );
-    }
+    // Venta: nosotros (fiscal-identity) emitimos, el contacto recibe.
+    // Compra: el contacto (proveedor) emite, nosotros (fiscal-identity) recibimos.
+    const isSale = document.getElementById('invoice-type').value === 'sale';
+    const allowed = allowedVouchers(
+        selectedCondicion(isSale ? 'fiscal-identity-select' : 'contact-select'),
+        selectedCondicion(isSale ? 'contact-select' : 'fiscal-identity-select'),
+    );
     let firstVisible = null;
     for (const o of voucherSelect.options) {
         if (o.value === '') continue;  // placeholder siempre visible

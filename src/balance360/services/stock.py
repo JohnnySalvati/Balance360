@@ -20,7 +20,9 @@ class Stock:
     valuation: Decimal
 
 
-is_nc = Invoice.voucher_type.in_((VoucherType.NCA, VoucherType.NCB, VoucherType.NCC))
+is_nc = func.coalesce(
+    Invoice.voucher_type.in_((VoucherType.NCA, VoucherType.NCB, VoucherType.NCC)), False
+)
 
 is_positive = or_(
     and_(Invoice.invoice_type == InvoiceType.purchase, not_(is_nc)),
