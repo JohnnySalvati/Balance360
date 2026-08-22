@@ -1,0 +1,18 @@
+{# Título y bajada del comprobante. Va aparte porque se rearma solo, fuera del
+   flujo normal de la página: todo lo que muestra (tipo, letra, punto de venta,
+   número, contacto, fecha) se puede editar desde el encabezado, y el PATCH lo
+   devuelve como swap out-of-band. Ver partials/header_saved.html. #}
+<h1 class="text-2xl font-bold">
+    {{ "Compra" if invoice.invoice_type.value == "purchase" else "Venta" }}
+    {% if invoice.formal %}
+        — {{ invoice.voucher_type.value }}
+        {% if invoice.pos and invoice.number %}
+            {{ invoice.pos }}-{{ invoice.number }}
+        {% else %}
+            —
+        {% endif %}
+    {% else %}
+        — Informal
+    {% endif %}
+</h1>
+<p class="text-sm text-gray-500 mt-1">{{ invoice.contact.name }} · {{ invoice.date }}</p>

@@ -267,31 +267,9 @@ def create_invoice(
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
 
 
-@router.get("/{invoice_id}/edit")
-def edit_invoice_form(
-    request: Request,
-    invoice: Invoice = Depends(get_invoice_or_404),
-    db: Session = Depends(get_db),
-):
-    return templates.TemplateResponse(
-        request=request,
-        name="invoices/edit_form.html",
-        context={
-            "invoice": invoice,
-            "invoice_type": InvoiceType,
-            "entities": entity_crud.get_all(db),
-            "fiscal_identities": invoice.entity.fiscal_identities,
-            "selected_fiscal_identity_id": invoice.fiscal_identity_id,
-            "contacts": contact_crud.get_all(db),
-            "categories": category_crud.get_all(db),
-            "voucher_type": VoucherType,
-            "concepto": Concepto,
-        },
-    )
-
-
 @router.patch("/{invoice_id}", response_class=HTMLResponse)
 def update_invoice(
+    request: Request,
     invoice: Invoice = Depends(get_invoice_or_404),
     db: Session = Depends(get_db),
     invoice_type: str | None = Form(default=""),
@@ -328,13 +306,17 @@ def update_invoice(
             to_date=datetime.date.fromisoformat(to_date) if to_date else None,
             due_date=datetime.date.fromisoformat(due_date) if due_date else None,
         )
-        invoice = invoice_crud.update(db, data, invoice)
     except ValidationError as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{format_validation_error(e)}</p>')
+        return toast_error(format_validation_error(e))
     except ValueError as e:
-        return HTMLResponse(f'<p class="text-red-600 text-sm">{e}</p>')
+        return toast_error(str(e))
 
-    return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
+    invoice = invoice_crud.update(db, data, invoice)
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/partials/header_saved.html",
+        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
+    )
 
 
 @router.get("/{invoice_id}/lines/new-form", response_class=HTMLResponse)
@@ -603,6 +585,37 @@ async def quick_contact(
 def delete_invoice(invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)):
     invoice_crud.delete(db, invoice)
     return HTMLResponse("")
+
+
+@router.get("/{invoice_id}/header", response_class=HTMLResponse)
+def invoice_header_display(
+    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
+):
+    return templates.TemplateResponse(
+        request=request, name="invoices/partials/header_display.html", context={"invoice": invoice}
+    )
+
+
+@router.get("/{invoice_id}/header-form", response_class=HTMLResponse)
+def invoice_header_form(
+    request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/partials/header_form.html",
+        context={
+            "invoice": invoice,
+            "invoice_type": InvoiceType,
+            "entities": entity_crud.get_all(db),
+            "fiscal_identities": invoice.entity.fiscal_identities,
+            "selected_fiscal_identity_id": invoice.fiscal_identity_id,
+            "contacts": contact_crud.get_all(db),
+            "categories": category_crud.get_all(db),
+            "voucher_type": VoucherType,
+            "concepto": Concepto,
+        },
+    )
 
 
 @router.get("/{invoice_id}/lines/{invoice_line_id}/match-form", response_class=HTMLResponse)

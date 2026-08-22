@@ -1,0 +1,24 @@
+{# Respuesta del PATCH del encabezado. Es lo único que devuelve esa ruta.
+
+   El formulario apunta a #invoice-header, así que el swap normal deja el
+   encabezado otra vez en modo lectura. Pero editar el encabezado también cambia
+   lo que se ve fuera de ese panel, y sin redirect eso quedaba viejo en pantalla:
+
+     - el título y la bajada (tipo, letra, pto. de venta, número, contacto, fecha);
+     - los totales: iva_breakdown y total dependen de discriminates_iva, o sea de
+       la letra. Pasar de A a C deja de discriminar IVA y cambia el total.
+
+   Los dos se rearman como swap out-of-band. Tienen que quedar como hijos
+   directos de la respuesta: si se anidan, htmx no los encuentra.
+
+   Contexto necesario: el de header_display (invoice) más `iva_aliquots`, que usa
+   items_table. #}
+{% include "invoices/partials/header_display.html" %}
+
+<div id="invoice-title" hx-swap-oob="innerHTML">
+    {% include "invoices/partials/title.html" %}
+</div>
+
+<div id="items-table" hx-swap-oob="innerHTML">
+    {% include "invoices/partials/items_table.html" %}
+</div>

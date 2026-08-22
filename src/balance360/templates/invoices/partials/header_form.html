@@ -1,0 +1,232 @@
+{# Encabezado en modo edición. Reemplaza a partials/header_display.html in situ
+   (mismo id="invoice-header", swap outerHTML). Al guardar, el PATCH devuelve otra
+   vez el partial de lectura, así que no hay navegación ni recarga de la página.
+
+   Los ids de los campos son los mismos que usa static/js/invoice_form.js
+   (#invoice-type, #voucher-type-select, #contact-select, #fiscal-identity-select,
+   #fiscal-identity-label, #formal-check, #service-dates): esa lógica es compartida
+   con el alta y no se duplica acá. #}
+<div id="invoice-header" class="bg-white rounded shadow p-6">
+    <form hx-patch="/invoices/{{ invoice.id }}"
+          hx-target="#invoice-header"
+          hx-swap="outerHTML"
+          class="flex flex-col gap-4 text-sm">
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Tipo de comprobante</label>
+                <select name="invoice_type" id="invoice-type" required
+                        onchange="filterContacts(this.value); toggleTaxOnlyVisibility(this.value); toggleFiscalIdentity(this.value); applyVoucherFilter()"
+                        class="border rounded px-3 py-2 text-sm">
+                    {% for t in invoice_type %}
+                    <option value="{{ t.value }}"
+                            {{ "selected" if t == invoice.invoice_type else "" }}>
+                        {{ "Compra" if t.value == "purchase" else "Venta" }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Fecha</label>
+                <input type="date" name="date" required
+                       value="{{ invoice.date }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Entidad</label>
+                <select name="entity_id" required
+                        hx-get="/invoices/fiscal-identities"
+                        hx-target="#fiscal-identity-select"
+                        hx-swap="innerHTML"
+                        class="border rounded px-3 py-2 text-sm">
+                    {% for e in entities %}
+                    <option value="{{ e.id }}"
+                            {{ "selected" if e.id == invoice.entity_id else "" }}>{{ e.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Contacto</label>
+                <select name="contact_id" id="contact-select" required
+                        onchange="applyVoucherFilter()"
+                        class="border rounded px-3 py-2 text-sm">
+                    {% for c in contacts %}
+                    <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}"
+                            data-condicion="{{ c.condicion_iva.name }}"
+                            {{ "selected" if c.id == invoice.contact_id else "" }}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div id="fiscal-identity-field" class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500" id="fiscal-identity-label">Identidad fiscal (emisor)</label>
+            <select name="fiscal_identity_id" id="fiscal-identity-select"
+                    onchange="applyVoucherFilter()"
+                    class="border rounded px-3 py-2 text-sm">
+                {% include "invoices/_fiscal_identity_options.html" %}
+            </select>
+        </div>
+
+        <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">Categoría (opcional)</label>
+            <select name="category_id" class="border rounded px-3 py-2 text-sm">
+                <option value="">— Sin categoría —</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}"
+                        {{ "selected" if cat.id == invoice.category_id else "" }}>
+                    {{ '  ' * cat.depth }}{{ cat.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="flex gap-6">
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="formal" id="formal-check" value="true"
+                       onchange="toggleFormal(this.checked)"
+                       {{ "checked" if invoice.formal else "" }}>
+                Comprobante formal
+            </label>
+            <label id="tax-only-field" class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="tax_only" id="tax-only-check" value="true"
+                       onchange="toggleTaxOnly(this.checked)"
+                       {{ "checked" if invoice.tax_only else "" }}>
+                Solo impositivo
+            </label>
+        </div>
+
+        <div id="formal-fields" class="flex flex-col gap-4 border-t pt-4"
+             style="{{ '' if invoice.formal else 'display:none' }}">
+            <div class="flex gap-4 items-end flex-wrap">
+                <div class="flex flex-col gap-1 w-20">
+                    <label class="text-xs text-gray-500">Tipo</label>
+                    <select name="voucher_type" id="voucher-type-select" class="border rounded px-2 py-2 text-sm">
+                        <option value="">—</option>
+                        {% for vt in voucher_type %}
+                        <option value="{{ vt.value }}"
+                                {{ "selected" if vt == invoice.voucher_type else "" }}>
+                            {{ vt.value }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1 w-28">
+                    <label class="text-xs text-gray-500">Pto. de venta</label>
+                    <input type="text" inputmode="numeric" name="pos" maxlength="4"
+                           value="{{ invoice.pos if invoice.pos else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+
+                <div class="flex flex-col gap-1 w-40">
+                    <label class="text-xs text-gray-500">Número</label>
+                    <input type="text" inputmode="numeric" name="number" maxlength="8"
+                           value="{{ invoice.number if invoice.number else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+
+                <div class="flex flex-col gap-1 w-52">
+                    <label class="text-xs text-gray-500">Concepto</label>
+                    <select name="concepto" id="concepto-select"
+                            onchange="toggleConcepto(this.value)"
+                            class="border rounded px-2 py-2 text-sm">
+                        {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
+                        {% for c in concepto %}
+                        <option value="{{ c.value }}"
+                                {{ "selected" if c == invoice.concepto else "" }}>
+                            {{ concepto_labels[c.value] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div id="service-dates" class="flex gap-4 items-end flex-wrap"
+                 style="{{ '' if invoice.concepto.value != 'products' else 'display:none' }}">
+                <div class="flex flex-col gap-1 w-44">
+                    <label class="text-xs text-gray-500">Servicio desde</label>
+                    <input type="date" name="from_date"
+                           value="{{ invoice.from_date if invoice.from_date else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+                <div class="flex flex-col gap-1 w-44">
+                    <label class="text-xs text-gray-500">Servicio hasta</label>
+                    <input type="date" name="to_date"
+                           value="{{ invoice.to_date if invoice.to_date else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+                <div class="flex flex-col gap-1 w-44">
+                    <label class="text-xs text-gray-500">Vto. de pago</label>
+                    <input type="date" name="due_date"
+                           value="{{ invoice.due_date if invoice.due_date else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-2">
+            {# Cancelar = volver a pedir el partial de lectura; descarta lo tipeado
+               sin tocar la base. #}
+            <button type="button"
+                    hx-get="/invoices/{{ invoice.id }}/header"
+                    hx-target="#invoice-header"
+                    hx-swap="outerHTML"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancelar
+            </button>
+            <button type="submit"
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                Guardar cambios
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Este bloque se ejecuta cada vez que htmx inserta el partial (mismo patrón que
+// dashboard/_category_chart.html). Las declaraciones quedan globales porque los
+// onchange inline de arriba las llaman; redefinirlas en cada swap es inofensivo.
+//
+// Las tres son las variantes de *edición*: difieren de las del alta y por eso no
+// están en static/js/invoice_form.js. En particular filterContacts acá NO
+// autoselecciona el primer contacto visible — al editar, cambiar el tipo no debe
+// reasignar el contacto en silencio.
+function toggleFormal(checked) {
+    document.getElementById('formal-fields').style.display = checked ? 'flex' : 'none';
+}
+
+function filterContacts(invoiceType) {
+    const select = document.getElementById('contact-select');
+    const allowed = invoiceType === 'purchase' ? ['supplier', 'both'] : ['customer', 'both'];
+    select.querySelectorAll('option').forEach(opt => {
+        const type = opt.dataset.type;
+        opt.hidden = type && !allowed.includes(type);
+    });
+}
+
+// "Solo impositivo" solo aplica a compras: en ventas se oculta y destilda.
+function toggleTaxOnlyVisibility(invoiceType) {
+    const show = invoiceType === 'purchase';
+    document.getElementById('tax-only-field').style.display = show ? 'flex' : 'none';
+    if (!show) {
+        document.getElementById('tax-only-check').checked = false;
+        toggleTaxOnly(false);
+    }
+}
+
+(function () {
+    const type = document.getElementById('invoice-type').value;
+    filterContacts(type);
+    toggleTaxOnlyVisibility(type);
+    toggleFiscalIdentity(type);
+    toggleConcepto(document.getElementById('concepto-select').value);
+    if (document.getElementById('tax-only-check').checked) toggleTaxOnly(true);
+    applyVoucherFilter();
+})();
+</script>

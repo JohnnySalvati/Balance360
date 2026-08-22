@@ -219,6 +219,9 @@
     <p id="supplier-alert-note" class="mt-2 text-xs text-yellow-600"></p>
 </div>
 
+{# Reglas fiscales compartidas con edit_form: letra admitida, rol de la identidad,
+   toggles de concepto y "solo impositivo". Ver static/js/invoice_form.js. #}
+<script src="/static/js/invoice_form.js"></script>
 <script>
 function toggleFormal(checked) {
     document.getElementById('formal-fields').style.display = checked ? 'flex' : 'none';
@@ -232,45 +235,6 @@ function toggleFormal(checked) {
     } else {
         toggleNumberField(document.getElementById('invoice-type').value);
     }
-}
-
-function toggleTaxOnly(checked) {
-    const formalCheck = document.getElementById('formal-check');
-    if (checked) {
-        // Un comprobante solo impositivo es siempre formal: forzar y bloquear.
-        formalCheck.checked = true;
-        toggleFormal(true);
-        formalCheck.disabled = true;
-        ensureFormalHidden(true);
-    } else {
-        formalCheck.disabled = false;
-        ensureFormalHidden(false);
-    }
-}
-
-// Un checkbox deshabilitado no se envía; preservamos el valor con un hidden mientras está bloqueado.
-function ensureFormalHidden(add) {
-    const existing = document.getElementById('formal-hidden');
-    if (add && !existing) {
-        const hidden = document.createElement('input');
-        hidden.type = 'hidden';
-        hidden.name = 'formal';
-        hidden.value = 'true';
-        hidden.id = 'formal-hidden';
-        document.getElementById('formal-check').insertAdjacentElement('afterend', hidden);
-    } else if (!add && existing) {
-        existing.remove();
-    }
-}
-
-function toggleConcepto(value) {
-    const wrap = document.getElementById('service-dates');
-    const show = value !== 'products';
-    wrap.style.display = show ? 'flex' : 'none';
-    wrap.querySelectorAll('input').forEach(input => {
-        input.required = show;
-        if (!show) input.value = '';
-    });
 }
 
 function filterContacts(invoiceType) {
@@ -414,56 +378,6 @@ async function createQuickContact() {
     }
 }
 
-
-function toggleFiscalIdentity(invoiceType) {
-    // El campo queda visible/habilitado para los dos tipos: en una venta es
-    // nuestra identidad la que emite, en una compra es la que recibe.
-    const label = document.getElementById('fiscal-identity-label');
-    label.textContent = invoiceType === 'sale'
-        ? 'Identidad fiscal (emisor)'
-        : 'Identidad fiscal (receptor)';
-}
-
-// Letra según condición IVA del emisor y del receptor.
-function allowedVouchers(emisor, receptor) {
-    if (emisor === 'MONOTRIBUTO' || emisor === 'EXENTO') return ['C', 'NCC'];
-    if (emisor === 'INSCRIPTO') {
-        return receptor === 'INSCRIPTO' ? ['A', 'NCA'] : ['B', 'NCB'];
-    }
-    return null;  // emisor desconocido → sin restricción
-}
-
-function selectedCondicion(selectId) {
-    const sel = document.getElementById(selectId);
-    const opt = sel ? sel.options[sel.selectedIndex] : null;
-    return opt ? opt.dataset.condicion : null;
-}
-
-function applyVoucherFilter() {
-    const voucherSelect = document.getElementById('voucher-type-select');
-    if (!voucherSelect) return;
-    // Venta: nosotros (fiscal-identity) emitimos, el contacto recibe.
-    // Compra: el contacto (proveedor) emite, nosotros (fiscal-identity) recibimos.
-    const isSale = document.getElementById('invoice-type').value === 'sale';
-    const allowed = allowedVouchers(
-        selectedCondicion(isSale ? 'fiscal-identity-select' : 'contact-select'),
-        selectedCondicion(isSale ? 'contact-select' : 'fiscal-identity-select'),
-    );
-    let firstVisible = null;
-    for (const o of voucherSelect.options) {
-        if (o.value === '') continue;  // placeholder siempre visible
-        const visible = !allowed || allowed.includes(o.value);
-        o.hidden = !visible;
-        if (visible && !firstVisible) firstVisible = o;
-    }
-    const cur = voucherSelect.options[voucherSelect.selectedIndex];
-    if (cur && cur.hidden) voucherSelect.value = firstVisible ? firstVisible.value : '';
-}
-
-// Recalcular las letras cuando cambian las identidades por cambio de entidad.
-document.body.addEventListener('htmx:afterSwap', function(e) {
-    if (e.target.id === 'fiscal-identity-select') applyVoucherFilter();
-});
 
 // apply filter on page load based on default selected type
 const initialType = document.getElementById('invoice-type').value;

@@ -2,21 +2,9 @@
 
 {% block content %}
 <div class="shrink-0 flex justify-between items-center mb-6">
-    <div>
-        <h1 class="text-2xl font-bold">
-            {{ "Compra" if invoice.invoice_type.value == "purchase" else "Venta" }}
-            {% if invoice.formal %}
-                — {{ invoice.voucher_type.value }}
-                {% if invoice.pos and invoice.number %}
-                    {{ invoice.pos }}-{{ invoice.number }}
-                {% else %}
-                    —
-                {% endif %}
-            {% else %}
-                — Informal
-            {% endif %}
-        </h1>
-        <p class="text-sm text-gray-500 mt-1">{{ invoice.contact.name }} · {{ invoice.date }}</p>
+    {# El id es el destino del swap out-of-band que devuelve el PATCH del encabezado. #}
+    <div id="invoice-title">
+        {% include "invoices/partials/title.html" %}
     </div>
     <div class="flex items-center gap-3">
         {% if not invoice.confirmed %}
@@ -51,77 +39,8 @@
 
 <div class="flex-1 overflow-y-auto flex flex-col gap-6">
 
-    {# Header info #}
-    <div class="bg-white rounded shadow p-6 grid grid-cols-2 gap-4 text-sm">
-        <div>
-            <p class="text-xs text-gray-500">Entidad</p>
-            <p class="text-gray-800 font-medium">{{ invoice.entity.name }}</p>
-        </div>
-        <div>
-            <p class="text-xs text-gray-500">Contacto</p>
-            <p class="text-gray-800 font-medium">{{ invoice.contact.name }}</p>
-        </div>
-        {# En una venta nuestra identidad emite; en una compra recibe (emite el proveedor).
-           Se muestra siempre que el comprobante sea formal — aunque falte — porque sin ella
-           no se puede confirmar, y ocultarla dejaba el hueco invisible. #}
-        {% if invoice.formal or invoice.fiscal_identity %}
-        <div>
-            <p class="text-xs text-gray-500">
-                Identidad fiscal ({{ "emisor" if invoice.invoice_type.value == "sale" else "receptor" }})
-            </p>
-            {% if invoice.fiscal_identity %}
-            <p class="text-gray-800 font-medium">{{ invoice.fiscal_identity.name }} · {{ invoice.fiscal_identity.tax_id | cuit }}</p>
-            {% else %}
-            <p class="text-amber-600 font-medium">— Sin asignar</p>
-            {% endif %}
-        </div>
-        {% endif %}
-        <div>
-            <p class="text-xs text-gray-500">Categoría</p>
-            <p class="text-gray-800">{{ invoice.category.name if invoice.category else "—" }}</p>
-        </div>
-        <div>
-            <p class="text-xs text-gray-500">CUIT del contacto</p>
-            <p class="text-gray-800">{{ invoice.contact.tax_id | cuit or "—" }}</p>
-        </div>
-        <div>
-            <p class="text-xs text-gray-500">Solo impositivo</p>
-            <p class="text-gray-800">{{ "Sí" if invoice.tax_only else "No" }}</p>
-        </div>
-        <div>
-            <p class="text-xs text-gray-500">Concepto</p>
-            {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
-            <p class="text-gray-800">{{ concepto_labels[invoice.concepto.value] }}</p>
-        </div>
-        {% if invoice.from_date or invoice.to_date %}
-        <div>
-            <p class="text-xs text-gray-500">Período de servicio</p>
-            <p class="text-gray-800">{{ invoice.from_date or "—" }} — {{ invoice.to_date or "—" }}</p>
-        </div>
-        {% endif %}
-        {% if invoice.due_date %}
-        <div>
-            <p class="text-xs text-gray-500">Vto. de pago</p>
-            <p class="text-gray-800">{{ invoice.due_date }}</p>
-        </div>
-        {% endif %}
-        {% if invoice.cae %}
-        <div>
-            <p class="text-xs text-gray-500">CAE</p>
-            <p class="text-gray-800 font-mono">{{ invoice.cae }}</p>
-        </div>
-        <div>
-            <p class="text-xs text-gray-500">Vencimiento CAE</p>
-            <p class="text-gray-800">{{ invoice.cae_expiry }}</p>
-        </div>
-        {% endif %}
-        {% if not invoice.confirmed %}
-        <div class="col-span-2 flex justify-end">
-            <a href="/invoices/{{ invoice.id }}/edit"
-               class="text-xs text-blue-500 hover:text-blue-700">✎ Editar encabezado</a>
-        </div>
-        {% endif %}
-    </div>
+    {# Header info — se intercambia in situ con partials/header_form.html #}
+    {% include "invoices/partials/header_display.html" %}
 
     {# Lines #}
     {% set is_sale = invoice.invoice_type.value == "sale" %}
@@ -299,6 +218,11 @@
     {% endif %}
 
 </div>
+
+{# Reglas fiscales del encabezado editable (partials/header_form.html): letra
+   admitida, rol de la identidad, toggles de concepto y "solo impositivo".
+   Se carga acá una sola vez; el partial que entra por swap solo re-inicializa. #}
+<script src="/static/js/invoice_form.js"></script>
 
 <script>
     // Proponer la fecha de hoy en los campos de fecha de pago (editable).
