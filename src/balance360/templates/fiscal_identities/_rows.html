@@ -1,5 +1,5 @@
 {% for fi in fiscal_identities %}
-<tr id="fi-row-{{ fi.id }}" class="hover:bg-gray-50">
+<tr id="fi-row-{{ fi.id }}" class="hover:bg-gray-200">
     <td class="px-4 py-3 font-medium text-gray-800">{{ fi.name }}</td>
     <td class="px-4 py-3 text-gray-600 font-mono">{{ fi.tax_id | cuit }}</td>
     <td class="px-4 py-3 text-gray-600">{{ fi.condicion_iva.name | replace('_', ' ') | title }}</td>
@@ -9,7 +9,7 @@
             <button hx-get="/config/fiscal_identities/{{ fi.id }}/edit-form"
                     hx-target="#modal"
                     hx-swap="outerHTML"
-                    class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
+                    class="text-blue-500 hover:text-blue-800 text-xs">✎</button>
             <button hx-delete="/config/fiscal_identities/{{ fi.id }}"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete

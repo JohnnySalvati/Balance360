@@ -1,4 +1,5 @@
-// Lógica compartida por el alta y la edición de comprobantes (new_form / edit_form).
+// Lógica compartida por el alta y la edición de comprobantes
+// (new_form.html / partials/header_form.html, campos en partials/_header_fields.html).
 //
 // Acá vive solo lo que es idéntico en los dos formularios: las reglas fiscales
 // (letra admitida según condición IVA, rol de la identidad fiscal) y los toggles
@@ -14,7 +15,9 @@
 //   - Debe definir una función global `toggleFormal(checked)` (difiere entre alta
 //     y edición: el alta además ajusta los `required` de tipo/pto. de venta/número).
 //   - Debe existir en el DOM: #invoice-type, #voucher-type-select, #contact-select,
-//     #fiscal-identity-select, #fiscal-identity-label, #formal-check, #service-dates.
+//     #fiscal-identity-select, #fiscal-identity-label, #formal-check, #service-dates,
+//     #voucher-id, #informal-note, #pos-input, #number-input, y las celdas que solo
+//     valen para un comprobante formal marcadas con la clase .formal-only.
 
 // Un checkbox deshabilitado no se envía; preservamos el valor con un hidden mientras está bloqueado.
 function ensureFormalHidden(add) {
@@ -45,23 +48,56 @@ function toggleTaxOnly(checked) {
     }
 }
 
+// Las tres fechas de servicio son una sola celda de la grilla (grid-cols-3), así
+// que al mostrarlas hay que devolverles `grid` y no `flex`.
 function toggleConcepto(value) {
     const wrap = document.getElementById('service-dates');
     const show = value !== 'products';
-    wrap.style.display = show ? 'flex' : 'none';
+    wrap.style.display = show ? 'grid' : 'none';
     wrap.querySelectorAll('input').forEach(input => {
         input.required = show;
+        input.disabled = !show;
         if (!show) input.value = '';
     });
 }
 
 function toggleFiscalIdentity(invoiceType) {
-    // El campo queda visible/habilitado para los dos tipos: en una venta es
-    // nuestra identidad la que emite, en una compra es la que recibe.
+    // Aplica a los dos tipos: en una venta es nuestra identidad la que emite,
+    // en una compra es la que recibe. Solo cambia la etiqueta; la visibilidad
+    // depende de `formal` y la maneja syncFormalFields.
     const label = document.getElementById('fiscal-identity-label');
     label.textContent = invoiceType === 'sale'
         ? 'Identidad fiscal (emisor)'
         : 'Identidad fiscal (receptor)';
+}
+
+// Un informal no es un documento fiscal: no tiene identidad fiscal, ni letra, ni
+// numeración, ni concepto, ni período de servicio. Ocultar no alcanza —display:none
+// no impide que un campo se envíe— así que todo eso además se DESHABILITA, que sí
+// lo saca del POST/PATCH: el back lo recibe vacío y guarda NULL.
+//
+// Deja el identificador visible o reemplazado por #informal-note. Esa celda no es
+// .formal-only porque la rotula el propio checkbox `formal`, que tiene que seguir
+// viéndose para poder volver a tildarlo.
+//
+// Ojo con el orden: esto devuelve las celdas a su display por defecto, así que
+// después hay que reaplicar toggleConcepto — si no, las fechas de servicio
+// reaparecen en un comprobante de productos.
+function syncFormalFields(checked) {
+    document.querySelectorAll('.formal-only').forEach(cell => {
+        cell.style.display = checked ? '' : 'none';
+        cell.querySelectorAll('input, select').forEach(control => {
+            control.disabled = !checked;
+        });
+    });
+    const box = document.getElementById('voucher-id');
+    const note = document.getElementById('informal-note');
+    if (box) box.style.display = checked ? 'flex' : 'none';
+    if (note) note.style.display = checked ? 'none' : '';
+    ['voucher-type-select', 'pos-input', 'number-input'].forEach(id => {
+        const control = document.getElementById(id);
+        if (control) control.disabled = !checked;
+    });
 }
 
 // Letra según condición IVA del emisor y del receptor.

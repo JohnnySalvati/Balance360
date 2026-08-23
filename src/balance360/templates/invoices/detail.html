@@ -8,24 +8,24 @@
     </div>
     <div class="flex items-center gap-3">
         {% if not invoice.confirmed %}
-            <span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Borrador</span>
+            <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">Borrador</span>
         {% endif %}
         {% if invoice.authorized %}
-            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Autorizado ARCA</span>
+            <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">Autorizado ARCA</span>
         {% endif %}
         {% if invoice.paid %}
-            <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Pagado</span>
+            <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">Pagado</span>
         {% elif invoice.confirmed %}
-            <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pago pendiente</span>
+            <span class="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">Pago pendiente</span>
         {% endif %}
         {% if invoice.authorized %}
         <a href="/invoices/{{ invoice.id }}/pdf" target="_blank"
-           class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+           class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-800">
             Imprimir / PDF
         </a>
         <button hx-get="/invoices/{{ invoice.id }}/email-form"
                 hx-target="#modal" hx-swap="outerHTML"
-                class="bg-emerald-600 text-white px-3 py-1 rounded text-sm hover:bg-emerald-700">
+                class="bg-emerald-600 text-white px-3 py-1 rounded text-sm hover:bg-emerald-800">
             Enviar por email
         </button>
         {% endif %}
@@ -60,10 +60,10 @@
                     <input type="file" id="scan-serial-file" accept="image/*" capture="environment"
                            class="hidden" onchange="scanSaleSerial(this)">
                     <button type="button" onclick="document.getElementById('scan-serial-file').click()"
-                            class="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
+                            class="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-800"
                             title="Escanear">📷</button>
                     <button type="submit"
-                            class="bg-purple-600 text-white px-2 py-1 rounded text-xs hover:bg-purple-700">+ Unidad</button>
+                            class="bg-purple-600 text-white px-2 py-1 rounded text-xs hover:bg-purple-800">+ Unidad</button>
                 </form>
                 {% endif %}
             </div>
@@ -115,7 +115,7 @@
                 Procesando autorización…
             </span>
             <button type="submit"
-                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
                 Autorizar con ARCA
             </button>
         </form>
@@ -132,7 +132,7 @@
             <button hx-post="/invoices/{{ invoice.id }}/credit-note"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
-                    class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700">
+                    class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-800">
                 Emitir NC
             </button>
         </div>
@@ -144,7 +144,7 @@
     <div class="bg-white rounded shadow p-6 flex justify-between items-center">
         <p class="text-sm text-gray-500">Imputar pago a una cuenta</p>
         <button onclick="document.getElementById('payment-panel').classList.toggle('hidden')"
-                class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+                class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-800">
             Registrar pago
         </button>
     </div>
@@ -176,7 +176,7 @@
                     Cancelar
                 </button>
                 <button type="submit"
-                        class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+                        class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-800">
                     Confirmar pago
                 </button>
             </div>
@@ -191,7 +191,7 @@
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
                 hx-on::after-request="window.location='/invoices/?invoice_type={{ invoice.invoice_type.value }}'"
-                class="text-sm text-red-500 hover:text-red-700">
+                class="text-sm text-red-500 hover:text-red-800">
             Eliminar borrador
         </button>
 
@@ -199,7 +199,7 @@
             <button hx-post="/invoices/{{ invoice.id }}/confirm"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
-                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">
                 Confirmar comprobante
             </button>
         </div>
@@ -210,7 +210,7 @@
             <button hx-post="/invoices/{{ invoice.id }}/unconfirm"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
-                    class="text-sm text-orange-600 border border-orange-300 px-4 py-2 rounded hover:bg-orange-50">
+                    class="text-sm text-orange-600 border border-orange-300 px-4 py-2 rounded hover:bg-orange-100">
                 Des-confirmar
             </button>
         </div>

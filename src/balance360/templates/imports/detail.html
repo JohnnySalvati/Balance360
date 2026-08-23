@@ -24,7 +24,7 @@
     </div>
 
     {# Acción masiva — aparece sola cuando hay alguna fila tildada (CSS :has) #}
-    <div class="bulk-bar shrink-0 mb-4 bg-blue-50 border border-blue-100 rounded p-3 items-center gap-3 flex-wrap">
+    <div class="bulk-bar shrink-0 mb-4 bg-blue-100 border border-blue-300 rounded p-3 items-center gap-3 flex-wrap">
         <span class="text-sm text-gray-600">Aplicar a las seleccionadas:</span>
         <select id="bulk-type" name="type" class="border rounded px-2 py-1 text-xs">
             <option value="expense">Egreso</option>
@@ -39,14 +39,14 @@
                 hx-include="[name='row_ids']:checked, #bulk-type, #bulk-account"
                 hx-target="#rows-body"
                 hx-swap="innerHTML"
-                class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-800">
             Importar seleccionadas
         </button>
     </div>
 
     <div class="flex-1 overflow-y-auto bg-white rounded shadow">
         <table class="w-full text-sm">
-            <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
                 <tr>
                     <th class="px-3 py-3 w-8"></th>
                     <th class="px-3 py-3">Fecha</th>
@@ -58,7 +58,7 @@
                     <th class="px-3 py-3"></th>
                 </tr>
             </thead>
-            <tbody id="rows-body" class="divide-y divide-gray-100">
+            <tbody id="rows-body" class="divide-y divide-gray-200">
                 {% include "imports/_rows.html" %}
             </tbody>
         </table>

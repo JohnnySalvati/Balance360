@@ -13,27 +13,27 @@
             hx-include="form"
             hx-vals='{"page": "{{ page - 1 }}"}'
             {% if page <= 1 %}disabled{% endif %}
-            class="px-3 py-1 text-sm rounded border {% if page <= 1 %}text-gray-300 border-gray-200 cursor-not-allowed{% else %}text-gray-600 border-gray-300 hover:bg-gray-50{% endif %}">←</button>
+            class="px-3 py-1 text-sm rounded border {% if page <= 1 %}text-gray-300 border-gray-200 cursor-not-allowed{% else %}text-gray-600 border-gray-300 hover:bg-gray-200{% endif %}">←</button>
 
     {% set start = [page - 2, 1] | max %}
     {% set end = [page + 2, total_pages] | min %}
 
     {% if start > 1 %}
     <button hx-get="/transactions/rows" hx-target="#tbody" hx-swap="innerHTML" hx-include="form"
-            hx-vals='{"page": "1"}' class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 text-gray-700">1</button>
+            hx-vals='{"page": "1"}' class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-200 text-gray-700">1</button>
     {% if start > 2 %}<span class="px-1 text-gray-400">…</span>{% endif %}
     {% endif %}
 
     {% for p in range(start, end + 1) %}
     <button hx-get="/transactions/rows" hx-target="#tbody" hx-swap="innerHTML" hx-include="form"
             hx-vals='{"page": "{{ p }}"}'
-            class="px-3 py-1 text-sm rounded border {% if p == page %}bg-blue-600 text-white border-blue-600{% else %}border-gray-300 hover:bg-gray-50 text-gray-700{% endif %}">{{ p }}</button>
+            class="px-3 py-1 text-sm rounded border {% if p == page %}bg-blue-600 text-white border-blue-600{% else %}border-gray-300 hover:bg-gray-200 text-gray-700{% endif %}">{{ p }}</button>
     {% endfor %}
 
     {% if end < total_pages %}
     {% if end < total_pages - 1 %}<span class="px-1 text-gray-400">…</span>{% endif %}
     <button hx-get="/transactions/rows" hx-target="#tbody" hx-swap="innerHTML" hx-include="form"
-            hx-vals='{"page": "{{ total_pages }}"}' class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 text-gray-700">{{ total_pages }}</button>
+            hx-vals='{"page": "{{ total_pages }}"}' class="px-3 py-1 text-sm rounded border border-gray-300 hover:bg-gray-200 text-gray-700">{{ total_pages }}</button>
     {% endif %}
 
     <button hx-get="/transactions/rows"
@@ -42,7 +42,7 @@
             hx-include="form"
             hx-vals='{"page": "{{ page + 1 }}"}'
             {% if page >= total_pages %}disabled{% endif %}
-            class="px-3 py-1 text-sm rounded border {% if page >= total_pages %}text-gray-300 border-gray-200 cursor-not-allowed{% else %}text-gray-600 border-gray-300 hover:bg-gray-50{% endif %}">→</button>
+            class="px-3 py-1 text-sm rounded border {% if page >= total_pages %}text-gray-300 border-gray-200 cursor-not-allowed{% else %}text-gray-600 border-gray-300 hover:bg-gray-200{% endif %}">→</button>
 
     <span class="text-xs text-gray-400 ml-2">Página {{ page }} de {{ total_pages }}</span>
 </div>

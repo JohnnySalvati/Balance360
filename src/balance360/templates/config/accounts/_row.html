@@ -1,5 +1,5 @@
 {% set type_labels = {"bank": "Banco", "cash": "Efectivo", "wallet": "Billetera", "credit_card": "Tarjeta de crédito"} %}
-<tr id="acc-row-{{ a.id }}" class="hover:bg-gray-50">
+<tr id="acc-row-{{ a.id }}" class="hover:bg-gray-200">
     <td class="px-4 py-3 font-medium text-gray-800">{{ a.name }}</td>
     <td class="px-4 py-3 text-gray-500">{{ type_labels[a.type.value] }}</td>
     <td class="px-4 py-3 text-gray-500">{{ a.currency.code }}</td>
@@ -8,7 +8,7 @@
             <button hx-get="/config/accounts/{{ a.id }}/edit-form"
                     hx-target="#modal"
                     hx-swap="outerHTML"
-                    class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
+                    class="text-blue-500 hover:text-blue-800 text-xs">✎</button>
             <button hx-delete="/config/accounts/{{ a.id }}"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete

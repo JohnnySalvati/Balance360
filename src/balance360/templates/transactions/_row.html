@@ -1,16 +1,16 @@
 {% set type_labels = {"income": "Ingreso", "expense": "Egreso"} %}
 {% set status = t.classification_status.value %}
 {% set row_colors = {
-    "unclassified":     "bg-yellow-50 hover:bg-yellow-100",
-    "auto_classified":  "bg-blue-100 hover:bg-blue-200",
-    "manual_no_rule":   "bg-violet-200 hover:bg-violet-300",
-    "manual_with_rule": "bg-green-50 hover:bg-green-100"
+    "unclassified":     "bg-yellow-100 hover:bg-yellow-200",
+    "auto_classified":  "bg-blue-200 hover:bg-blue-300",
+    "manual_no_rule":   "bg-violet-300 hover:bg-violet-400",
+    "manual_with_rule": "bg-green-100 hover:bg-green-200"
 } %}
 {% set status_badges = {
-    "unclassified":     ("Pendiente",  "bg-yellow-100 text-yellow-700"),
-    "auto_classified":  ("Automática", "bg-blue-100 text-blue-700"),
-    "manual_no_rule":   ("Manual",     "bg-purple-100 text-purple-700"),
-    "manual_with_rule": ("Completa",   "bg-green-100 text-green-700")
+    "unclassified":     ("Pendiente",  "bg-yellow-200 text-yellow-800"),
+    "auto_classified":  ("Automática", "bg-blue-200 text-blue-800"),
+    "manual_no_rule":   ("Manual",     "bg-purple-200 text-purple-800"),
+    "manual_with_rule": ("Completa",   "bg-green-200 text-green-800")
 } %}
 <tr class="{{ row_colors[status] }}"
     id="row-{{ t.id }}"
@@ -23,12 +23,12 @@
     <td class="px-4 py-3">{{ t.description }}</td>
     <td class="px-4 py-3">
         <span class="px-2 py-1 rounded text-xs font-semibold
-            {% if t.type.value == 'income' %}bg-green-100 text-green-700
-            {% else %}bg-red-100 text-red-700{% endif %}">
+            {% if t.type.value == 'income' %}bg-green-200 text-green-800
+            {% else %}bg-red-200 text-red-800{% endif %}">
             {{ type_labels[t.type.value] }}
         </span>
         {% if t.is_transfer %}
-        <span class="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700 ml-1">Transf.</span>
+        <span class="px-2 py-1 rounded text-xs font-semibold bg-blue-200 text-blue-800 ml-1">Transf.</span>
         {% endif %}
     </td>
     <td class="px-4 py-3 text-right">{{ t.amount | currency }}</td>
@@ -74,7 +74,7 @@
                     hx-swap="outerHTML"
                     hx-include="#row-{{ t.id }}"
                     hx-vals='{"create_rule": "true"}'
-                    class="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    class="text-xs px-2 py-0.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                     {% if not t.entity_id and not t.contact_id and not t.category_id and not t.is_transfer %}disabled{% endif %}
                     title="Crear regla">+ Regla</button>
 <script>
@@ -97,7 +97,7 @@
                     hx-get="/transactions/{{ t.id }}/edit-form"
                     hx-target="#modal"
                     hx-swap="outerHTML"
-                    class="text-blue-500 hover:text-blue-700 text-xs"
+                    class="text-blue-500 hover:text-blue-800 text-xs"
                     title="Editar">✎</button>
             <button type="button"
                     hx-delete="/transactions/{{ t.id }}"

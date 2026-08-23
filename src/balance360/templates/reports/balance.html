@@ -31,7 +31,7 @@
 
 <div id="balance-result" class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+        <thead class="bg-gray-100 text-left text-gray-600 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3">Cuenta</th>
                 <th class="px-4 py-3">Moneda</th>
@@ -40,15 +40,15 @@
                 <th class="px-4 py-3 text-right">Saldo</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-200">
             {% for row in accounts %}
-            <tr class="hover:bg-gray-50">
+            <tr class="hover:bg-gray-200">
                 <td class="px-4 py-3 font-medium">{{ row.account.name }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ row.account.currency.code }}</td>
-                <td class="px-4 py-3 text-right text-green-700">{{ row.total_income | currency }}</td>
-                <td class="px-4 py-3 text-right text-red-700">{{ row.total_expense | currency }}</td>
+                <td class="px-4 py-3 text-right text-green-800">{{ row.total_income | currency }}</td>
+                <td class="px-4 py-3 text-right text-red-800">{{ row.total_expense | currency }}</td>
                 <td class="px-4 py-3 text-right font-semibold
-                    {% if row.balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {% if row.balance >= 0 %}text-green-800{% else %}text-red-800{% endif %}">
                     {{ row.balance | currency }}
                 </td>
             </tr>

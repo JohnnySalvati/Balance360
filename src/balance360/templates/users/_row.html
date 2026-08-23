@@ -1,11 +1,11 @@
-<tr id="user-row-{{ u.id }}" class="hover:bg-gray-50">
+<tr id="user-row-{{ u.id }}" class="hover:bg-gray-200">
     <td class="px-4 py-3 font-medium text-gray-800">{{ u.full_name }}</td>
     <td class="px-4 py-3 text-gray-600">{{ u.email }}</td>
     <td class="px-4 py-3">
         {% if u.is_active %}
-        <span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded">Activo</span>
+        <span class="bg-green-200 text-green-800 text-xs px-2 py-0.5 rounded">Activo</span>
         {% else %}
-        <span class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded">Inactivo</span>
+        <span class="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded">Inactivo</span>
         {% endif %}
     </td>
     <td class="px-4 py-3 text-right">
@@ -13,7 +13,7 @@
             <button hx-get="/config/users/{{ u.id }}/edit-form"
                     hx-target="#modal"
                     hx-swap="outerHTML"
-                    class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
+                    class="text-blue-500 hover:text-blue-800 text-xs">✎</button>
             <button hx-delete="/config/users/{{ u.id }}"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete

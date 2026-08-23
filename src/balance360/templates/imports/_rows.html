@@ -1,6 +1,6 @@
 {% if rows %}
 {% for row in rows %}
-<tr id="import-row-{{ row.id }}" class="hover:bg-gray-50">
+<tr id="import-row-{{ row.id }}" class="hover:bg-gray-200">
     <td class="px-3 py-2 select-col w-8">
         <input type="checkbox" name="row_ids" value="{{ row.id }}" class="row-check">
     </td>
@@ -36,7 +36,7 @@
                     hx-include="#import-row-{{ row.id }}"
                     hx-target="#import-row-{{ row.id }}"
                     hx-swap="outerHTML"
-                    class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">
+                    class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-800">
                 Importar
             </button>
             <button data-confirm-delete
@@ -44,7 +44,7 @@
                     hx-trigger="confirmedDelete"
                     hx-target="#import-row-{{ row.id }}"
                     hx-swap="outerHTML"
-                    class="text-red-500 hover:text-red-700 text-xs">
+                    class="text-red-500 hover:text-red-800 text-xs">
                 Descartar
             </button>
         </div>

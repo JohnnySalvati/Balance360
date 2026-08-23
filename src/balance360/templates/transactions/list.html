@@ -8,7 +8,7 @@
         <button hx-get="/transactions/new-form"
                 hx-target="#modal"
                 hx-swap="outerHTML"
-                class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+                class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-800">
             + Nueva
         </button>
         <button id="apply-rules-btn"
@@ -16,13 +16,13 @@
                 hx-target="#tbody"
                 hx-swap="innerHTML"
                 hx-include="form"
-                hx-on:htmx:before-request="this.disabled=true; this.classList.remove('bg-blue-600','hover:bg-blue-700'); this.classList.add('bg-gray-400'); this.innerHTML='⏳ Aplicando...'"
-                hx-on:htmx:after-request="this.disabled=false; this.classList.remove('bg-gray-400'); this.classList.add('bg-blue-600','hover:bg-blue-700'); this.innerHTML='Reaplicar reglas'"
-                class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                hx-on:htmx:before-request="this.disabled=true; this.classList.remove('bg-blue-600','hover:bg-blue-800'); this.classList.add('bg-gray-400'); this.innerHTML='⏳ Aplicando...'"
+                hx-on:htmx:after-request="this.disabled=false; this.classList.remove('bg-gray-400'); this.classList.add('bg-blue-600','hover:bg-blue-800'); this.innerHTML='Reaplicar reglas'"
+                class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">
             Reaplicar reglas
         </button>
         <a href="/import-rules/"
-           class="px-4 py-2 rounded text-sm border border-gray-300 text-gray-600 hover:bg-gray-50">
+           class="px-4 py-2 rounded text-sm border border-gray-300 text-gray-600 hover:bg-gray-200">
             Reglas
         </a>
         </div>
@@ -123,7 +123,7 @@
 <div class="flex-1 flex flex-col overflow-hidden bg-white rounded shadow">
     <div class="flex-1 overflow-y-auto">
         <table class="w-full text-sm">
-            <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
                 <tr>
                     <th class="px-4 py-3">Fecha</th>
                     <th class="px-4 py-3">Descripción</th>
@@ -138,7 +138,7 @@
                     <th class="px-4 py-3"></th>
                 </tr>
             </thead>
-            <tbody id="tbody" class="divide-y divide-gray-100">
+            <tbody id="tbody" class="divide-y divide-gray-200">
             </tbody>
         </table>
     </div>

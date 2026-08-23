@@ -32,7 +32,7 @@
 <div id="pl-table" class="flex-1 overflow-y-auto bg-white rounded shadow">
     <p class="px-4 pt-3 text-sm text-gray-500">Período: {{ period.start.strftime('%d/%m/%Y') }} — {{ period.end.strftime('%d/%m/%Y') }}</p>
     <table class="w-full text-sm">
-        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+        <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3">Año</th>
                 <th class="px-4 py-3">Mes</th>
@@ -41,34 +41,34 @@
                 <th class="px-4 py-3 text-right">Resultado</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-200">
             {% set total_income = namespace(value=0) %}
             {% set total_expense = namespace(value=0) %}
             {% set prev_year = namespace(value=None) %}
             {% for row in months %}
             {% set total_income.value = total_income.value + row.total_income %}
             {% set total_expense.value = total_expense.value + row.total_expense %}
-            <tr class="hover:bg-gray-50">
+            <tr class="hover:bg-gray-200">
                 <td class="px-4 py-3 text-gray-500">{% if row.year != prev_year.value %}{{ row.year }}{% endif %}</td>
                 <td class="px-4 py-3 font-medium">{{ row.month_name }}</td>
-                <td class="px-4 py-3 text-right text-green-700">{{ row.total_income | currency }}</td>
-                <td class="px-4 py-3 text-right text-red-700">{{ row.total_expense | currency }}</td>
+                <td class="px-4 py-3 text-right text-green-800">{{ row.total_income | currency }}</td>
+                <td class="px-4 py-3 text-right text-red-800">{{ row.total_expense | currency }}</td>
                 <td class="px-4 py-3 text-right font-semibold
-                    {% if row.net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {% if row.net >= 0 %}text-green-800{% else %}text-red-800{% endif %}">
                     {{ row.net | currency }}
                 </td>
             </tr>
             {% set prev_year.value = row.year %}
             {% endfor %}
         </tbody>
-        <tfoot class="bg-gray-50 font-semibold text-xs uppercase text-gray-500 border-t-2 border-gray-200">
+        <tfoot class="bg-gray-100 font-semibold text-xs uppercase text-gray-600 border-t-2 border-gray-200">
             <tr>
                 <td class="px-4 py-3" colspan="2">Total</td>
-                <td class="px-4 py-3 text-right text-green-700">{{ total_income.value | currency }}</td>
-                <td class="px-4 py-3 text-right text-red-700">{{ total_expense.value | currency }}</td>
+                <td class="px-4 py-3 text-right text-green-800">{{ total_income.value | currency }}</td>
+                <td class="px-4 py-3 text-right text-red-800">{{ total_expense.value | currency }}</td>
                 {% set net_total = total_income.value - total_expense.value %}
                 <td class="px-4 py-3 text-right
-                    {% if net_total >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {% if net_total >= 0 %}text-green-800{% else %}text-red-800{% endif %}">
                     {{ net_total | currency }}
                 </td>
             </tr>

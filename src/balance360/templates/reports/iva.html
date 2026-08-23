@@ -35,7 +35,7 @@
 
     <div class="bg-white rounded shadow max-w-2xl">
         <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <thead class="bg-gray-100 text-left text-gray-600 uppercase text-xs">
                 <tr>
                     <th class="px-4 py-3">Entidad</th>
                     <th class="px-4 py-3 text-right">Débito (ventas)</th>
@@ -43,9 +43,9 @@
                     <th class="px-4 py-3 text-right">Posición</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-200">
                 {% for e in iva.by_entity %}
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-200">
                     <td class="px-4 py-3 text-gray-700">{{ e.entity_name }}</td>
                     <td class="px-4 py-3 text-right font-mono">{{ e.debit | currency }}</td>
                     <td class="px-4 py-3 text-right font-mono">{{ e.credit | currency }}</td>
@@ -56,7 +56,7 @@
                 {% endfor %}
             </tbody>
             {% if iva.by_entity %}
-            <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-semibold">
+            <tfoot class="bg-gray-100 border-t-2 border-gray-200 font-semibold">
                 <tr>
                     <td class="px-4 py-3 uppercase text-xs text-gray-600">
                         Total{% if iva.total.position > 0 %} <span class="text-red-600 text-xs font-normal normal-case">a pagar</span>{% elif iva.total.position < 0 %} <span class="text-green-600 text-xs font-normal normal-case">saldo a favor</span>{% endif %}

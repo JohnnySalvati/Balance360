@@ -37,12 +37,12 @@
 
     {% for ent in tributes.by_entity %}
     <div class="bg-white rounded shadow mb-4 max-w-md">
-        <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+        <div class="px-4 py-3 border-b border-gray-100 bg-gray-100 flex justify-between items-center">
             <span class="font-semibold text-gray-700">{{ ent.entity_name }}</span>
             <span class="font-mono text-gray-600">{{ ent.entity_total | currency }}</span>
         </div>
         <table class="w-full text-sm">
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-200">
                 {% for t in ent.tributes_by_entity %}
                 <tr>
                     <td class="px-4 py-2 text-gray-600">{{ tributo_labels.get(t.tribute_type.name, t.tribute_type.name) }}</td>

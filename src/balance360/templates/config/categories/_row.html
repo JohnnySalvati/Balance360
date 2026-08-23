@@ -1,4 +1,4 @@
-<tr id="cat-row-{{ c.id }}" class="hover:bg-gray-50">
+<tr id="cat-row-{{ c.id }}" class="hover:bg-gray-200">
     <td class="px-4 py-3 font-medium {% if not c.parent_id %}text-gray-800{% else %}text-gray-600{% endif %}"
         style="padding-left: {{ 1 + c.depth * 1.5 }}rem">
         {{ c.name }}
@@ -10,7 +10,7 @@
             <button hx-get="/config/categories/{{ c.id }}/edit-form"
                     hx-target="#modal"
                     hx-swap="outerHTML"
-                    class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
+                    class="text-blue-500 hover:text-blue-800 text-xs">✎</button>
             <button hx-delete="/config/categories/{{ c.id }}"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete

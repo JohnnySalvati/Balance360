@@ -8,7 +8,7 @@
         <col class="w-1/6">
         {% if not invoice.confirmed %}<col class="w-1/12">{% endif %}
     </colgroup>
-    <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+    <thead class="bg-gray-100 text-left text-gray-600 uppercase text-xs">
         <tr>
             <th class="px-4 py-3">Descripción</th>
             <th class="px-4 py-3 text-right">Cantidad</th>
@@ -20,7 +20,7 @@
             {% endif %}
         </tr>
     </thead>
-    <tbody id="lines-tbody" class="divide-y divide-gray-100">
+    <tbody id="lines-tbody" class="divide-y divide-gray-200">
         {% for line in invoice.invoice_lines %}
         {# Editable mientras el comprobante no esté confirmado. No exige producto:
            las líneas de servicio (solo descripción) también necesitan alícuota y
@@ -29,31 +29,54 @@
         {% set line_editable = not invoice.confirmed %}
         <tr>
             <td class="px-4 py-3 text-gray-800">
+                {# Editable solo en líneas sin producto: cuando hay producto el texto
+                   que se muestra es su nombre, y eso se cambia en el catálogo o
+                   revinculando, no escribiendo acá. #}
                 {% if not line.product and not invoice.confirmed %}
-                    <span class="text-gray-500">{{ line.description }}</span>
-                    <button hx-get="/invoices/{{ invoice.id }}/lines/{{ line.id }}/match-form"
-                            hx-target="closest td"
-                            hx-swap="innerHTML"
-                            class="ml-2 text-xs text-blue-500 hover:text-blue-700">Vincular producto</button>
+                    <div class="flex items-center gap-2">
+                        <input type="text" name="description" value="{{ line.description or '' }}"
+                               required maxlength="200"
+                               hx-patch="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
+                               hx-trigger="change"
+                               hx-target="#items-table"
+                               hx-swap="innerHTML"
+                               class="flex-1 min-w-0 border rounded px-2 py-1 text-sm">
+                        <button hx-get="/invoices/{{ invoice.id }}/lines/{{ line.id }}/match-form"
+                                hx-target="closest td"
+                                hx-swap="innerHTML"
+                                class="shrink-0 text-xs text-blue-500 hover:text-blue-800">Vincular producto</button>
+                    </div>
                 {% else %}
                     {{ line.product.name if line.product else line.description }}
                     {% if line.product and line.product.track_serial and not invoice.is_nc %}
                     <button type="button"
                             onclick="toggleSerialPanel('{{ line.id }}', '/invoices/{{ invoice.id }}/lines/{{ line.id }}/serials')"
-                            class="ml-2 text-xs text-purple-500 hover:text-purple-700">S/N</button>
+                            class="ml-2 text-xs text-purple-500 hover:text-purple-800">S/N</button>
                     {% endif %}
                 {% endif %}
                 {% if is_sale and line.product and line.product.track_serial and not invoice.is_nc %}
                 <div class="mt-1 flex flex-wrap gap-1">
                     {% for s in line.sold_serials %}
-                    <span class="inline-flex items-center text-xs font-mono bg-gray-100 text-gray-600 rounded px-2 py-0.5">
+                    <span class="inline-flex items-center text-xs font-mono bg-gray-200 text-gray-700 rounded px-2 py-0.5">
                         {{ s.serial }}
                     </span>
                     {% endfor %}
                 </div>
                 {% endif %}
             </td>
-            <td class="px-4 py-3 text-right text-gray-600">{{ line.quantity }}</td>
+            <td class="px-4 py-3 text-right text-gray-600">
+                {% if line_editable %}
+                <input type="number" name="quantity" value="{{ line.quantity }}" min="1" step="1"
+                       required
+                       hx-patch="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
+                       hx-trigger="change"
+                       hx-target="#items-table"
+                       hx-swap="innerHTML"
+                       class="w-full border rounded px-2 py-1 text-right text-sm">
+                {% else %}
+                {{ line.quantity }}
+                {% endif %}
+            </td>
             <td class="px-4 py-3 text-right text-gray-400 text-xs">
                 {% if line_editable %}
                 <select id="iva-{{ line.id }}" name="iva_aliquot"
@@ -88,7 +111,7 @@
                     <input id="gross-{{ line.id }}" type="number" step="0.01" min="0"
                            oninput="lineFromGross('{{ line.id }}')"
                            onchange="document.getElementById('net-{{ line.id }}').dispatchEvent(new Event('change'))"
-                           class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-50">
+                           class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-100">
                 </div>
                 {% else %}
                 {{ line.unit_price | currency }}

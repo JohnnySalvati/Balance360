@@ -30,7 +30,7 @@
                 {% if fiscal_identities %}
                 <div class="border rounded max-h-40 overflow-y-auto divide-y">
                     {% for fi in fiscal_identities %}
-                    <label class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer">
+                    <label class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-200 cursor-pointer">
                         <input type="checkbox" name="fiscal_identity_ids" value="{{ fi.id }}"
                                {% if fi.id in selected_ids %}checked{% endif %}
                                class="rounded border-gray-300">
@@ -62,7 +62,7 @@
                     Cancelar
                 </button>
                 <button type="submit"
-                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">
                     Guardar
                 </button>
             </div>

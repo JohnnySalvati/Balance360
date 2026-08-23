@@ -9,154 +9,17 @@
 </div>
 
 <div class="flex-1 overflow-y-auto">
-    <div class="bg-white rounded shadow p-6 max-w-2xl">
+    {# Mismo ancho y espaciado que el encabezado del detalle: los campos son el
+       mismo partial, así que el alta y la edición se ven igual. Sin tope de
+       ancho — la grilla de 12 columnas necesita la pantalla entera. #}
+    <div class="bg-white rounded shadow p-4">
         <form hx-post="/invoices/"
               hx-target="#form-error"
               hx-swap="innerHTML"
-              class="flex flex-col gap-4">
+              class="flex flex-col gap-3 text-sm">
             <div id="form-error"></div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs text-gray-500">Tipo de comprobante</label>
-                    <select name="invoice_type" id="invoice-type" required
-                            onchange="filterContacts(this.value); toggleNumberField(this.value); toggleFiscalIdentity(this.value); applyVoucherFilter()"
-                            class="border rounded px-3 py-2 text-sm">
-                        {% for t in invoice_type %}
-                        <option value="{{ t.value }}">
-                            {{ "Compra" if t.value == "purchase" else "Venta" }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs text-gray-500">Fecha</label>
-                    <input type="date" name="date" required
-                           value="{{ today() }}"
-                           class="border rounded px-3 py-2 text-sm">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs text-gray-500">Entidad</label>
-                    <select name="entity_id" required
-                            hx-get="/invoices/fiscal-identities"
-                            hx-target="#fiscal-identity-select"
-                            hx-swap="innerHTML"
-                            class="border rounded px-3 py-2 text-sm">
-                        {% for e in entities %}
-                        <option value="{{ e.id }}">{{ e.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="flex flex-col gap-1">
-                    <label class="text-xs text-gray-500">Contacto</label>
-                    <select name="contact_id" id="contact-select" required
-                            onchange="applyVoucherFilter()"
-                            class="border rounded px-3 py-2 text-sm">
-                        <option value="" data-type="both">— Seleccionar contacto —</option>
-                        {% for c in contacts %}
-                        <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}"
-                                data-condicion="{{ c.condicion_iva.name }}">{{ c.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <div id="fiscal-identity-field" class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500" id="fiscal-identity-label">Identidad fiscal (emisor)</label>
-                <select name="fiscal_identity_id" id="fiscal-identity-select"
-                        onchange="applyVoucherFilter()"
-                        class="border rounded px-3 py-2 text-sm">
-                    {% include "invoices/_fiscal_identity_options.html" %}
-                </select>
-            </div>
-
-            <div class="flex flex-col gap-1">
-                <label class="text-xs text-gray-500">Categoría (opcional)</label>
-                <select name="category_id" class="border rounded px-3 py-2 text-sm">
-                    <option value="">— Sin categoría —</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}">{{ '\u00a0\u00a0' * cat.depth }}{{ cat.name }}</option>
-                        {{ cat.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="flex gap-6">
-                <label class="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" name="formal" id="formal-check" value="true"
-                           onchange="toggleFormal(this.checked)" checked>
-                    Comprobante formal
-                </label>
-                <label id="tax-only-field" class="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" name="tax_only" id="tax-only-check" value="true"
-                           onchange="toggleTaxOnly(this.checked)">
-                    Solo impositivo
-                </label>
-            </div>
-
-            <div id="formal-fields" class="flex flex-col gap-4 border-t pt-4">
-                <div class="flex gap-4 items-end">
-                    <div class="flex flex-col gap-1 w-20">
-                        <label class="text-xs text-gray-500">Tipo</label>
-                        <select name="voucher_type" id="voucher-type-select" required
-                                class="border rounded px-2 py-2 text-sm">
-                            <option value="">—</option>
-                            {% for vt in voucher_type %}
-                            <option value="{{ vt.value }}">{{ vt.value }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="flex flex-col gap-1 w-28">
-                        <label class="text-xs text-gray-500">Pto. de venta</label>
-                        <input type="text" inputmode="numeric" name="pos" id="pos-input"
-                               required maxlength="4"
-                               class="border rounded px-3 py-2 text-sm">
-                    </div>
-
-                    <div class="flex flex-col gap-1 w-40" id="number-field" style="display:none">
-                        <label class="text-xs text-gray-500">Número</label>
-                        <input type="text" inputmode="numeric" name="number" maxlength="8"
-                               class="border rounded px-3 py-2 text-sm">
-                    </div>
-
-                    <div class="flex flex-col gap-1 w-52">
-                        <label class="text-xs text-gray-500">Concepto</label>
-                        <select name="concepto" id="concepto-select"
-                                onchange="toggleConcepto(this.value)"
-                                class="border rounded px-2 py-2 text-sm">
-                            {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
-                            {% for c in concepto %}
-                            <option value="{{ c.value }}">{{ concepto_labels[c.value] }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div id="service-dates" class="flex gap-4 items-end" style="display:none">
-                    <div class="flex flex-col gap-1 w-44">
-                        <label class="text-xs text-gray-500">Servicio desde</label>
-                        <input type="date" name="from_date"
-                               class="border rounded px-3 py-2 text-sm">
-                    </div>
-                    <div class="flex flex-col gap-1 w-44">
-                        <label class="text-xs text-gray-500">Servicio hasta</label>
-                        <input type="date" name="to_date"
-                               class="border rounded px-3 py-2 text-sm">
-                    </div>
-                    <div class="flex flex-col gap-1 w-44">
-                        <label class="text-xs text-gray-500">Vto. de pago</label>
-                        <input type="date" name="due_date"
-                               class="border rounded px-3 py-2 text-sm">
-                    </div>
-                </div>
-            </div>
+            {% include "invoices/partials/_header_fields.html" %}
 
             <div class="flex justify-end gap-2 mt-2">
                 <a href="/invoices/"
@@ -165,7 +28,7 @@
                     Cancelar
                 </a>
                 <button type="submit"
-                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                        class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">
                     Crear comprobante
                 </button>
             </div>
@@ -196,7 +59,7 @@
                 Cancelar
             </button>
             <button type="button" onclick="uploadPdf()"
-                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">
                 Procesar
             </button>
         </div>
@@ -207,32 +70,44 @@
 <div id="items-alert" class="hidden rounded p-4 text-sm mt-3"></div>
 
 <!-- Panel de alerta: proveedor no encontrado -->
-<div id="supplier-alert" class="hidden bg-yellow-50 border border-yellow-300 rounded p-4 text-sm">
+<div id="supplier-alert" class="hidden bg-yellow-100 border border-yellow-300 rounded p-4 text-sm">
     <p class="font-semibold text-yellow-800 mb-2">⚠ Proveedor no encontrado en contactos</p>
-    <div id="supplier-alert-body" class="text-yellow-700 text-xs space-y-1 mb-3"></div>
+    <div id="supplier-alert-body" class="text-yellow-800 text-xs space-y-1 mb-3"></div>
     <form id="quick-contact-form" class="flex justify-end">
         <button type="button" onclick="createQuickContact()"
-                class="bg-yellow-600 text-white px-3 py-1.5 rounded text-xs hover:bg-yellow-700">
+                class="bg-yellow-600 text-white px-3 py-1.5 rounded text-xs hover:bg-yellow-800">
             Crear contacto con estos datos
         </button>
     </form>
     <p id="supplier-alert-note" class="mt-2 text-xs text-yellow-600"></p>
 </div>
 
-{# Reglas fiscales compartidas con edit_form: letra admitida, rol de la identidad,
-   toggles de concepto y "solo impositivo". Ver static/js/invoice_form.js. #}
+{# Reglas fiscales compartidas con la edición del encabezado: letra admitida, rol
+   de la identidad, toggles de concepto y "solo impositivo".
+   Ver static/js/invoice_form.js. #}
 <script src="/static/js/invoice_form.js"></script>
 <script>
+// Hook que llama el select de tipo en _header_fields.html. Cada página encadena
+// lo suyo: acá el campo Número (solo compras), en la edición la visibilidad de
+// "solo impositivo".
+function onInvoiceTypeChange(invoiceType) {
+    filterContacts(invoiceType);
+    toggleNumberField(invoiceType);
+    toggleFiscalIdentity(invoiceType);
+    applyVoucherFilter();
+}
+
 function toggleFormal(checked) {
-    document.getElementById('formal-fields').style.display = checked ? 'flex' : 'none';
+    syncFormalFields(checked);
     document.getElementById('voucher-type-select').required = checked;
     document.getElementById('pos-input').required = checked;
     const numberField = document.getElementById('number-field');
-    const numberInput = numberField.querySelector('input');
     if (!checked) {
         numberField.style.display = 'none';
-        numberInput.required = false;
+        document.getElementById('number-input').required = false;
     } else {
+        // syncFormalFields deja todo visible; concepto y tipo deciden qué corresponde.
+        toggleConcepto(document.getElementById('concepto-select').value);
         toggleNumberField(document.getElementById('invoice-type').value);
     }
 }
@@ -330,17 +205,17 @@ async function uploadPdf() {
 
     const itemsAlert = document.getElementById('items-alert');
     if (data.needs_manual_items) {
-        itemsAlert.className = 'rounded p-4 text-sm mt-3 bg-amber-50 border border-amber-300 text-amber-800';
+        itemsAlert.className = 'rounded p-4 text-sm mt-3 bg-amber-100 border border-amber-300 text-amber-800';
         itemsAlert.innerHTML =
             '<p class="font-semibold mb-1">⚠ No se pudieron leer los ítems automáticamente</p>' +
-            '<p class="text-xs text-amber-700">El PDF puede ser un escaneo o un formato no reconocido. ' +
+            '<p class="text-xs text-amber-800">El PDF puede ser un escaneo o un formato no reconocido. ' +
             'Creá el comprobante y cargá los ítems a mano desde el detalle.</p>';
     } else {
-        itemsAlert.className = 'rounded p-4 text-sm mt-3 bg-green-50 border border-green-300 text-green-800';
+        itemsAlert.className = 'rounded p-4 text-sm mt-3 bg-green-100 border border-green-300 text-green-800';
         itemsAlert.innerHTML =
             '<p class="font-semibold">✓ ' + lines.length +
             (lines.length === 1 ? ' ítem detectado' : ' ítems detectados') +
-            '</p><p class="text-xs text-green-700">Se cargarán al crear el comprobante.</p>';
+            '</p><p class="text-xs text-green-800">Se cargarán al crear el comprobante.</p>';
     }
     itemsAlert.classList.remove('hidden');
 }
@@ -384,6 +259,9 @@ const initialType = document.getElementById('invoice-type').value;
 filterContacts(initialType);
 toggleNumberField(initialType);
 toggleFiscalIdentity(initialType);
+const initialFormal = document.getElementById('formal-check').checked;
+syncFormalFields(initialFormal);
+if (initialFormal) toggleConcepto(document.getElementById('concepto-select').value);
 applyVoucherFilter();
 </script>
 {% endblock %}

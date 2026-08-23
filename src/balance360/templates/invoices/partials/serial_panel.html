@@ -1,12 +1,12 @@
 {% set is_sale = invoice.invoice_type.value == "sale" %}
 {% set panel_target = "#items-table" if is_sale else "#serial-row-" ~ invoice_line.id %}
-<td colspan="6" class="px-4 py-2 bg-gray-50">
+<td colspan="6" class="px-4 py-2 bg-gray-100">
 <div id="serial-panel-{{ invoice_line.id }}" class="mt-2">
 
     {% if serials %}
     <ul class="mb-2 space-y-1">
         {% for s in serials %}
-        <li class="flex items-center justify-between text-xs text-gray-700 bg-gray-50 rounded px-2 py-1">
+        <li class="flex items-center justify-between text-xs text-gray-700 bg-gray-100 rounded px-2 py-1">
             <span class="font-mono">{{ s.serial }}</span>
             {% if not invoice.confirmed %}
             <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ invoice_line.id }}/serials/{{ s.id }}"
@@ -36,12 +36,12 @@
                onchange="decodeFromPhoto('{{ invoice_line.id }}', this)">
         <button type="button"
                 onclick="document.getElementById('scanner-file-{{ invoice_line.id }}').click()"
-                class="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-700"
+                class="bg-gray-600 text-white px-2 py-1 rounded text-xs hover:bg-gray-800"
                 title="Escanear código de barras">
             📷
         </button>
         <button type="submit"
-                class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700">
+                class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-800">
             + Agregar
         </button>
     </form>

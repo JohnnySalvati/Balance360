@@ -40,8 +40,8 @@
 {% set parent_id = node.category.parent_id | string | replace('-', '') if node.category.parent_id else '' %}
 {% set net = node.subtotal_income - node.subtotal_expense %}
 <tr id="node-{{ node_id }}"
-    class="hover:bg-gray-50
-           {% if depth == 0 %}bg-gray-50{% endif %}
+    class="hover:bg-gray-200
+           {% if depth == 0 %}bg-gray-100{% endif %}
            {% if parent_id %}child-of-{{ parent_id }} hidden{% endif %}"
     {% if has_children %}onclick="toggleNode('{{ node_id }}')" style="cursor:pointer;user-select:none"{% endif %}>
     <td class="px-4 py-2" style="padding-left: {{ 16 + depth * 20 }}px">
@@ -52,14 +52,14 @@
             {{ node.category.name }}
         </span>
     </td>
-    <td class="px-4 py-2 text-right text-green-700 {% if depth == 0 %}font-semibold{% endif %}">
+    <td class="px-4 py-2 text-right text-green-800 {% if depth == 0 %}font-semibold{% endif %}">
         {{ node.subtotal_income | currency }}
     </td>
-    <td class="px-4 py-2 text-right text-red-700 {% if depth == 0 %}font-semibold{% endif %}">
+    <td class="px-4 py-2 text-right text-red-800 {% if depth == 0 %}font-semibold{% endif %}">
         {{ node.subtotal_expense | currency }}
     </td>
     <td class="px-4 py-2 text-right {% if depth == 0 %}font-semibold{% endif %}
-               {% if net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+               {% if net >= 0 %}text-green-800{% else %}text-red-800{% endif %}">
         {{ net | currency }}
     </td>
 </tr>
@@ -71,7 +71,7 @@
 <div id="pl-cat-table" class="flex-1 overflow-y-auto bg-white rounded shadow">
     <p class="px-4 pt-3 text-sm text-gray-500">Período: {{ period.start.strftime('%d/%m/%Y') }} — {{ period.end.strftime('%d/%m/%Y') }}</p>
     <table class="w-full text-sm">
-        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+        <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3">Categoría</th>
                 <th class="px-4 py-3 text-right">Ingresos</th>
@@ -79,7 +79,7 @@
                 <th class="px-4 py-3 text-right">Resultado</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-200">
             {% set grand_income = namespace(value=0) %}
             {% set grand_expense = namespace(value=0) %}
             {% for node in groups %}
@@ -89,12 +89,12 @@
             {% endfor %}
         </tbody>
         <tfoot>
-            <tr class="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">
+            <tr class="border-t-2 border-gray-300 bg-gray-100 font-bold text-sm">
                 <td class="px-4 py-3 uppercase text-gray-600 text-xs">Total</td>
-                <td class="px-4 py-3 text-right text-green-700">{{ grand_income.value | currency }}</td>
-                <td class="px-4 py-3 text-right text-red-700">{{ grand_expense.value | currency }}</td>
+                <td class="px-4 py-3 text-right text-green-800">{{ grand_income.value | currency }}</td>
+                <td class="px-4 py-3 text-right text-red-800">{{ grand_expense.value | currency }}</td>
                 {% set grand_net = grand_income.value - grand_expense.value %}
-                <td class="px-4 py-3 text-right {% if grand_net >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                <td class="px-4 py-3 text-right {% if grand_net >= 0 %}text-green-800{% else %}text-red-800{% endif %}">
                     {{ grand_net | currency }}
                 </td>
             </tr>

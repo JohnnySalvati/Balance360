@@ -35,7 +35,7 @@
 
 <div id="networth-result" class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
-        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+        <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3">Cuenta</th>
                 <th class="px-4 py-3">Moneda</th>
@@ -44,13 +44,13 @@
                 <th class="px-4 py-3 text-right">Equivalente {{ ns.code }}</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-200">
             {% for row in accounts %}
-            <tr class="hover:bg-gray-50">
+            <tr class="hover:bg-gray-200">
                 <td class="px-4 py-3 font-medium">{{ row.account.name }}</td>
                 <td class="px-4 py-3 text-gray-500">{{ row.account.currency.code }}</td>
                 <td class="px-4 py-3 text-right font-mono
-                    {% if row.balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {% if row.balance >= 0 %}text-green-800{% else %}text-red-800{% endif %}">
                     {{ row.balance | currency }}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-400 font-mono">
@@ -61,17 +61,17 @@
                     {% endif %}
                 </td>
                 <td class="px-4 py-3 text-right font-semibold font-mono
-                    {% if row.ars_balance >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {% if row.ars_balance >= 0 %}text-green-800{% else %}text-red-800{% endif %}">
                     {{ row.ars_balance | currency }}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
         <tfoot>
-            <tr class="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">
+            <tr class="border-t-2 border-gray-300 bg-gray-100 font-bold text-sm">
                 <td class="px-4 py-3 uppercase text-gray-600 text-xs" colspan="4">Total {{ ns.code }}</td>
                 <td class="px-4 py-3 text-right font-mono
-                    {% if total_ars >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                    {% if total_ars >= 0 %}text-green-800{% else %}text-red-800{% endif %}">
                     {{ total_ars | currency }}
                 </td>
             </tr>

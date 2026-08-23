@@ -468,3 +468,14 @@ def create_credit_note(db: Session, original: Invoice):
         invoice_line_crud.create(db, data)
 
     return nc_invoice
+
+
+def normalize_fields_by_formality(invoice: Invoice) -> None:
+    if not invoice.formal:
+        invoice.voucher_type = None
+        invoice.pos = None
+        invoice.number = None
+        invoice.fiscal_identity_id = None
+        invoice.from_date = None
+        invoice.to_date = None
+        invoice.due_date = None

@@ -1,4 +1,4 @@
-<td class="px-4 py-3 align-top bg-blue-50/40">
+<td class="px-4 py-3 align-top bg-blue-100/60">
     <select name="product_id" form="new-line-form"
             onchange="toggleNewLineDescription(this.value); suggestNewLinePrice(this)"
             class="w-full border rounded px-2 py-1 text-sm">
@@ -16,12 +16,12 @@
            id="new-line-description"
            class="w-full border rounded px-2 py-1 text-sm mt-1">
 </td>
-<td class="px-4 py-3 text-right align-top bg-blue-50/40">
+<td class="px-4 py-3 text-right align-top bg-blue-100/60">
     <input type="number" name="quantity" min="1" required form="new-line-form"
            oninput="recalcNewLineSubtotal()"
            class="w-full border rounded px-2 py-1 text-right text-sm">
 </td>
-<td class="px-4 py-3 text-right align-top bg-blue-50/40">
+<td class="px-4 py-3 text-right align-top bg-blue-100/60">
     {% if invoice.applies_iva and invoice.formal %}
     <select id="iva-aliquot" name="iva_aliquot" required form="new-line-form"
             onchange="recalcFromNet(); recalcNewLineSubtotal();"
@@ -41,7 +41,7 @@
     <input type="hidden" name="iva_aliquot" value="exempt" form="new-line-form">
     {% endif %}
 </td>
-<td class="px-4 py-3 text-right align-top bg-blue-50/40">
+<td class="px-4 py-3 text-right align-top bg-blue-100/60">
     {% if invoice.applies_iva and invoice.formal %}
     <div class="flex items-center gap-1">
         <span class="text-gray-400 text-xs shrink-0">Neto</span>
@@ -53,7 +53,7 @@
         <span class="text-gray-400 text-xs shrink-0">c/IVA</span>
         <input id="unit-price-gross" type="number" step="0.01" min="0"
                oninput="recalcFromGross()"
-               class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-50">
+               class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-100">
     </div>
     {% else %}
     <input id="unit-price-net" type="number" name="unit_price" step="0.01" min="0" required form="new-line-form"
@@ -61,10 +61,10 @@
            class="w-full border rounded px-2 py-1 text-right text-sm">
     {% endif %}
 </td>
-<td class="px-4 py-3 text-right align-top font-medium bg-blue-50/40">
+<td class="px-4 py-3 text-right align-top font-medium bg-blue-100/60">
     <span id="new-line-subtotal" class="text-gray-700">—</span>
 </td>
-<td class="px-4 py-3 text-right align-top bg-blue-50/40 whitespace-nowrap">
+<td class="px-4 py-3 text-right align-top bg-blue-100/60 whitespace-nowrap">
     <button type="submit" form="new-line-form"
             class="text-green-600 hover:text-green-800 text-xs">Agregar</button>
     <button type="button"

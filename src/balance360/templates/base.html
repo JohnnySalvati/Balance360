@@ -83,7 +83,7 @@
                 "error"
             );
             btn.textContent = "⚠️ ¿Modificar regla existente?";
-            btn.classList.add("text-orange-600", "border-orange-400", "bg-orange-50");
+            btn.classList.add("text-orange-600", "border-orange-400", "bg-orange-100");
             btn.setAttribute("hx-vals", '{"create_rule": "true", "force": "true"}');
             btn._conflictTimer = setTimeout(() => {
                 btn._conflictMode = false;

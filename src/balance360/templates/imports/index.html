@@ -12,9 +12,9 @@
         <h2 class="text-sm font-semibold text-gray-700 mb-3">Importar Excel</h2>
         <form hx-post="/imports/" hx-encoding="multipart/form-data" class="flex items-center gap-3 flex-wrap">
             <input type="file" name="file" accept=".xlsx" required
-                   class="text-sm text-gray-600 file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 file:text-sm hover:file:bg-blue-100 file:cursor-pointer">
+                   class="text-sm text-gray-600 file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:bg-blue-100 file:text-blue-800 file:text-sm hover:file:bg-blue-200 file:cursor-pointer">
             <button type="submit"
-                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">
                 Importar
             </button>
             <span class="htmx-indicator text-sm text-gray-400">Procesando…</span>
@@ -29,7 +29,7 @@
 
         {% if batches %}
         <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <thead class="bg-gray-100 text-left text-gray-600 uppercase text-xs">
                 <tr>
                     <th class="px-4 py-3">Archivo</th>
                     <th class="px-4 py-3">Fecha</th>
@@ -38,9 +38,9 @@
                     <th class="px-4 py-3"></th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-200">
                 {% for batch in batches %}
-                <tr id="batch-row-{{ batch.id }}" class="hover:bg-gray-50">
+                <tr id="batch-row-{{ batch.id }}" class="hover:bg-gray-200">
                     <td class="px-4 py-3 font-medium">{{ batch.filename }}</td>
                     <td class="px-4 py-3 text-gray-500">{{ batch.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td class="px-4 py-3 text-right font-mono">{{ batch.transactions | length }}</td>

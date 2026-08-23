@@ -1,4 +1,4 @@
-<tr id="ent-row-{{ e.id }}" class="hover:bg-gray-50">
+<tr id="ent-row-{{ e.id }}" class="hover:bg-gray-200">
     <td class="px-4 py-3 font-medium text-gray-800">{{ e.name }}</td>
     <td class="px-4 py-3 text-right">
         <div class="flex justify-end gap-3">
@@ -9,7 +9,7 @@
             <button hx-get="/config/entities/{{ e.id }}/edit-form"
                     hx-target="#modal"
                     hx-swap="outerHTML"
-                    class="text-blue-500 hover:text-blue-700 text-xs">✎</button>
+                    class="text-blue-500 hover:text-blue-800 text-xs">✎</button>
             <button hx-delete="/config/entities/{{ e.id }}"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete

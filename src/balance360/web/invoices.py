@@ -234,6 +234,7 @@ def create_invoice(
             due_date=datetime.date.fromisoformat(due_date) if due_date else None,
         )
         invoice = invoice_crud.create(db, data)
+        invoice_service.normalize_fields_by_formality(invoice)
 
         if pdf_lines:
             products = product_crud.get_all(db)  # cargar el catálogo una sola vez
@@ -312,6 +313,8 @@ def update_invoice(
         return toast_error(str(e))
 
     invoice = invoice_crud.update(db, data, invoice)
+    invoice_service.normalize_fields_by_formality(invoice)
+
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/header_saved.html",
@@ -807,6 +810,8 @@ def update_lines(
     invoice_line: InvoiceLine = Depends(get_invoice_line_or_404),
     unit_price: str = Form(default=""),
     iva_aliquot: str = Form(default=""),
+    description: str = Form(default=""),
+    quantity: str = Form(default=""),
     db: Session = Depends(get_db),
 ):
     if invoice.confirmed:
@@ -815,18 +820,24 @@ def update_lines(
     if invoice.id != invoice_line.invoice_id:
         raise HTTPException(status_code=404, detail="Invoice / line ID mismatch")
 
-    fields = {}
-    if unit_price:
-        fields["unit_price"] = Decimal(unit_price)
-    if iva_aliquot:
-        fields["iva_aliquot"] = IvaAliquot[iva_aliquot]
-
-    data = InvoiceLineUpdate(**fields)
-
     try:
-        invoice_line_crud.update(db, data, invoice_line)
+        fields = {}
+        if unit_price:
+            fields["unit_price"] = Decimal(unit_price)
+        if iva_aliquot:
+            fields["iva_aliquot"] = IvaAliquot[iva_aliquot]
+        if description:
+            fields["description"] = description
+        if quantity:
+            fields["quantity"] = int(quantity)
+        data = InvoiceLineUpdate(**fields)
+
+    except ValidationError as e:
+        return toast_error(str(e))
     except ValueError as e:
         return toast_error(str(e))
+
+    invoice_line_crud.update(db, data, invoice_line)
 
     return templates.TemplateResponse(
         request=request,

@@ -35,15 +35,15 @@
 
     <div class="bg-white rounded shadow max-w-2xl">
         <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-left text-gray-500 uppercase text-xs">
+            <thead class="bg-gray-100 text-left text-gray-600 uppercase text-xs">
                 <tr>
                     <th class="px-4 py-3">Entidad</th>
                     <th class="px-4 py-3 text-right">IIBB a pagar</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100">
+            <tbody class="divide-y divide-gray-200">
                 {% for r in iibb_by_entity.by_entity %}
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-200">
                     <td class="px-4 py-3 text-gray-700">{{ r.entity_name }}</td>
                     <td class="px-4 py-3 text-right font-mono">{{ r.entity_total | currency }}</td>
                 </tr>
@@ -52,7 +52,7 @@
                 {% endfor %}
             </tbody>
             {% if iibb_by_entity.by_entity %}
-            <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-semibold">
+            <tfoot class="bg-gray-100 border-t-2 border-gray-200 font-semibold">
                 <tr>
                     <td class="px-4 py-3 uppercase text-xs text-gray-600">Total a pagar</td>
                     <td class="px-4 py-3 text-right font-mono">{{ iibb_by_entity.total | currency }}</td>

@@ -2,160 +2,172 @@
    (mismo id), así "Editar encabezado" edita donde los datos ya están en vez de
    navegar a otra página.
 
-   La grilla replica campo por campo la del formulario —mismo orden, mismas filas,
-   mismos anchos (w-20 / w-28 / w-40 / w-52 / w-44)— y cada valor usa las medidas
-   de caja del control que lo reemplaza (borde transparente + px-3 py-2). Así el
-   swap no mueve nada: el dato se queda donde estaba y el control aparece encima.
-   Si allá se agrega o reordena un campo, hay que hacerlo acá también. #}
-{% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
-<div id="invoice-header" class="bg-white rounded shadow p-6">
-    <div class="flex flex-col gap-4 text-sm">
+   Espeja celda por celda a partials/_header_fields.html —mismas dos grillas,
+   mismos breakpoints (2 / md:6 / xl:12), mismos col-span, mismas medidas de caja
+   (px-2 py-1 + borde transparente)— así el swap no mueve nada: el dato se queda
+   donde estaba y el control aparece encima. Si allá se agrega, reordena o se
+   cambia un span, hay que hacerlo acá también.
 
-        <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1">
-                <p class="text-xs text-gray-500">Tipo de comprobante</p>
-                <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">
+   Donde el formulario oculta una celda con display:none, acá va un if: el efecto
+   sobre la grilla es el mismo, ninguno de los dos ocupa lugar.
+
+   Las fechas se muestran en dd/mm/aaaa y no en ISO a propósito: es lo que muestra
+   el <input type="date"> al entrar en edición, y si acá dijeran 2026-08-03 el dato
+   cambiaría de forma en el swap. #}
+{% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
+<div id="invoice-header" class="bg-white rounded shadow p-4">
+    <div class="flex flex-col gap-3 text-sm">
+
+        {# ── El documento ─────────────────────────────────────────────────── #}
+        <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2">
+            <div class="flex flex-col gap-0.5 col-span-1 md:col-span-1 xl:col-span-1">
+                <p class="text-xs text-gray-500">Tipo</p>
+                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
                     {{ "Compra" if invoice.invoice_type.value == "purchase" else "Venta" }}
                 </p>
             </div>
 
-            <div class="flex flex-col gap-1">
+            <div class="flex flex-col gap-0.5 col-span-1 md:col-span-2 xl:col-span-2">
                 <p class="text-xs text-gray-500">Fecha</p>
-                <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">{{ invoice.date }}</p>
+                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                    {{ invoice.date.strftime("%d/%m/%Y") }}
+                </p>
             </div>
+
+            {# El identificador del documento, de un tirón. Misma caja que en el
+               formulario —mismo borde, mismo alto— pero sin subdivisiones: lo que
+               allá son tres controles acá se lee como una sola cosa. #}
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-3">
+                <label class="text-xs text-gray-500 flex items-center gap-1.5 w-fit">
+                    <input type="checkbox" disabled class="h-3 w-3"
+                           {{ "checked" if invoice.formal else "" }}>
+                    Comprobante formal
+                </label>
+                {% if invoice.formal %}
+                <p class="flex items-center rounded border border-gray-300 bg-gray-100 px-2 py-1 text-gray-800">
+                    <span class="font-semibold">{{ invoice.voucher_type.value if invoice.voucher_type else "—" }}</span>
+                    <span class="ml-2 tabular-nums">{{ "%04d"|format(invoice.pos) if invoice.pos else "—" }}-{% if invoice.number %}{{ "%08d"|format(invoice.number) }}{% else %}<span class="text-gray-500">pendiente</span>{% endif %}</span>
+                </p>
+                {% else %}
+                <p class="rounded border border-dashed border-gray-300 bg-gray-100 px-2 py-1 text-gray-500">
+                    Sin numeración
+                </p>
+                {% endif %}
+            </div>
+
+            {% if invoice.formal %}
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
+                <p class="text-xs text-gray-500">Concepto</p>
+                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium truncate">
+                    {{ concepto_labels[invoice.concepto.value] }}
+                </p>
+            </div>
+
+            {# Mismo criterio que toggleConcepto: las tres fechas solo aplican cuando
+               hay servicios. Se muestran aunque estén vacías. #}
+            {% if invoice.concepto.value != "products" %}
+            <div class="col-span-2 md:col-span-4 xl:col-span-4 grid grid-cols-3 gap-2">
+                <div class="flex flex-col gap-0.5">
+                    <p class="text-xs text-gray-500">Servicio desde</p>
+                    <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                        {{ invoice.from_date.strftime("%d/%m/%Y") if invoice.from_date else "—" }}
+                    </p>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                    <p class="text-xs text-gray-500">Servicio hasta</p>
+                    <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                        {{ invoice.to_date.strftime("%d/%m/%Y") if invoice.to_date else "—" }}
+                    </p>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                    <p class="text-xs text-gray-500">Vto. de pago</p>
+                    <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                        {{ invoice.due_date.strftime("%d/%m/%Y") if invoice.due_date else "—" }}
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1">
+        {# ── Las partes ───────────────────────────────────────────────────── #}
+        <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2 border-t border-gray-200 pt-3">
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
                 <p class="text-xs text-gray-500">Entidad</p>
-                <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">{{ invoice.entity.name }}</p>
+                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium truncate">
+                    {{ invoice.entity.name }}
+                </p>
             </div>
 
-            <div class="flex flex-col gap-1">
+            {% if invoice.formal %}
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-4 xl:col-span-3">
+                <p class="text-xs text-gray-500">
+                    Identidad fiscal ({{ "emisor" if invoice.invoice_type.value == "sale" else "receptor" }})
+                </p>
+                {% if invoice.fiscal_identity %}
+                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium truncate">
+                    {{ invoice.fiscal_identity.name }}
+                    <span class="text-gray-500 font-normal">· {{ invoice.fiscal_identity.tax_id | cuit }}</span>
+                </p>
+                {% else %}
+                {# Sin ella no se puede confirmar: se muestra el hueco en vez de ocultarlo. #}
+                <p class="border border-transparent rounded px-2 py-1 text-amber-700 font-medium">— Sin asignar</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-3">
                 <p class="text-xs text-gray-500">Contacto</p>
-                {# El CUIT del contacto va inline y no en su propia celda: el formulario
-                   acá solo tiene el select, y una celda extra correría todo lo de abajo. #}
-                <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">
+                {# El CUIT va inline y no en su propia celda: el formulario acá solo
+                   tiene el select, y una celda extra correría todo lo de al lado. #}
+                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium truncate">
                     {{ invoice.contact.name }}
                     {% if invoice.contact.tax_id %}
-                    <span class="text-gray-400 font-normal">· {{ invoice.contact.tax_id | cuit }}</span>
+                    <span class="text-gray-500 font-normal">· {{ invoice.contact.tax_id | cuit }}</span>
                     {% endif %}
                 </p>
             </div>
-        </div>
 
-        {# En una venta nuestra identidad emite; en una compra recibe (emite el proveedor).
-           Se muestra siempre —aunque falte— porque sin ella no se puede confirmar, y
-           ocultarla dejaba el hueco invisible. #}
-        <div class="flex flex-col gap-1">
-            <p class="text-xs text-gray-500">
-                Identidad fiscal ({{ "emisor" if invoice.invoice_type.value == "sale" else "receptor" }})
-            </p>
-            {% if invoice.fiscal_identity %}
-            <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">
-                {{ invoice.fiscal_identity.name }} · {{ invoice.fiscal_identity.tax_id | cuit }}
-            </p>
-            {% else %}
-            <p class="border border-transparent rounded px-3 py-2 text-amber-600 font-medium">— Sin asignar</p>
-            {% endif %}
-        </div>
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-2">
+                <p class="text-xs text-gray-500">Categoría</p>
+                <p class="border border-transparent rounded px-2 py-1 font-medium truncate {{ 'text-gray-800' if invoice.category else 'text-gray-500' }}">
+                    {{ invoice.category.name if invoice.category else "— Sin categoría —" }}
+                </p>
+            </div>
 
-        <div class="flex flex-col gap-1">
-            <p class="text-xs text-gray-500">Categoría (opcional)</p>
-            <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">
-                {{ invoice.category.name if invoice.category else "— Sin categoría —" }}
-            </p>
-        </div>
-
-        {# Checkboxes deshabilitados en vez de un "Sí / No": ocupan exactamente el
-           lugar que van a ocupar al editar. #}
-        <div class="flex gap-6 text-gray-800">
-            <label class="flex items-center gap-2">
-                <input type="checkbox" disabled {{ "checked" if invoice.formal else "" }}>
-                Comprobante formal
-            </label>
             {% if invoice.invoice_type.value == "purchase" %}
-            <label class="flex items-center gap-2">
-                <input type="checkbox" disabled {{ "checked" if invoice.tax_only else "" }}>
-                Solo impositivo
-            </label>
-            {% endif %}
-        </div>
-
-        {# Espeja a #formal-fields: en el formulario esta sección entera está oculta
-           mientras el comprobante no sea formal, el concepto incluido. #}
-        {% if invoice.formal %}
-        <div class="flex flex-col gap-4 border-t pt-4">
-            <div class="flex gap-4 items-end flex-wrap">
-                <div class="flex flex-col gap-1 w-20">
-                    <p class="text-xs text-gray-500">Tipo</p>
-                    <p class="border border-transparent rounded px-2 py-2 text-gray-800 font-medium">
-                        {{ invoice.voucher_type.value if invoice.voucher_type else "—" }}
-                    </p>
-                </div>
-
-                <div class="flex flex-col gap-1 w-28">
-                    <p class="text-xs text-gray-500">Pto. de venta</p>
-                    <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">{{ invoice.pos or "—" }}</p>
-                </div>
-
-                <div class="flex flex-col gap-1 w-40">
-                    <p class="text-xs text-gray-500">Número</p>
-                    <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">{{ invoice.number or "—" }}</p>
-                </div>
-
-                <div class="flex flex-col gap-1 w-52">
-                    <p class="text-xs text-gray-500">Concepto</p>
-                    <p class="border border-transparent rounded px-2 py-2 text-gray-800 font-medium">
-                        {{ concepto_labels[invoice.concepto.value] }}
-                    </p>
-                </div>
-            </div>
-
-            {# Las tres fechas solo aplican cuando hay servicios: mismo criterio que
-               toggleConcepto en el formulario. Se muestran aunque estén vacías. #}
-            {% if invoice.concepto.value != "products" %}
-            <div class="flex gap-4 items-end flex-wrap">
-                <div class="flex flex-col gap-1 w-44">
-                    <p class="text-xs text-gray-500">Servicio desde</p>
-                    <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">{{ invoice.from_date or "—" }}</p>
-                </div>
-                <div class="flex flex-col gap-1 w-44">
-                    <p class="text-xs text-gray-500">Servicio hasta</p>
-                    <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">{{ invoice.to_date or "—" }}</p>
-                </div>
-                <div class="flex flex-col gap-1 w-44">
-                    <p class="text-xs text-gray-500">Vto. de pago</p>
-                    <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">{{ invoice.due_date or "—" }}</p>
-                </div>
+            <div class="col-span-2 md:col-span-6 xl:col-span-2 flex items-end pb-1 text-gray-800">
+                <label class="flex items-center gap-2 whitespace-nowrap">
+                    <input type="checkbox" disabled {{ "checked" if invoice.tax_only else "" }}>
+                    Solo impositivo
+                </label>
             </div>
             {% endif %}
         </div>
-        {% endif %}
 
-        {# Sin equivalente en el formulario: lo devuelve ARCA y no se edita nunca. Solo
-           existe con el comprobante ya autorizado, o sea sin botón de edición. #}
+        {# Sin equivalente en el formulario: lo devuelve ARCA y no se edita nunca.
+           Solo existe con el comprobante ya autorizado, o sea sin botón de edición,
+           así que no rompe el espejo. Una línea y no una fila de grilla: son dos
+           datos que se leen de corrido. #}
         {% if invoice.cae %}
-        <div class="flex gap-4 items-end flex-wrap border-t pt-4">
-            <div class="flex flex-col gap-1 w-52">
-                <p class="text-xs text-gray-500">CAE</p>
-                <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-mono">{{ invoice.cae }}</p>
-            </div>
-            <div class="flex flex-col gap-1 w-44">
-                <p class="text-xs text-gray-500">Vencimiento CAE</p>
-                <p class="border border-transparent rounded px-3 py-2 text-gray-800 font-medium">{{ invoice.cae_expiry }}</p>
-            </div>
+        <div class="flex items-center gap-2 border-t border-gray-200 pt-2 text-xs">
+            <span class="uppercase tracking-wide text-gray-500">CAE</span>
+            <span class="font-mono tabular-nums text-gray-800">{{ invoice.cae }}</span>
+            {% if invoice.cae_expiry %}
+            <span class="text-gray-400">·</span>
+            <span class="text-gray-600">vence {{ invoice.cae_expiry.strftime("%d/%m/%Y") }}</span>
+            {% endif %}
         </div>
         {% endif %}
 
         {% if not invoice.confirmed %}
         {# Misma fila que "Guardar cambios" del formulario, para que el bloque de
            acciones no salte al entrar en edición. #}
-        <div class="flex justify-end mt-2">
+        <div class="flex justify-end">
             <button hx-get="/invoices/{{ invoice.id }}/header-form"
                     hx-target="#invoice-header"
                     hx-swap="outerHTML"
-                    class="px-4 py-2 text-sm text-blue-500 hover:text-blue-700">✎ Editar encabezado</button>
+                    class="px-4 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-gray-200 rounded">✎ Editar encabezado</button>
         </div>
         {% endif %}
     </div>

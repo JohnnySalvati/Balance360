@@ -5,7 +5,7 @@
     <h1 class="text-2xl font-bold">Comprobantes</h1>
     <a href="/invoices/new"
        onclick="sessionStorage.setItem('invoicesReturn', location.href)"
-       class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">
+       class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-800">
         + Nuevo
     </a>
 </div>
@@ -44,7 +44,7 @@
 
 <div class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
-        <thead class="sticky top-0 z-10 bg-gray-50 text-left text-gray-500 uppercase text-xs">
+        <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
             <tr>
                 <th class="px-4 py-3">Fecha</th>
                 <th class="px-4 py-3">Comprobante</th>
@@ -58,9 +58,9 @@
                 <th class="px-4 py-3">Estado</th>
             </tr>
         </thead>
-        <tbody id="invoice-tbody" class="divide-y divide-gray-100">
+        <tbody id="invoice-tbody" class="divide-y divide-gray-200">
             {% for inv in invoices %}
-            <tr class="cursor-pointer {% if inv.tax_only %}bg-amber-50 hover:bg-amber-100{% else %}hover:bg-gray-50{% endif %}" onclick="sessionStorage.setItem('invoicesReturn', location.href); location.href='/invoices/{{ inv.id }}'">
+            <tr class="cursor-pointer {% if inv.tax_only %}bg-amber-100 hover:bg-amber-200{% else %}hover:bg-gray-200{% endif %}" onclick="sessionStorage.setItem('invoicesReturn', location.href); location.href='/invoices/{{ inv.id }}'">
                 <td class="px-4 py-3 text-gray-700">{{ inv.date }}</td>
                 <td class="px-4 py-3 text-gray-500">
                     {% if inv.formal %}
@@ -83,15 +83,15 @@
                 <td class="px-4 py-3 text-right font-medium">{{ (-inv.total if inv.is_nc else inv.total) | currency }}</td>
                 <td class="px-4 py-3 flex gap-1 flex-wrap">
                     {% if not inv.confirmed %}
-                        <span title="Comprobante sin confirmar" class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Borrador</span>
+                        <span title="Comprobante sin confirmar" class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">Borrador</span>
                     {% endif %}
                     {% if inv.authorized %}
-                        <span title="Autorizado por ARCA (con CAE)" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Autorizado ARCA</span>
+                        <span title="Autorizado por ARCA (con CAE)" class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">Autorizado ARCA</span>
                     {% endif %}
                     {% if inv.paid %}
-                        <span title="El pago ya fue registrado" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Pagado</span>
+                        <span title="El pago ya fue registrado" class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">Pagado</span>
                     {% elif inv.confirmed %}
-                        <span title="Confirmado, falta registrar el pago" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Pago pendiente</span>
+                        <span title="Confirmado, falta registrar el pago" class="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">Pago pendiente</span>
                     {% endif %}
                 </td>
             </tr>
@@ -103,7 +103,7 @@
             {% if invoices %}
             {% set ns = namespace(total=0) %}
             {% for inv in invoices %}{% set ns.total = ns.total + (-inv.total if inv.is_nc else inv.total) %}{% endfor %}
-            <tr class="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-800">
+            <tr class="border-t-2 border-gray-300 bg-gray-100 font-semibold text-gray-800">
                 <td class="px-4 py-3" colspan="{{ 6 if current_type == 'sale' else 5 }}">Total ({{ invoices|length }})</td>
                 <td class="px-4 py-3 text-right">{{ ns.total | currency }}</td>
                 <td></td>

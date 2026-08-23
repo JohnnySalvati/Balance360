@@ -1,13 +1,20 @@
-{# Título y bajada del comprobante. Va aparte porque se rearma solo, fuera del
-   flujo normal de la página: todo lo que muestra (tipo, letra, punto de venta,
-   número, contacto, fecha) se puede editar desde el encabezado, y el PATCH lo
-   devuelve como swap out-of-band. Ver partials/header_saved.html. #}
+{# Título del comprobante. Va aparte porque se rearma solo, fuera del flujo
+   normal de la página: tipo, letra, punto de venta y número se pueden editar
+   desde el encabezado, y el PATCH lo devuelve como swap out-of-band.
+   Ver partials/header_saved.html.
+
+   Es solo la identidad del documento — lo que uno diría para nombrarlo. El
+   contacto y la fecha estaban acá como bajada, pero se repetían tal cual en el
+   panel de abajo; el panel es la ficha completa (y el espejo del formulario de
+   edición), así que la bajada era ruido. #}
 <h1 class="text-2xl font-bold">
     {{ "Compra" if invoice.invoice_type.value == "purchase" else "Venta" }}
     {% if invoice.formal %}
+        {# Mismo formato que el papel y que el encabezado: 4 dígitos de punto de
+           venta, 8 de número. Ver partials/header_display.html. #}
         — {{ invoice.voucher_type.value }}
         {% if invoice.pos and invoice.number %}
-            {{ invoice.pos }}-{{ invoice.number }}
+            <span class="tabular-nums">{{ "%04d-%08d"|format(invoice.pos, invoice.number) }}</span>
         {% else %}
             —
         {% endif %}
@@ -15,4 +22,3 @@
         — Informal
     {% endif %}
 </h1>
-<p class="text-sm text-gray-500 mt-1">{{ invoice.contact.name }} · {{ invoice.date }}</p>

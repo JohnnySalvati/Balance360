@@ -1,0 +1,218 @@
+{# Campos del encabezado de un comprobante. Compartido por el alta
+   (new_form.html, POST) y la edición in situ (partials/header_form.html, PATCH):
+   son el mismo formulario, así que un cambio de campo o de layout se hace una
+   sola vez. El <form>, los botones y el <script> los pone cada página.
+
+   Layout: DOS grillas, una por grupo semántico, separadas por un filete.
+
+     1. El documento — qué es, cuándo, qué período cubre.
+     2. Las partes  — entre quiénes y cómo se clasifica.
+
+   Cada grilla suma exactamente 12 columnas en xl (6 en md), así el corte de
+   filas cae solo y el agrupamiento no se descoloca cuando falta un campo. Son
+   dos grillas y no una para que el filete pueda ir entre medio.
+
+   Dos bloques son una unidad y se muestran como tal, no como campos sueltos:
+
+     - Letra + punto de venta + número: es el identificador del documento y se
+       lee de un tirón (C 0005-00000002). Van en una caja con borde compartido,
+       rotulada por el checkbox `formal`, que es justo lo que decide si el
+       comprobante tiene numeración.
+     - Las tres fechas de servicio: existen o no según el concepto, así que van
+       en UNA celda al lado de él y aparecen/desaparecen juntas.
+
+   partials/header_display.html replica esta grilla celda por celda; si acá se
+   agrega, reordena o se cambia un span, hay que hacerlo allá también.
+
+   Contexto:
+     invoice   — opcional. Si no está (o es None) el partial trabaja en modo
+                 ALTA: sin valores, fecha de hoy, placeholder de contacto.
+     entities, contacts, categories, invoice_type, voucher_type, concepto,
+     fiscal_identities, selected_fiscal_identity_id — como en las dos rutas.
+
+   Los ids son los que usa static/js/invoice_form.js (#invoice-type,
+   #voucher-type-select, #contact-select, #fiscal-identity-select,
+   #fiscal-identity-label, #fiscal-identity-field, #formal-check, #voucher-id,
+   #informal-note, #service-dates, #pos-input, #number-input, #number-field).
+   La clase .formal-only marca lo que solo existe en un comprobante formal:
+   syncFormalFields la usa para ocultar Y deshabilitar de una sola pasada. #}
+{% set inv = invoice if invoice is defined and invoice else none %}
+{% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
+
+{# ── El documento ─────────────────────────────────────────────────────────── #}
+<div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2">
+    <div class="flex flex-col gap-0.5 col-span-1 md:col-span-1 xl:col-span-1">
+        <label class="text-xs text-gray-500">Tipo</label>
+        <select name="invoice_type" id="invoice-type" required
+                onchange="onInvoiceTypeChange(this.value)"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+            {% for t in invoice_type %}
+            <option value="{{ t.value }}"
+                    {{ "selected" if inv and t == inv.invoice_type else "" }}>
+                {{ "Compra" if t.value == "purchase" else "Venta" }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="flex flex-col gap-0.5 col-span-1 md:col-span-2 xl:col-span-2">
+        <label class="text-xs text-gray-500">Fecha</label>
+        <input type="date" name="date" required
+               value="{{ inv.date if inv else today() }}"
+               class="border border-gray-300 rounded px-2 py-1 text-sm">
+    </div>
+
+    {# El identificador del documento. El checkbox hace de etiqueta porque es lo
+       que decide si el comprobante tiene numeración; al destildarlo la caja se
+       reemplaza por #informal-note y los tres controles se deshabilitan —
+       display:none no impide que un campo se envíe. #}
+    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-3">
+        <label class="text-xs text-gray-500 flex items-center gap-1.5 cursor-pointer w-fit">
+            <input type="checkbox" name="formal" id="formal-check" value="true" class="h-3 w-3"
+                   onchange="toggleFormal(this.checked)"
+                   {{ "checked" if (inv.formal if inv else True) else "" }}>
+            Comprobante formal
+        </label>
+        <div id="voucher-id" class="flex items-center rounded border border-gray-300 bg-white"
+             style="{{ '' if (inv.formal if inv else True) else 'display:none' }}">
+            <select name="voucher_type" id="voucher-type-select" {{ "required" if not inv else "" }}
+                    class="rounded-l px-2 py-1 text-sm font-semibold bg-gray-100 border-r border-gray-300 focus:bg-blue-100 focus:outline-none">
+                <option value="">—</option>
+                {% for vt in voucher_type %}
+                <option value="{{ vt.value }}"
+                        {{ "selected" if inv and vt == inv.voucher_type else "" }}>{{ vt.value }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" inputmode="numeric" name="pos" id="pos-input"
+                   maxlength="4" placeholder="0000" {{ "required" if not inv else "" }}
+                   value="{{ inv.pos if inv and inv.pos else '' }}"
+                   class="w-16 px-2 py-1 text-sm text-center tabular-nums focus:bg-blue-100 focus:outline-none">
+            {# En el alta arranca oculto y toggleNumberField lo muestra solo en compras:
+               el número de una venta lo asigna ARCA al autorizar. Al editar siempre se
+               ve, para poder corregir uno mal cargado. #}
+            <div class="flex items-center flex-1 min-w-0" id="number-field"
+                 style="{{ 'display:none' if not inv else '' }}">
+                <span class="text-gray-400 select-none">-</span>
+                <input type="text" inputmode="numeric" name="number" id="number-input"
+                       maxlength="8" placeholder="00000000"
+                       value="{{ inv.number if inv and inv.number else '' }}"
+                       class="w-full min-w-0 rounded-r px-2 py-1 text-sm tabular-nums focus:bg-blue-100 focus:outline-none">
+            </div>
+        </div>
+        <p id="informal-note"
+           class="rounded border border-dashed border-gray-300 bg-gray-100 px-2 py-1 text-sm text-gray-500"
+           style="{{ 'display:none' if (inv.formal if inv else True) else '' }}">
+            Sin numeración
+        </p>
+    </div>
+
+    <div class="formal-only flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
+        <label class="text-xs text-gray-500">Concepto</label>
+        <select name="concepto" id="concepto-select"
+                onchange="toggleConcepto(this.value)"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+            {% for c in concepto %}
+            <option value="{{ c.value }}"
+                    {{ "selected" if inv and c == inv.concepto else "" }}>
+                {{ concepto_labels[c.value] }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {# Las tres fechas ocupan UNA celda: dependen del concepto, que está al lado,
+       y aparecen o desaparecen como bloque. Antes eran una fila entera. #}
+    <div id="service-dates" class="formal-only col-span-2 md:col-span-4 xl:col-span-4 grid grid-cols-3 gap-2"
+         style="{{ '' if inv and inv.concepto.value != 'products' else 'display:none' }}">
+        <div class="flex flex-col gap-0.5">
+            <label class="text-xs text-gray-500">Servicio desde</label>
+            <input type="date" name="from_date"
+                   value="{{ inv.from_date if inv and inv.from_date else '' }}"
+                   class="border border-gray-300 rounded px-2 py-1 text-sm">
+        </div>
+        <div class="flex flex-col gap-0.5">
+            <label class="text-xs text-gray-500">Servicio hasta</label>
+            <input type="date" name="to_date"
+                   value="{{ inv.to_date if inv and inv.to_date else '' }}"
+                   class="border border-gray-300 rounded px-2 py-1 text-sm">
+        </div>
+        <div class="flex flex-col gap-0.5">
+            <label class="text-xs text-gray-500">Vto. de pago</label>
+            <input type="date" name="due_date"
+                   value="{{ inv.due_date if inv and inv.due_date else '' }}"
+                   class="border border-gray-300 rounded px-2 py-1 text-sm">
+        </div>
+    </div>
+</div>
+
+{# ── Las partes ───────────────────────────────────────────────────────────── #}
+<div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2 border-t border-gray-200 pt-3">
+    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
+        <label class="text-xs text-gray-500">Entidad</label>
+        <select name="entity_id" required
+                hx-get="/invoices/fiscal-identities"
+                hx-target="#fiscal-identity-select"
+                hx-swap="innerHTML"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+            {% for e in entities %}
+            <option value="{{ e.id }}"
+                    {{ "selected" if inv and e.id == inv.entity_id else "" }}>{{ e.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {# Solo en comprobantes formales: un informal no es un documento fiscal y no
+       tiene emisor/receptor. La etiqueta la reescribe toggleFiscalIdentity. #}
+    <div id="fiscal-identity-field" class="formal-only flex flex-col gap-0.5 col-span-2 md:col-span-4 xl:col-span-3">
+        <label class="text-xs text-gray-500" id="fiscal-identity-label">Identidad fiscal (emisor)</label>
+        <select name="fiscal_identity_id" id="fiscal-identity-select"
+                onchange="applyVoucherFilter()"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+            {% include "invoices/_fiscal_identity_options.html" %}
+        </select>
+    </div>
+
+    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-3">
+        <label class="text-xs text-gray-500">Contacto</label>
+        <select name="contact_id" id="contact-select" required
+                onchange="applyVoucherFilter()"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+            {# En el alta arranca sin elegir, para que el `required` obligue a decidir. #}
+            {% if not inv %}
+            <option value="" data-type="both">— Seleccionar contacto —</option>
+            {% endif %}
+            {% for c in contacts %}
+            <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}"
+                    data-condicion="{{ c.condicion_iva.name }}"
+                    {{ "selected" if inv and c.id == inv.contact_id else "" }}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-2">
+        <label class="text-xs text-gray-500">Categoría</label>
+        <select name="category_id" class="border border-gray-300 rounded px-2 py-1 text-sm">
+            <option value="">— Sin categoría —</option>
+            {% for cat in categories %}
+            {# nbsp y no espacios: el HTML colapsa los espacios normales y se
+               perdería la jerarquía de subcategorías. Va con |safe porque si no
+               Jinja escapa el & y en la lista se leería "&nbsp;Alquileres". #}
+            <option value="{{ cat.id }}"
+                    {{ "selected" if inv and cat.id == inv.category_id else "" }}>
+                {{ ("&nbsp;&nbsp;" * cat.depth) | safe }}{{ cat.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {# Sin etiqueta propia: el texto del checkbox ya rotula. Alineado abajo para
+       que quede a la altura de los controles de al lado. #}
+    <div id="tax-only-field" class="col-span-2 md:col-span-6 xl:col-span-2 flex items-end pb-1">
+        <label class="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" name="tax_only" id="tax-only-check" value="true"
+                   onchange="toggleTaxOnly(this.checked)"
+                   {{ "checked" if inv and inv.tax_only else "" }}>
+            Solo impositivo
+        </label>
+    </div>
+</div>
