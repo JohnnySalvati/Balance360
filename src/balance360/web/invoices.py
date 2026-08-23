@@ -289,6 +289,8 @@ def update_invoice(
     to_date: str | None = Form(default=""),
     due_date: str | None = Form(default=""),
 ):
+    if invoice.confirmed:
+        raise HTTPException(status_code=404, detail="Invoice confirmed")
     try:
         data = InvoiceUpdate(
             invoice_type=InvoiceType(invoice_type) if invoice_type else None,
@@ -833,6 +835,8 @@ def update_lines(
         data = InvoiceLineUpdate(**fields)
 
     except ValidationError as e:
+        return toast_error(format_validation_error(e))
+    except ArithmeticError as e:
         return toast_error(str(e))
     except ValueError as e:
         return toast_error(str(e))
