@@ -10,14 +10,24 @@
     </a>
 </div>
 
-{# Tabs #}
+{# Tabs. Cambiar de solapa recarga la página entera —no basta con cambiar el
+   tbody: en ventas la tabla tiene una columna más (identidad fiscal)— así que
+   son links y no parte del form de filtros.
+
+   El href plano pierde los filtros; el onclick lo reemplaza por la URL actual con
+   invoice_type cambiado. Se lee de location.search y no del contexto de Jinja
+   porque los filtros se aplican por htmx con hx-push-url: después de filtrar la
+   barra de direcciones está al día, pero este HTML no —el swap solo tocó el
+   tbody— y un href renderizado en el server quedaría con los valores viejos. #}
 <div class="shrink-0 flex gap-1 mb-4 border-b border-gray-200">
     <a href="/invoices/?invoice_type=purchase"
+       onclick="event.preventDefault(); location.href = invoiceTypeUrl('purchase')"
        class="px-4 py-2 text-sm font-medium rounded-t
               {% if current_type == 'purchase' %}bg-white border border-b-white border-gray-200 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
         Compras
     </a>
     <a href="/invoices/?invoice_type=sale"
+       onclick="event.preventDefault(); location.href = invoiceTypeUrl('sale')"
        class="px-4 py-2 text-sm font-medium rounded-t
               {% if current_type == 'sale' %}bg-white border border-b-white border-gray-200 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
         Ventas
@@ -112,4 +122,15 @@
         </tbody>
     </table>
 </div>
+
+<script>
+    // Misma URL, otra solapa: conserva año, mes, desde/hasta y entidad. En el
+    // primer load la query puede venir sin filtros —los defaults los pone el
+    // server— y entonces no hay nada que conservar.
+    function invoiceTypeUrl(type) {
+        const params = new URLSearchParams(location.search);
+        params.set('invoice_type', type);
+        return '/invoices/?' + params.toString();
+    }
+</script>
 {% endblock %}

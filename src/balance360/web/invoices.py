@@ -604,7 +604,10 @@ def invoice_header_display(
 
 @router.get("/{invoice_id}/header-form", response_class=HTMLResponse)
 def invoice_header_form(
-    request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)
+    request: Request,
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db),
+    focus: str = Query(default=""),
 ):
     return templates.TemplateResponse(
         request=request,
@@ -619,6 +622,7 @@ def invoice_header_form(
             "categories": category_crud.get_all(db),
             "voucher_type": VoucherType,
             "concepto": Concepto,
+            "focus": focus,
         },
     )
 

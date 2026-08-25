@@ -3,8 +3,16 @@
    vez el partial de lectura, así que no hay navegación ni recarga de la página.
 
    Los campos salen de partials/_header_fields.html, compartido con el alta:
-   acá solo van el <form>, los botones y la lógica propia de la edición. #}
-<div id="invoice-header" class="bg-white rounded shadow p-4">
+   acá solo van el <form>, los botones y la lógica propia de la edición.
+
+   Al modo lectura ya no se vuelve con un botón: cada celda de header_display.html
+   trae su propio hx-get con ?focus=<id del control>, y esta página abre con el
+   cursor puesto ahí. El guardado sigue siendo explícito.
+
+   Contexto: el de _header_fields.html más `focus` (opcional). Viaja por data-focus
+   y no interpolado adentro del <script>: ahí el autoescape de Jinja no aplica, así
+   que un valor arbitrario en la query string sería inyección de JS. #}
+<div id="invoice-header" data-focus="{{ focus | default('', true) }}" class="bg-white rounded shadow p-4">
     {# Sin tope de ancho: la grilla de _header_fields usa las 12 columnas para
        meter cada bloque en una sola fila y ocupar lo mínimo a lo alto. #}
     <form hx-patch="/invoices/{{ invoice.id }}"
@@ -85,5 +93,14 @@ function toggleTaxOnlyVisibility(invoiceType) {
     if (formal) toggleConcepto(document.getElementById('concepto-select').value);
     if (document.getElementById('tax-only-check').checked) toggleTaxOnly(true);
     applyVoucherFilter();
+    // Foco donde se hizo click: header_display.html manda ?focus=<id del control>
+    // y la ruta lo deja en data-focus. Va al final, después de los toggles: esos
+    // habilitan y deshabilitan controles, y no tiene sentido enfocar uno apagado.
+    const focusId = document.getElementById('invoice-header').dataset.focus;
+    const focusEl = focusId ? document.getElementById(focusId) : null;
+    if (focusEl && !focusEl.disabled && focusEl.offsetParent !== null) {
+        focusEl.focus();
+        if (focusEl.select) focusEl.select();
+    }
 })();
 </script>

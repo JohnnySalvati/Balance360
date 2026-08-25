@@ -1,12 +1,18 @@
 {# Encabezado en modo lectura. Se intercambia in situ con partials/header_form.html
-   (mismo id), así "Editar encabezado" edita donde los datos ya están en vez de
-   navegar a otra página.
+   (mismo id), así se edita donde los datos ya están en vez de navegar a otra página.
+
+   No hay botón "Editar": cada celda entra en edición por su cuenta. El hx-get es
+   el que antes tenía el botón, más ?focus=<id del control>, así el formulario abre
+   con el cursor puesto en el campo sobre el que se hizo click — un click en vez de
+   dos, y sin tener que ir a buscar el campo después. El commit sigue siendo
+   explícito: se guarda con "Guardar cambios" y se descarta con "Cancelar".
+   Ver invoice_header_form en web/invoices.py.
 
    Espeja celda por celda a partials/_header_fields.html —mismas dos grillas,
    mismos breakpoints (2 / md:6 / xl:12), mismos col-span, mismas medidas de caja
    (px-2 py-1 + borde transparente)— así el swap no mueve nada: el dato se queda
    donde estaba y el control aparece encima. Si allá se agrega, reordena o se
-   cambia un span, hay que hacerlo acá también.
+   cambia un span, hay que hacerlo acá también. Los `focus` de acá son ids de allá.
 
    Donde el formulario oculta una celda con display:none, acá va un if: el efecto
    sobre la grilla es el mismo, ninguno de los dos ocupa lugar.
@@ -15,6 +21,18 @@
    el <input type="date"> al entrar en edición, y si acá dijeran 2026-08-03 el dato
    cambiaría de forma en el swap. #}
 {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
+
+{# Un comprobante confirmado no se edita: sin confirmar, todas las celdas son
+   clickeables; confirmado, esto es una ficha y nada más. #}
+{% set editable = not invoice.confirmed %}
+
+{% macro edit(control) -%}
+{%- if editable %} hx-get="/invoices/{{ invoice.id }}/header-form?focus={{ control }}" hx-target="#invoice-header" hx-swap="outerHTML" title="Click para editar"{% endif %}
+{%- endmacro %}
+
+{# El borde transparente ya reserva el lugar del borde real: al pasar por encima
+   la celda se dibuja igual que el control que va a aparecer en su lugar. #}
+{% set cell = "border border-transparent rounded px-2 py-1" ~ (" cursor-pointer hover:border-gray-300 hover:bg-gray-100" if editable else "") %}
 <div id="invoice-header" class="bg-white rounded shadow p-4">
     <div class="flex flex-col gap-3 text-sm">
 
@@ -22,34 +40,43 @@
         <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2">
             <div class="flex flex-col gap-0.5 col-span-1 md:col-span-1 xl:col-span-1">
                 <p class="text-xs text-gray-500">Tipo</p>
-                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                <p {{ edit("invoice-type") }} class="{{ cell }} text-gray-800 font-medium">
                     {{ "Compra" if invoice.invoice_type.value == "purchase" else "Venta" }}
                 </p>
             </div>
 
             <div class="flex flex-col gap-0.5 col-span-1 md:col-span-2 xl:col-span-2">
                 <p class="text-xs text-gray-500">Fecha</p>
-                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                <p {{ edit("date-input") }} class="{{ cell }} text-gray-800 font-medium">
                     {{ invoice.date.strftime("%d/%m/%Y") }}
                 </p>
             </div>
 
             {# El identificador del documento, de un tirón. Misma caja que en el
                formulario —mismo borde, mismo alto— pero sin subdivisiones: lo que
-               allá son tres controles acá se lee como una sola cosa. #}
+               allá son tres controles acá se lee como una sola cosa.
+
+               La etiqueta y la caja abren campos distintos: el rótulo es el
+               checkbox `formal`, así que clickearlo lleva ahí; la caja lleva a la
+               letra, que es por donde se empieza a corregir una numeración. #}
             <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-3">
-                <label class="text-xs text-gray-500 flex items-center gap-1.5 w-fit">
-                    <input type="checkbox" disabled class="h-3 w-3"
+                <label {{ edit("formal-check") }}
+                       class="text-xs text-gray-500 flex items-center gap-1.5 w-fit rounded {{ 'cursor-pointer hover:text-gray-700' if editable else '' }}">
+                    {# pointer-events-none: un input deshabilitado se traga el click
+                       y no lo deja llegar al label. #}
+                    <input type="checkbox" disabled class="h-3 w-3 pointer-events-none"
                            {{ "checked" if invoice.formal else "" }}>
                     Comprobante formal
                 </label>
                 {% if invoice.formal %}
-                <p class="flex items-center rounded border border-gray-300 bg-gray-100 px-2 py-1 text-gray-800">
+                <p {{ edit("voucher-type-select") }}
+                   class="flex items-center rounded border border-gray-300 bg-gray-100 px-2 py-1 text-gray-800 {{ 'cursor-pointer hover:bg-gray-200' if editable else '' }}">
                     <span class="font-semibold">{{ invoice.voucher_type.value if invoice.voucher_type else "—" }}</span>
                     <span class="ml-2 tabular-nums">{{ "%04d"|format(invoice.pos) if invoice.pos else "—" }}-{% if invoice.number %}{{ "%08d"|format(invoice.number) }}{% else %}<span class="text-gray-500">pendiente</span>{% endif %}</span>
                 </p>
                 {% else %}
-                <p class="rounded border border-dashed border-gray-300 bg-gray-100 px-2 py-1 text-gray-500">
+                <p {{ edit("formal-check") }}
+                   class="rounded border border-dashed border-gray-300 bg-gray-100 px-2 py-1 text-gray-500 {{ 'cursor-pointer hover:bg-gray-200' if editable else '' }}">
                     Sin numeración
                 </p>
                 {% endif %}
@@ -58,7 +85,7 @@
             {% if invoice.formal %}
             <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
                 <p class="text-xs text-gray-500">Concepto</p>
-                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium truncate">
+                <p {{ edit("concepto-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
                     {{ concepto_labels[invoice.concepto.value] }}
                 </p>
             </div>
@@ -69,19 +96,19 @@
             <div class="col-span-2 md:col-span-4 xl:col-span-4 grid grid-cols-3 gap-2">
                 <div class="flex flex-col gap-0.5">
                     <p class="text-xs text-gray-500">Servicio desde</p>
-                    <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                    <p {{ edit("from-date-input") }} class="{{ cell }} text-gray-800 font-medium">
                         {{ invoice.from_date.strftime("%d/%m/%Y") if invoice.from_date else "—" }}
                     </p>
                 </div>
                 <div class="flex flex-col gap-0.5">
                     <p class="text-xs text-gray-500">Servicio hasta</p>
-                    <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                    <p {{ edit("to-date-input") }} class="{{ cell }} text-gray-800 font-medium">
                         {{ invoice.to_date.strftime("%d/%m/%Y") if invoice.to_date else "—" }}
                     </p>
                 </div>
                 <div class="flex flex-col gap-0.5">
                     <p class="text-xs text-gray-500">Vto. de pago</p>
-                    <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium">
+                    <p {{ edit("due-date-input") }} class="{{ cell }} text-gray-800 font-medium">
                         {{ invoice.due_date.strftime("%d/%m/%Y") if invoice.due_date else "—" }}
                     </p>
                 </div>
@@ -94,7 +121,7 @@
         <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2 border-t border-gray-200 pt-3">
             <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
                 <p class="text-xs text-gray-500">Entidad</p>
-                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium truncate">
+                <p {{ edit("entity-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
                     {{ invoice.entity.name }}
                 </p>
             </div>
@@ -105,13 +132,13 @@
                     Identidad fiscal ({{ "emisor" if invoice.invoice_type.value == "sale" else "receptor" }})
                 </p>
                 {% if invoice.fiscal_identity %}
-                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium truncate">
+                <p {{ edit("fiscal-identity-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
                     {{ invoice.fiscal_identity.name }}
                     <span class="text-gray-500 font-normal">· {{ invoice.fiscal_identity.tax_id | cuit }}</span>
                 </p>
                 {% else %}
                 {# Sin ella no se puede confirmar: se muestra el hueco en vez de ocultarlo. #}
-                <p class="border border-transparent rounded px-2 py-1 text-amber-700 font-medium">— Sin asignar</p>
+                <p {{ edit("fiscal-identity-select") }} class="{{ cell }} text-amber-700 font-medium">— Sin asignar</p>
                 {% endif %}
             </div>
             {% endif %}
@@ -120,7 +147,7 @@
                 <p class="text-xs text-gray-500">Contacto</p>
                 {# El CUIT va inline y no en su propia celda: el formulario acá solo
                    tiene el select, y una celda extra correría todo lo de al lado. #}
-                <p class="border border-transparent rounded px-2 py-1 text-gray-800 font-medium truncate">
+                <p {{ edit("contact-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
                     {{ invoice.contact.name }}
                     {% if invoice.contact.tax_id %}
                     <span class="text-gray-500 font-normal">· {{ invoice.contact.tax_id | cuit }}</span>
@@ -130,15 +157,17 @@
 
             <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-2">
                 <p class="text-xs text-gray-500">Categoría</p>
-                <p class="border border-transparent rounded px-2 py-1 font-medium truncate {{ 'text-gray-800' if invoice.category else 'text-gray-500' }}">
+                <p {{ edit("category-select") }} class="{{ cell }} font-medium truncate {{ 'text-gray-800' if invoice.category else 'text-gray-500' }}">
                     {{ invoice.category.name if invoice.category else "— Sin categoría —" }}
                 </p>
             </div>
 
             {% if invoice.invoice_type.value == "purchase" %}
             <div class="col-span-2 md:col-span-6 xl:col-span-2 flex items-end pb-1 text-gray-800">
-                <label class="flex items-center gap-2 whitespace-nowrap">
-                    <input type="checkbox" disabled {{ "checked" if invoice.tax_only else "" }}>
+                <label {{ edit("tax-only-check") }}
+                       class="flex items-center gap-2 whitespace-nowrap rounded {{ 'cursor-pointer hover:text-gray-600' if editable else '' }}">
+                    <input type="checkbox" disabled class="pointer-events-none"
+                           {{ "checked" if invoice.tax_only else "" }}>
                     Solo impositivo
                 </label>
             </div>
@@ -146,7 +175,7 @@
         </div>
 
         {# Sin equivalente en el formulario: lo devuelve ARCA y no se edita nunca.
-           Solo existe con el comprobante ya autorizado, o sea sin botón de edición,
+           Solo existe con el comprobante ya autorizado, o sea sin edición posible,
            así que no rompe el espejo. Una línea y no una fila de grilla: son dos
            datos que se leen de corrido. #}
         {% if invoice.cae %}
@@ -160,14 +189,13 @@
         </div>
         {% endif %}
 
-        {% if not invoice.confirmed %}
-        {# Misma fila que "Guardar cambios" del formulario, para que el bloque de
-           acciones no salte al entrar en edición. #}
+        {% if editable %}
+        {# Ocupa la misma fila que "Cancelar / Guardar cambios" del formulario, para
+           que el panel no cambie de alto al entrar en edición. Además es lo único
+           que anuncia que las celdas se pueden clickear: sin el botón viejo, la
+           única otra pista es el hover. #}
         <div class="flex justify-end">
-            <button hx-get="/invoices/{{ invoice.id }}/header-form"
-                    hx-target="#invoice-header"
-                    hx-swap="outerHTML"
-                    class="px-4 py-1.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-gray-200 rounded">✎ Editar encabezado</button>
+            <p class="px-4 py-1.5 text-sm text-gray-400">✎ Click en cualquier campo para editarlo</p>
         </div>
         {% endif %}
     </div>

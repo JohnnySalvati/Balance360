@@ -33,7 +33,10 @@
    Los ids son los que usa static/js/invoice_form.js (#invoice-type,
    #voucher-type-select, #contact-select, #fiscal-identity-select,
    #fiscal-identity-label, #fiscal-identity-field, #formal-check, #voucher-id,
-   #informal-note, #service-dates, #pos-input, #number-input, #number-field).
+   #informal-note, #service-dates, #pos-input, #number-input, #number-field). Los
+   demás controles también llevan id —#date-input, #entity-select, #category-select,
+   #from-date-input, #to-date-input, #due-date-input— porque header_display.html
+   los nombra en ?focus= para abrir la edición con el cursor puesto ahí.
    La clase .formal-only marca lo que solo existe en un comprobante formal:
    syncFormalFields la usa para ocultar Y deshabilitar de una sola pasada. #}
 {% set inv = invoice if invoice is defined and invoice else none %}
@@ -57,7 +60,7 @@
 
     <div class="flex flex-col gap-0.5 col-span-1 md:col-span-2 xl:col-span-2">
         <label class="text-xs text-gray-500">Fecha</label>
-        <input type="date" name="date" required
+        <input type="date" name="date" id="date-input" required
                value="{{ inv.date if inv else today() }}"
                class="border border-gray-300 rounded px-2 py-1 text-sm">
     </div>
@@ -126,19 +129,19 @@
          style="{{ '' if inv and inv.concepto.value != 'products' else 'display:none' }}">
         <div class="flex flex-col gap-0.5">
             <label class="text-xs text-gray-500">Servicio desde</label>
-            <input type="date" name="from_date"
+            <input type="date" name="from_date" id="from-date-input"
                    value="{{ inv.from_date if inv and inv.from_date else '' }}"
                    class="border border-gray-300 rounded px-2 py-1 text-sm">
         </div>
         <div class="flex flex-col gap-0.5">
             <label class="text-xs text-gray-500">Servicio hasta</label>
-            <input type="date" name="to_date"
+            <input type="date" name="to_date" id="to-date-input"
                    value="{{ inv.to_date if inv and inv.to_date else '' }}"
                    class="border border-gray-300 rounded px-2 py-1 text-sm">
         </div>
         <div class="flex flex-col gap-0.5">
             <label class="text-xs text-gray-500">Vto. de pago</label>
-            <input type="date" name="due_date"
+            <input type="date" name="due_date" id="due-date-input"
                    value="{{ inv.due_date if inv and inv.due_date else '' }}"
                    class="border border-gray-300 rounded px-2 py-1 text-sm">
         </div>
@@ -149,7 +152,7 @@
 <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2 border-t border-gray-200 pt-3">
     <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
         <label class="text-xs text-gray-500">Entidad</label>
-        <select name="entity_id" required
+        <select name="entity_id" id="entity-select" required
                 hx-get="/invoices/fiscal-identities"
                 hx-target="#fiscal-identity-select"
                 hx-swap="innerHTML"
@@ -191,7 +194,7 @@
 
     <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-2">
         <label class="text-xs text-gray-500">Categoría</label>
-        <select name="category_id" class="border border-gray-300 rounded px-2 py-1 text-sm">
+        <select name="category_id" id="category-select" class="border border-gray-300 rounded px-2 py-1 text-sm">
             <option value="">— Sin categoría —</option>
             {% for cat in categories %}
             {# nbsp y no espacios: el HTML colapsa los espacios normales y se

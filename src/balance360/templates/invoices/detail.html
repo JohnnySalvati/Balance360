@@ -190,16 +190,22 @@
         <button hx-delete="/invoices/{{ invoice.id }}"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
-                hx-on::after-request="window.location='/invoices/?invoice_type={{ invoice.invoice_type.value }}'"
+                {# Vuelve a donde estaba la lista —mismo sessionStorage que usa "← Volver"—
+                   así el período y la entidad filtrados sobreviven al borrado. El
+                   href de respaldo es la solapa sola, sin filtros.
+
+                   Solo si el DELETE salió bien: si falla, el error viene como toast
+                   con HX-Reswap:none y navegar lo haría desaparecer sin leerlo. #}
+                hx-on::after-request="if (event.detail.successful) window.location = sessionStorage.getItem('invoicesReturn') || '/invoices/?invoice_type={{ invoice.invoice_type.value }}'"
                 class="text-sm text-red-500 hover:text-red-800">
             Eliminar borrador
         </button>
 
         <div class="flex items-center gap-3">
-            <button hx-post="/invoices/{{ invoice.id }}/confirm"
+            <button id="confirm-invoice" hx-post="/invoices/{{ invoice.id }}/confirm"
                     hx-trigger="confirmedDelete"
                     data-confirm-delete
-                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800">
+                    class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed">
                 Confirmar comprobante
             </button>
         </div>
@@ -225,6 +231,23 @@
 <script src="/static/js/invoice_form.js"></script>
 
 <script>
+    // Confirmar congela el comprobante. Si el encabezado está en edición, lo que
+    // esté tipeado sin guardar se perdería sin aviso: mientras haya un formulario
+    // adentro de #invoice-header, el botón queda deshabilitado.
+    //
+    // El estado se lee del DOM y no de un flag propio: entrar en edición, guardar
+    // y cancelar son los tres un swap, así que con volver a mirar después de cada
+    // uno alcanza y no hay manera de que quede desincronizado.
+    function syncConfirmButton() {
+        const btn = document.getElementById('confirm-invoice');
+        if (!btn) return;
+        const editing = !!document.querySelector('#invoice-header form');
+        btn.disabled = editing;
+        btn.title = editing ? 'Guardá o cancelá los cambios del encabezado primero' : '';
+    }
+    document.body.addEventListener('htmx:afterSwap', syncConfirmButton);
+    syncConfirmButton();
+
     // Proponer la fecha de hoy en los campos de fecha de pago (editable).
     const _today = new Date().toISOString().slice(0, 10);
     document.querySelectorAll('input[name="payment_date"]').forEach(input => {
