@@ -21,8 +21,11 @@
            oninput="recalcNewLineSubtotal()"
            class="w-full border rounded px-2 py-1 text-right text-sm">
 </td>
+{# La celda de alícuota solo existe si la tabla tiene esa columna. La condición
+   es la misma de items_table.html (shows_iva); si no coinciden, esta fila queda
+   corrida respecto de la cabecera. #}
+{% if invoice.applies_iva and invoice.formal %}
 <td class="px-4 py-3 text-right align-top bg-blue-100/60">
-    {% if invoice.applies_iva and invoice.formal %}
     <select id="iva-aliquot" name="iva_aliquot" required form="new-line-form"
             onchange="recalcFromNet(); recalcNewLineSubtotal();"
             class="w-full border rounded px-1 py-1 text-xs text-gray-600">
@@ -35,12 +38,8 @@
         <option value="{{ aliquot.name }}" data-rate="{{ aliquot.rate }}">{{ aliquot.rate }}%</option>
         {% endfor %}
     </select>
-    {% else %}
-    {# Sin IVA (comprobante C o informal): la alícuota no aplica, se guarda exenta. #}
-    <span class="text-gray-300 text-xs">—</span>
-    <input type="hidden" name="iva_aliquot" value="exempt" form="new-line-form">
-    {% endif %}
 </td>
+{% endif %}
 <td class="px-4 py-3 text-right align-top bg-blue-100/60">
     {% if invoice.applies_iva and invoice.formal %}
     <div class="flex items-center gap-1">
@@ -56,6 +55,9 @@
                class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-100">
     </div>
     {% else %}
+    {# Sin IVA (informal o comprobante C): un solo importe, y la alícuota exenta
+       viaja escondida acá porque su celda ya no se emite. #}
+    <input type="hidden" name="iva_aliquot" value="exempt" form="new-line-form">
     <input id="unit-price-net" type="number" name="unit_price" step="0.01" min="0" required form="new-line-form"
            oninput="recalcNewLineSubtotal()" placeholder="Importe"
            class="w-full border rounded px-2 py-1 text-right text-sm">

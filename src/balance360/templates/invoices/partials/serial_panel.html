@@ -1,6 +1,10 @@
 {% set is_sale = invoice.invoice_type.value == "sale" %}
 {% set panel_target = "#items-table" if is_sale else "#serial-row-" ~ invoice_line.id %}
-<td colspan="6" class="px-4 py-2 bg-gray-100">
+{# Ocupa la fila entera de items_table.html, que tiene una columna menos cuando
+   el comprobante no discrimina IVA. Mismo cálculo que allá. #}
+{% set cols = (5 if (invoice.applies_iva and invoice.formal) else 4)
+              + (0 if invoice.confirmed else 1) %}
+<td colspan="{{ cols }}" class="px-4 py-2 bg-gray-100">
 <div id="serial-panel-{{ invoice_line.id }}" class="mt-2">
 
     {% if serials %}

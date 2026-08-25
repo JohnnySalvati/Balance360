@@ -1,9 +1,22 @@
 {% set is_sale = invoice.invoice_type.value == "sale" %}
+{# Un informal no es un documento fiscal y un C no aplica IVA: en los dos casos
+   la columna de alícuota, el par de precios neto/c-IVA y la fila de subtotal neto
+   sobran. El precio es uno solo y el neto coincide con el total, así que mostrar
+   ambos es repetir el mismo número dos veces.
+
+   Es la misma condición que usa new_line_form.html para decidir qué celdas emite:
+   si cambia acá, cambia allá, o la fila de alta deja de calzar con la cabecera. #}
+{% set shows_iva = invoice.applies_iva and invoice.formal %}
+
+{# Columnas de una fila normal, para los colspan de abajo. `label_cols` es lo que
+   ocupa el rótulo en el pie: todo menos la columna del importe. #}
+{% set cols = (5 if shows_iva else 4) + (0 if invoice.confirmed else 1) %}
+{% set label_cols = 4 if shows_iva else 3 %}
 <table class="w-full text-sm table-fixed">
     <colgroup>
-        <col class="w-2/5">
+        <col class="{{ 'w-2/5' if shows_iva else 'w-1/2' }}">
         <col class="w-1/12">
-        <col class="w-1/12">
+        {% if shows_iva %}<col class="w-1/12">{% endif %}
         <col class="w-1/6">
         <col class="w-1/6">
         {% if not invoice.confirmed %}<col class="w-1/12">{% endif %}
@@ -12,7 +25,7 @@
         <tr>
             <th class="px-4 py-3">Descripción</th>
             <th class="px-4 py-3 text-right">Cantidad</th>
-            <th class="px-4 py-3 text-right">IVA</th>
+            {% if shows_iva %}<th class="px-4 py-3 text-right">IVA</th>{% endif %}
             <th class="px-4 py-3 text-right">Precio unit.</th>
             <th class="px-4 py-3 text-right">Subtotal</th>
             {% if not invoice.confirmed %}
@@ -77,6 +90,7 @@
                 {{ line.quantity }}
                 {% endif %}
             </td>
+            {% if shows_iva %}
             <td class="px-4 py-3 text-right text-gray-400 text-xs">
                 {% if line_editable %}
                 <select id="iva-{{ line.id }}" name="iva_aliquot"
@@ -94,8 +108,9 @@
                 {{ line.iva_aliquot.rate }}%
                 {% endif %}
             </td>
+            {% endif %}
             <td class="px-4 py-3 text-right text-gray-600">
-                {% if line_editable %}
+                {% if line_editable and shows_iva %}
                 <div class="flex items-center gap-1">
                     <span class="text-gray-400 text-xs shrink-0">Neto</span>
                     <input id="net-{{ line.id }}" type="number" name="unit_price" value="{{ line.unit_price }}" step="0.01" min="0"
@@ -113,6 +128,16 @@
                            onchange="document.getElementById('net-{{ line.id }}').dispatchEvent(new Event('change'))"
                            class="flex-1 w-full border rounded px-2 py-1 text-right text-sm bg-amber-100">
                 </div>
+                {% elif line_editable %}
+                {# Sin IVA que sumar, el precio es uno solo: se mantiene el id
+                   net-<línea> para no romper initLineGross, que igual corta al
+                   no encontrar el campo c/IVA. #}
+                <input id="net-{{ line.id }}" type="number" name="unit_price" value="{{ line.unit_price }}" step="0.01" min="0"
+                       hx-patch="/invoices/{{ invoice.id }}/lines/{{ line.id }}"
+                       hx-trigger="change"
+                       hx-target="#items-table"
+                       hx-swap="innerHTML"
+                       class="w-full border rounded px-2 py-1 text-right text-sm">
                 {% else %}
                 {{ line.unit_price | currency }}
                 {% endif %}
@@ -132,7 +157,7 @@
         <tr id="serial-row-{{ line.id }}"></tr>
         {% else %}
         <tr id="empty-row">
-            <td colspan="6" class="px-4 py-6 text-center text-gray-400">Sin ítems.</td>
+            <td colspan="{{ cols }}" class="px-4 py-6 text-center text-gray-400">Sin ítems.</td>
         </tr>
         {% endfor %}
 
@@ -140,7 +165,7 @@
         {# Fila donde se inyecta el form de alta (entre ítems y subtotales). #}
         <tr id="line-form-row"></tr>
         <tr id="add-line-trigger">
-            <td colspan="6" class="px-4 py-2">
+            <td colspan="{{ cols }}" class="px-4 py-2">
                 <button hx-get="/invoices/{{ invoice.id }}/lines/new-form"
                         hx-target="#line-form-row"
                         hx-swap="innerHTML"
@@ -151,21 +176,23 @@
         {% endif %}
     </tbody>
     <tfoot class="border-t text-sm">
+        {% if shows_iva %}
         <tr>
-            <td colspan="4" class="px-4 py-2 text-right text-gray-500">Subtotal neto</td>
+            <td colspan="{{ label_cols }}" class="px-4 py-2 text-right text-gray-500">Subtotal neto</td>
             <td class="px-4 py-2 text-right text-gray-600">{{ invoice.net_total | currency }}</td>
             {% if not invoice.confirmed %}<td></td>{% endif %}
         </tr>
+        {% endif %}
         {% for item in invoice.iva_breakdown if item.iva_amount %}
         <tr>
-            <td colspan="4" class="px-4 py-2 text-right text-gray-500">IVA {{ item.aliquot.rate }}%</td>
+            <td colspan="{{ label_cols }}" class="px-4 py-2 text-right text-gray-500">IVA {{ item.aliquot.rate }}%</td>
             <td class="px-4 py-2 text-right text-gray-600">{{ item.iva_amount | currency }}</td>
             {% if not invoice.confirmed %}<td></td>{% endif %}
         </tr>
         {% endfor %}
         {% for tribute in invoice.invoice_tributes %}
         <tr>
-            <td colspan="3" class="px-4 py-2 text-right text-gray-500">
+            <td colspan="{{ label_cols - 1 }}" class="px-4 py-2 text-right text-gray-500">
                 {{ tribute.description }}
                 {% if not invoice.confirmed %}
                 <button hx-delete="/invoices/{{ invoice.id }}/tributes/{{ tribute.id }}"
@@ -182,7 +209,7 @@
         </tr>
         {% endfor %}
         <tr class="border-t">
-            <td colspan="4" class="px-4 py-3 text-right text-gray-700 font-semibold">Total</td>
+            <td colspan="{{ label_cols }}" class="px-4 py-3 text-right text-gray-700 font-semibold">Total</td>
             <td class="px-4 py-3 text-right font-bold text-gray-800">{{ invoice.total | currency }}</td>
             {% if not invoice.confirmed %}<td></td>{% endif %}
         </tr>
