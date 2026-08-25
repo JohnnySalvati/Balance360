@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -34,6 +35,7 @@ from balance360.exceptions import (
 )
 from balance360.models.account import Account
 from balance360.models.invoice import Invoice
+from balance360.models.serial_number import SerialNumber
 from balance360.schemas.invoice import InvoiceCreate
 from balance360.schemas.invoice_line import InvoiceLineCreate
 from balance360.schemas.transaction import TransactionCreate
@@ -76,16 +78,25 @@ def unconfirm_invoice(db: Session, invoice: Invoice):
     validate_unconfirmation(invoice)
     invoice.confirmed = False
 
-    for invoice_line in invoice.invoice_lines:
-        if not invoice_line.product or not invoice_line.product.track_serial:
-            continue
-        if invoice.invoice_type == InvoiceType.purchase:
-            for serial in invoice_line.purchased_serials:
-                serial.status = SerialStatus.pending
-        else:
-            for serial in invoice_line.sold_serials:
-                serial.status = SerialStatus.reserved
-
+    if invoice.is_nc:
+        if invoice.related_invoice is not None:
+            for invoice_line in invoice.related_invoice.invoice_lines:
+                if not invoice_line.product or not invoice_line.product.track_serial:
+                    continue
+                if invoice.related_invoice.invoice_type == InvoiceType.purchase:
+                    for serial in invoice_line.purchased_serials:
+                        serial.status = SerialStatus.available
+                # The else branch is unreachable on purpose by validate_unconfirmation. The reason in Pending.md
+    else:
+        for invoice_line in invoice.invoice_lines:
+            if not invoice_line.product or not invoice_line.product.track_serial:
+                continue
+            if invoice.invoice_type == InvoiceType.purchase:
+                for serial in invoice_line.purchased_serials:
+                    serial.status = SerialStatus.pending
+            else:
+                for serial in invoice_line.sold_serials:
+                    serial.status = SerialStatus.reserved
     db.flush()
 
 
@@ -294,8 +305,22 @@ def allowed_for(invoice: Invoice) -> set[VoucherType]:
     return issuer_allowed[issuer_condicion] & receiver_allowed[receiver_condicion]
 
 
-def validate_confirmation(db: Session, invoice: Invoice):
+# Un mismo estado esperado se explica igual en todos los mensajes, asi que el texto
+# vive en un solo lugar y no repetido en cada validacion.
+_SERIAL_STATUS_ERROR = {
+    SerialStatus.available: "no esta disponible",
+    SerialStatus.reserved: "no esta reservado",
+    SerialStatus.sold: "no esta vendido",
+    SerialStatus.pending: "no esta pendiente de confirmacion",
+    SerialStatus.returned: "no ha sido devuelto",
+}
 
+
+def _wrong_status_error(serial: SerialNumber, required: SerialStatus) -> InvoiceConfirmationError:
+    return InvoiceConfirmationError(f"El serial {serial.serial} {_SERIAL_STATUS_ERROR[required]}")
+
+
+def validate_confirmation(db: Session, invoice: Invoice) -> None:
     if invoice.confirmed:
         raise InvoiceConfirmationError("El comprobante ya esta confirmado")
 
@@ -307,78 +332,88 @@ def validate_confirmation(db: Session, invoice: Invoice):
             "Un comprobante no puede ser venta y solo impositivo simultaneamente"
         )
 
-    if invoice.formal:
-        if not invoice.pos:
-            raise InvoiceConfirmationError("Se necesita punto de venta")
-        if invoice.invoice_type == InvoiceType.purchase:
-            if not invoice.number:
-                raise InvoiceConfirmationError("Se necesita numero de comprobante")
-        if invoice.fiscal_identity is None:
-            raise InvoiceConfirmationError("Se necesita identidad fiscal")
-        if invoice.voucher_type not in allowed_for(invoice):
-            raise InvoiceConfirmationError("Tipo de comprobante no admitido")
+    _validate_formality(invoice)
+
+    # Una NC no mueve sus propias lineas: deshace las del comprobante original.
+    if invoice.is_nc:
+        _validate_credit_note(db, invoice)
     else:
+        _validate_lines(db, invoice)
+
+
+def _validate_formality(invoice: Invoice) -> None:
+    """Numeracion e identidad fiscal si es formal; ausencia de IVA si no lo es."""
+    if not invoice.formal:
         if invoice.tax_only:
             raise InvoiceConfirmationError(
                 "Un comprobante no puede ser informal y solo impositivo simultaneamente"
             )
-        else:
-            for line in invoice.invoice_lines:
-                if line.iva_rate != Decimal(0):
-                    raise InvoiceConfirmationError(
-                        "Los items de un comprobante informal no pueden contener IVA"
-                    )
+        if any(line.iva_rate != Decimal(0) for line in invoice.invoice_lines):
+            raise InvoiceConfirmationError(
+                "Los items de un comprobante informal no pueden contener IVA"
+            )
+        return
 
-    if invoice.is_nc:
-        assert invoice.related_invoice
+    if not invoice.pos:
+        raise InvoiceConfirmationError("Se necesita punto de venta")
+    # En una venta el numero lo asigna ARCA al autorizar; en una compra ya viene impreso.
+    if invoice.invoice_type == InvoiceType.purchase and not invoice.number:
+        raise InvoiceConfirmationError("Se necesita numero de comprobante")
+    if invoice.fiscal_identity is None:
+        raise InvoiceConfirmationError("Se necesita identidad fiscal")
+    if invoice.voucher_type not in allowed_for(invoice):
+        raise InvoiceConfirmationError("Tipo de comprobante no admitido")
 
-        if invoice.invoice_type == InvoiceType.purchase:
-            for invoice_line in invoice.related_invoice.invoice_lines:
-                if not invoice_line.product:
-                    continue
 
-                if not invoice_line.product.track_serial:
-                    stock = get_product_stock(db, invoice_line.product.id, invoice.entity_id)
-                    if stock < invoice_line.quantity:
-                        raise InvoiceConfirmationError("Stock insuficiente")
-                else:
-                    for serial in invoice_line.purchased_serials:
-                        if serial.status != SerialStatus.available:
-                            raise InvoiceConfirmationError(f"El serial {serial} no esta disponible")
+def _validate_credit_note(db: Session, invoice: Invoice) -> None:
+    """Una NC se valida contra el comprobante original, no contra sus propias lineas."""
+    original = invoice.related_invoice
+    if original is None:
+        return
+
+    if invoice.invoice_type == InvoiceType.purchase:
+        # Devolver al proveedor saca unidades del deposito: tienen que estar.
+        _validate_stock(db, original, invoice.entity_id)
+        ensure_serials_have_status(original, SerialStatus.available)
     else:
-        for invoice_line in invoice.invoice_lines:
-            if not invoice_line.product:
-                continue
+        ensure_serials_have_status(original, SerialStatus.sold)
 
-            if invoice.invoice_type == InvoiceType.sale:
-                if not invoice_line.product.track_serial:
-                    stock = get_product_stock(db, invoice_line.product.id, invoice.entity_id)
-                    if stock < invoice_line.quantity:
-                        raise InvoiceConfirmationError("Stock insuficiente")
-                else:
-                    if invoice_line.quantity != len(invoice_line.sold_serials):
-                        raise InvoiceConfirmationError("Cantidad erronea de seriales")
-                    for serial in invoice_line.sold_serials:
-                        if serial.product_id != invoice_line.product_id:
-                            raise InvoiceConfirmationError(
-                                "El serial no corresponde a este producto"
-                            )
-                        if serial.status != SerialStatus.reserved:
-                            raise InvoiceConfirmationError("El serial no esta reservado")
-                        if serial.purchase_line.invoice.entity_id != invoice.entity_id:
-                            raise InvoiceConfirmationError(
-                                "El serial no fue comprado por esta entidad"
-                            )
-            else:
-                if not invoice_line.product.track_serial:
-                    continue
-                if invoice_line.quantity != len(invoice_line.purchased_serials):
-                    raise InvoiceConfirmationError("Cantidad erronea de seriales")
-                for serial in invoice_line.purchased_serials:
-                    if serial.product_id != invoice_line.product_id:
-                        raise InvoiceConfirmationError("El serial no corresponde a este producto")
-                    if serial.status != SerialStatus.pending:
-                        raise InvoiceConfirmationError("El serial no esta pendiente")
+
+def _validate_stock(db: Session, source: Invoice, entity_id: UUID) -> None:
+    """Stock suficiente para los productos de `source` que no llevan seriales.
+
+    Los que llevan seriales no se cuentan por stock sino por serial, en _validate_lines.
+    """
+    for line in source.invoice_lines:
+        if not line.product or line.product.track_serial:
+            continue
+        if get_product_stock(db, line.product.id, entity_id) < line.quantity:
+            raise InvoiceConfirmationError(f"Stock insuficiente de {line.product.name}")
+
+
+def _validate_lines(db: Session, invoice: Invoice) -> None:
+    """Comprobante normal: cada linea con producto tiene que ser entregable."""
+    is_sale = invoice.invoice_type == InvoiceType.sale
+    required = SerialStatus.reserved if is_sale else SerialStatus.pending
+
+    if is_sale:
+        _validate_stock(db, invoice, invoice.entity_id)
+
+    for line in invoice.invoice_lines:
+        if not line.product or not line.product.track_serial:
+            continue
+
+        serials = line.sold_serials if is_sale else line.purchased_serials
+        if line.quantity != len(serials):
+            raise InvoiceConfirmationError(f"Cantidad erronea de seriales para {line.product.name}")
+
+        for serial in serials:
+            if serial.product_id != line.product_id:
+                raise InvoiceConfirmationError("El serial no corresponde a este producto")
+            if serial.status != required:
+                raise _wrong_status_error(serial, required)
+            if is_sale and serial.purchase_line.invoice.entity_id != invoice.entity_id:
+                raise InvoiceConfirmationError("El serial no fue comprado por esta entidad")
 
 
 def validate_payment(invoice: Invoice):
@@ -395,6 +430,16 @@ def validate_delete(invoice: Invoice):
         raise InvoiceDeleteError("El comprobante esta confirmado")
 
 
+def ensure_serials_have_status(invoice: Invoice, required_status: SerialStatus) -> None:
+    is_purchase = invoice.invoice_type == InvoiceType.purchase
+    for invoice_line in invoice.invoice_lines:
+        if not invoice_line.product or not invoice_line.product.track_serial:
+            continue
+        for serial in invoice_line.purchased_serials if is_purchase else invoice_line.sold_serials:
+            if serial.status != required_status:
+                raise _wrong_status_error(serial, required_status)
+
+
 def validate_unconfirmation(invoice: Invoice):
     if not invoice.confirmed:
         raise InvoiceConfirmationError("El comprobante no esta confirmado")
@@ -402,15 +447,21 @@ def validate_unconfirmation(invoice: Invoice):
         raise InvoiceConfirmationError("El comprobante tiene pago asociado")
     if invoice.authorized:
         raise InvoiceConfirmationError("El comprobante esta autorizado CAE")
-
-    if invoice.invoice_type == InvoiceType.purchase:
-        for invoice_line in invoice.invoice_lines:
-            if invoice_line.product and invoice_line.product.track_serial:
-                for serial in invoice_line.purchased_serials:
-                    if serial.status != SerialStatus.available:
+    if invoice.is_nc:
+        if invoice.related_invoice is not None:
+            if invoice.invoice_type == InvoiceType.purchase:
+                ensure_serials_have_status(invoice.related_invoice, SerialStatus.returned)
+            else:
+                for invoice_line in invoice.related_invoice.invoice_lines:
+                    if invoice_line.product and invoice_line.product.track_serial:
                         raise InvoiceConfirmationError(
-                            f"El serial {serial} ha sido vendido o reservado"
+                            "No se puede desconfirmar una NC de una venta"
                         )
+    else:
+        if invoice.invoice_type == InvoiceType.purchase:
+            ensure_serials_have_status(invoice, SerialStatus.available)
+        else:
+            ensure_serials_have_status(invoice, SerialStatus.sold)
 
 
 def create_credit_note(db: Session, original: Invoice):

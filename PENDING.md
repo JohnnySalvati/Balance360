@@ -51,3 +51,24 @@ Deferred tasks. Added here with context and decision date so they don't get lost
 - Store a display name / reply-to / signature per entity (or per `FiscalIdentity`).
 - Keep `send_email` taking `from_display` / `reply_to` as parameters, so this becomes a call-site change with no transport change and no risky migration.
 - Deliverability note: don't put an arbitrary, unauthenticated address in `From`; use `Reply-To` for the entity's address instead.
+
+### Serial numbers: movement history instead of two FK columns
+**Added:** 2026-08-25
+
+**Why:** a `SerialNumber` records its trajectory in two columns — `purchase_line_id` (NOT NULL) and `sale_line_id` (nullable) — but a unit's life is a *sequence* of events, not one purchase plus one sale: bought → sold → credited back → sold again → returned to the supplier. Each new sale overwrites `sale_line_id`, so the previous sale disappears from the record.
+
+Confirming a sale credit note makes this immediate: `confirm_invoice` sets `serial.sale_line_id = None`, and since `InvoiceLine.sold_serials` is *defined by* that column, the serials vanish from the collection. The sale is not reversed, it is erased — the serial's history page then shows the purchase and no sale at all, for a unit that was invoiced and (in the real case) authorized by ARCA. A credit note reverses the economic effect; it does not undo the fact that the comprobante was issued.
+
+The second consequence is the one that keeps producing bugs. `status` is a *derived* value — a cached summary of what the movements say — but it is written by hand in 13 places (`services/invoice.py` ×9, `services/serial_number.py` ×3, `web/invoices.py` ×1). Every one of them is a chance to leave the cache disagreeing with the facts. The SODIMM HIKSEMI units stuck in `returned` (fixed 2026-08-25) were exactly that: `confirm_invoice` wrote the summary and `unconfirm_invoice` forgot to unwrite it. Same root cause as the dead sale branches worked around below.
+
+**Scope:**
+- New `serial_movements` table: `serial_number_id`, `invoice_line_id`, `created_at`. No movement-kind column — the kind is already implied by the line's invoice (`invoice_type` + `is_nc`), which is the same information `services/stock.py` uses to decide the sign.
+- `purchase_line` / `sale_line` become the latest movement of each kind, derived rather than stored.
+- `status` computed from the movements in **one** function. It can stay as a column for cheap filtering, but with a single writer instead of 13.
+- Un-confirming anything becomes deleting that comprobante's movements and recomputing — which removes the whole class of confirm/unconfirm asymmetry bugs.
+- Migration + backfill of the existing serials from the two current columns.
+- Rewrite what touches serials: `confirm_invoice`, `unconfirm_invoice`, `delete_invoice`, `validate_confirmation`, `validate_unconfirmation`, `add_serial_to_line`, `remove_serial_from_line`, `stock/serials.html`, `stock/serial_detail.html`.
+
+**Interim workaround (2026-08-25):** un-confirming a sale credit note whose original invoice carries serial-tracked products is rejected outright, because the link needed to restore them no longer exists. The purchase side round-trips correctly (`purchase_line_id` is never cleared) and needs nothing from this entry.
+
+**Trigger — this is a business question, not a scheduling one:** does a unit that came back through a credit note get *resold*? If that happens once a year, this can wait. If it happens regularly, every occurrence silently erases a sale from the record, and that justifies the work.
