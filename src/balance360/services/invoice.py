@@ -86,7 +86,8 @@ def unconfirm_invoice(db: Session, invoice: Invoice):
                 if invoice.related_invoice.invoice_type == InvoiceType.purchase:
                     for serial in invoice_line.purchased_serials:
                         serial.status = SerialStatus.available
-                # The else branch is unreachable on purpose by validate_unconfirmation. The reason in Pending.md
+                #  The else branch is unreachable on purpose by validate_unconfirmation.
+                #  The reason in Pending.md
     else:
         for invoice_line in invoice.invoice_lines:
             if not invoice_line.product or not invoice_line.product.track_serial:
@@ -530,3 +531,4 @@ def normalize_fields_by_formality(invoice: Invoice) -> None:
         invoice.from_date = None
         invoice.to_date = None
         invoice.due_date = None
+        invoice.concepto = Concepto.products

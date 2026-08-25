@@ -68,7 +68,7 @@ class InvoiceUpdate(BaseModel):
 
     @model_validator(mode="after")
     def check_dates(self):
-        if self.concepto is not Concepto.products:
+        if self.concepto is not None and self.concepto is not Concepto.products:
             if not (self.from_date and self.to_date and self.due_date):
                 raise ValueError("Fecha desde, hasta y vencimiento son obligatorias")
             if self.from_date > self.to_date:
