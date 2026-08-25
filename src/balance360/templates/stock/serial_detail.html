@@ -1,21 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% import "stock/_serial_status.html" as badges %}
 <div class="shrink-0 flex justify-between items-center mb-4">
     <div>
         <a href="/stock/serials" class="text-sm text-blue-600 hover:underline">← Seriales</a>
         <h1 class="text-2xl font-bold font-mono mt-1">{{ serial_number.serial }}</h1>
     </div>
     <div>
-        {% if serial_number.status.value == 'pending' %}
-            <span class="text-sm bg-gray-200 text-gray-700 px-3 py-1 rounded">Pendiente</span>
-        {% elif serial_number.status.value == 'available' %}
-            <span class="text-sm bg-green-200 text-green-800 px-3 py-1 rounded">Disponible</span>
-        {% elif serial_number.status.value == 'reserved' %}
-            <span class="text-sm bg-yellow-200 text-yellow-800 px-3 py-1 rounded">Reservado</span>
-        {% elif serial_number.status.value == 'sold' %}
-            <span class="text-sm bg-blue-200 text-blue-800 px-3 py-1 rounded">Vendido</span>
-        {% endif %}
+        {{ badges.badge(serial_number.status, "text-sm px-3 py-1") }}
     </div>
 </div>
 

@@ -1,0 +1,29 @@
+{# Etiqueta y color de cada SerialStatus, en un solo lugar.
+
+   Antes era una cadena de {% elif %} duplicada en stock/serials.html y
+   stock/serial_detail.html, y a ninguna de las dos le habían agregado `returned`:
+   un serial devuelto al proveedor por una NC de compra se veía con la columna
+   Estado **en blanco**, que es exactamente el síntoma que llevó a pensar que el
+   dato estaba roto cuando en realidad estaba bien guardado.
+
+   El fallback del `.get()` es a propósito: si mañana se agrega un estado al enum
+   y nadie se acuerda de pasar por acá, se ve el nombre crudo en rojo —feo, pero
+   imposible de no notar— en vez de una celda vacía que parece un dato faltante. #}
+{% set SERIAL_STATUS = {
+    "pending":   ("Pendiente",  "bg-gray-200 text-gray-700"),
+    "available": ("Disponible", "bg-green-200 text-green-800"),
+    "reserved":  ("Reservado",  "bg-yellow-200 text-yellow-800"),
+    "sold":      ("Vendido",    "bg-blue-200 text-blue-800"),
+    "returned":  ("Devuelto",   "bg-orange-200 text-orange-800"),
+} %}
+
+{# Solo el texto, para los <option> del filtro. #}
+{% macro label(status) -%}
+{{ SERIAL_STATUS.get(status.value, (status.value, ""))[0] }}
+{%- endmacro %}
+
+{# El chip completo. `size` permite el mismo badge más grande en la ficha. #}
+{% macro badge(status, size="text-xs px-2 py-1") -%}
+{% set text, color = SERIAL_STATUS.get(status.value, (status.value, "bg-red-200 text-red-800")) %}
+<span class="{{ size }} {{ color }} rounded">{{ text }}</span>
+{%- endmacro %}

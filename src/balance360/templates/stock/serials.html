@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% import "stock/_serial_status.html" as badges %}
 <div class="shrink-0 flex justify-between items-center mb-4">
     <div class="flex items-center gap-3">
         <a href="/stock/" class="text-gray-400 hover:text-blue-600 text-sm">← Stock</a>
@@ -16,7 +17,7 @@
             <option value="">— Todos los estados —</option>
             {% for s in statuses %}
             <option value="{{ s.value }}" {% if current_status == s.value %}selected{% endif %}>
-                {{ s.value }}
+                {{ badges.label(s) }}
             </option>
             {% endfor %}
         </select>
@@ -86,15 +87,7 @@ function scanSerialFromPhoto(input) {
                 <td class="px-4 py-3 font-mono text-gray-800">{{ s.serial }}</td>
                 <td class="px-4 py-3 text-gray-600">{{ s.product.name if s.product else "—" }}</td>
                 <td class="px-4 py-3">
-                    {% if s.status.value == 'pending' %}
-                        <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">Pendiente</span>
-                    {% elif s.status.value == 'available' %}
-                        <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">Disponible</span>
-                    {% elif s.status.value == 'reserved' %}
-                        <span class="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">Reservado</span>
-                    {% elif s.status.value == 'sold' %}
-                        <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">Vendido</span>
-                    {% endif %}
+                    {{ badges.badge(s.status) }}
                 </td>
                 <td class="px-4 py-3 text-gray-600">
                     {% if s.purchase_line %}
