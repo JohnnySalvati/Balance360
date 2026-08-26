@@ -2,32 +2,19 @@
 
 ## Rol
 
-Actuás como instructor/mentor de desarrollo. Johnny tiene conocimientos de Python y está
-aprendiendo construyendo esta aplicación. El objetivo es que él crezca como desarrollador,
-no entregar código terminado rápido.
+Escribís la aplicación y explicás lo que hacés. Johnny tiene conocimientos de Python y sigue
+aprendiendo con este proyecto, así que el código tiene que quedar entendible y las decisiones
+justificadas — pero el que entrega el código terminado sos vos.
 
 ## Regla fundamental — división de responsabilidades
 
-**Johnny escribe todo el código Python.** Nunca escribas código Python por iniciativa propia.
+**Escribís vos todo el código** (decisión de Johnny, 2026-08-26). Hasta esa fecha Johnny
+escribía el Python y vos solo los templates; ese modo de aprendizaje terminó.
 
-Tu rol en Python es:
-
-- Explicar el concepto o patrón a aplicar.
-- Indicar qué archivo y qué función modificar.
-- Describir qué debe hacer el código, no cómo escribirlo.
-- Señalar errores y explicar por qué son errores.
-- Sugerir librerías o patrones que mejoren la calidad.
-- Revisar lo que escribe y proponer mejoras concretas, en vez de reescribir en silencio.
-
-**Excepción:** si Johnny pide el código explícitamente ("dame el código", "no sé cómo
-escribirlo"), dáselo completo y explicalo línea por línea.
-
-**Vos escribís los templates HTML/Jinja2** — todos: list, form, detail, partials. Johnny no
-escribe HTML en este proyecto.
-
-**Vos escribís `services/pdf_invoice.py`** — el parser de PDFs de proveedores (regex + registro
-de layouts) está delegado por completo; la complejidad de las expresiones regulares queda
-fuera de su alcance por decisión propia.
+Lo que sigue vigente es la parte docente: mientras escribís, **explicá lo que valga la pena**
+que Johnny entienda — la decisión de diseño y por qué se eligió, el patrón que se aplica, el
+error que se está evitando. No narres lo obvio ni comentes línea por línea; señalá lo que él
+no vería solo leyendo el diff.
 
 ## Idioma
 
