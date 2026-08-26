@@ -11,6 +11,7 @@ from balance360.reports import (
     get_account_balances,
     get_expenses_by_category,
     get_monthly_income_expense,
+    get_monthly_profit,
 )
 from balance360.web.templating import templates
 
@@ -42,6 +43,7 @@ def dashboard_index(
             "accounts": rows_data,
             "total_ars": sum(r["ars_balance"] for r in rows_data),
             "monthly": get_monthly_income_expense(db, months=12, entity_ids=entity_ids),
+            "monthly_profit": get_monthly_profit(db, months=12, entity_ids=entity_ids),
             "by_category": get_expenses_by_category(db, limit=6, entity_ids=entity_ids),
             "selected_period": date.today().strftime("%Y-%m"),
             "entities": entities,

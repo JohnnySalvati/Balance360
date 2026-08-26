@@ -22,6 +22,47 @@ nc_case = case(
     (Invoice.voucher_type.in_([VoucherType.NCA, VoucherType.NCB, VoucherType.NCC]), -1), else_=1
 )
 
+MONTH_NAMES = {
+    1: "Ene",
+    2: "Feb",
+    3: "Mar",
+    4: "Abr",
+    5: "May",
+    6: "Jun",
+    7: "Jul",
+    8: "Ago",
+    9: "Sep",
+    10: "Oct",
+    11: "Nov",
+    12: "Dic",
+}
+
+
+def year_from_idx(idx: int) -> int:
+    """Los meses se numeran con un indice global: anio * 12 + mes - 1.
+
+    Asi "el mes anterior" es idx - 1 sin tener que preguntar si estamos en enero.
+    """
+    return idx // 12
+
+
+def month_from_idx(idx: int) -> int:
+    return idx % 12 + 1
+
+
+def month_range(months: int) -> tuple[int, int, date]:
+    """Devuelve (primer indice, ultimo indice, primer dia de la ventana).
+
+    Es modulo y no una funcion anidada porque las series del dashboard tienen que
+    caer sobre exactamente los mismos meses: Chart.js aparea la linea con las
+    barras por posicion en el array, no por fecha. Si dos funciones calculan la
+    ventana por su cuenta y una queda corrida un mes, el grafico no falla: miente.
+    """
+    current_idx = date.today().year * 12 + date.today().month - 1
+    start_idx = current_idx - months + 1
+    start_window = date(year_from_idx(start_idx), month_from_idx(start_idx), day=1)
+    return start_idx, current_idx, start_window
+
 
 @dataclass
 class CategoryNode:
@@ -149,12 +190,6 @@ def get_monthly_income_expense(
     reference_date: date | None = None,
 ):
 
-    def year_from_idx(idx: int) -> int:
-        return idx // 12
-
-    def month_from_idx(idx: int) -> int:
-        return idx % 12 + 1
-
     def get_row(idx: int):
         try:
             return next(
@@ -168,11 +203,7 @@ def get_monthly_income_expense(
 
     entity_filter = Transaction.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
-    current_year = date.today().year
-    current_month = date.today().month
-    current_idx = current_year * 12 + current_month - 1
-    start_idx = current_idx - months + 1
-    start_window = date(year_from_idx(start_idx), month_from_idx(start_idx), day=1)
+    start_idx, current_idx, start_window = month_range(months)
 
     stmt = (
         select(
@@ -220,24 +251,10 @@ def get_monthly_income_expense(
 
     rows = db.execute(stmt).all()
 
-    month_names = {
-        1: "Ene",
-        2: "Feb",
-        3: "Mar",
-        4: "Abr",
-        5: "May",
-        6: "Jun",
-        7: "Jul",
-        8: "Ago",
-        9: "Sep",
-        10: "Oct",
-        11: "Nov",
-        12: "Dic",
-    }
     rows_data = []
 
     for idx in range(start_idx, current_idx + 1):
-        label = f"{month_names[month_from_idx(idx)]} {year_from_idx(idx)}"
+        label = f"{MONTH_NAMES[month_from_idx(idx)]} {year_from_idx(idx)}"
         row = get_row(idx)
 
         rows_data.append(
@@ -251,13 +268,128 @@ def get_monthly_income_expense(
     return rows_data
 
 
-# def get_monthly_profit(
-#     db: Session,
-#     months: int = 12,
-#     entity_ids: list | None = None,
-#     to_currency: Currency | None = None,
-#     reference_date: date | None = None
-# :)
+def get_monthly_profit(
+    db: Session,
+    months: int = 12,
+    entity_ids: list | None = None,
+    to_currency: Currency | None = None,
+    reference_date: date | None = None,
+) -> list:
+    """Ganancia neta por comprobantes, mes a mes, para la linea del dashboard.
+
+    Devuelve una lista plana de importes alineada con get_monthly_income_expense:
+    misma cantidad de meses y mismo orden, porque el grafico aparea la linea con
+    las barras por posicion.
+
+    Usa la misma definicion que el reporte de ganancia (get_invoice_profit):
+    margen sin IVA menos IIBB menos tributos. Si las dos difirieran, el mismo
+    periodo mostraria un numero en Inicio y otro en Reportes.
+
+    Son tres consultas y no una porque InvoiceTribute y InvoiceLine cuelgan las dos
+    de Invoice: joinearlas juntas multiplica las filas (una factura con 3 renglones
+    y 2 tributos suma 6 veces) e infla los totales sin que nada falle.
+    """
+    if not reference_date:
+        reference_date = date.today()
+
+    entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
+
+    start_idx, current_idx, start_window = month_range(months)
+
+    year_col = extract("year", Invoice.date).label("year")
+    month_col = extract("month", Invoice.date).label("month")
+
+    factor = conversion_factor(
+        source_id=None,
+        txn_date=Invoice.date,
+        target_currency=to_currency,
+        reference_date=reference_date,
+    )
+
+    line_amount = InvoiceLine.quantity * InvoiceLine.unit_price * nc_case * factor
+
+    margin_stmt = (
+        select(
+            year_col,
+            month_col,
+            func.coalesce(
+                func.sum(line_amount).filter(Invoice.invoice_type == InvoiceType.sale), 0
+            ).label("net_sales"),
+            func.coalesce(
+                func.sum(line_amount).filter(Invoice.invoice_type == InvoiceType.purchase), 0
+            ).label("net_purchases"),
+        )
+        .where(Invoice.date >= start_window)
+        .where(Invoice.confirmed)
+        .where(entity_filter)
+        .where(not_(Invoice.tax_only))
+        .join_from(Invoice, InvoiceLine)
+        .group_by("year", "month")
+    )
+
+    iibb_stmt = (
+        select(
+            year_col,
+            month_col,
+            func.coalesce(
+                func.sum(
+                    InvoiceLine.quantity
+                    * InvoiceLine.unit_price
+                    * FiscalIdentity.iibb_rate
+                    / 100
+                    * nc_case
+                    * factor
+                ),
+                0,
+            ).label("total"),
+        )
+        .where(Invoice.date >= start_window)
+        .where(Invoice.confirmed)
+        .where(Invoice.formal)
+        .where(entity_filter)
+        .where(Invoice.invoice_type == InvoiceType.sale)
+        .join_from(Invoice, InvoiceLine)
+        .join_from(Invoice, FiscalIdentity, Invoice.fiscal_identity_id == FiscalIdentity.id)
+        .group_by("year", "month")
+    )
+
+    tributes_stmt = (
+        select(
+            year_col,
+            month_col,
+            func.coalesce(
+                func.sum(InvoiceTribute.base_amount * InvoiceTribute.rate / 100 * factor), 0
+            ).label("total"),
+        )
+        .where(Invoice.date >= start_window)
+        .where(Invoice.confirmed)
+        .where(or_(Invoice.formal, Invoice.tax_only))
+        .where(entity_filter)
+        .join_from(Invoice, InvoiceTribute)
+        .group_by("year", "month")
+    )
+
+    margin_by_month = {
+        (int(row.year), int(row.month)): row.net_sales - row.net_purchases
+        for row in db.execute(margin_stmt).all()
+    }
+    iibb_by_month = {
+        (int(row.year), int(row.month)): row.total for row in db.execute(iibb_stmt).all()
+    }
+    tributes_by_month = {
+        (int(row.year), int(row.month)): row.total for row in db.execute(tributes_stmt).all()
+    }
+
+    rows_data = []
+
+    for idx in range(start_idx, current_idx + 1):
+        key = (year_from_idx(idx), month_from_idx(idx))
+        margin = margin_by_month.get(key, 0)
+        iibb = iibb_by_month.get(key, 0)
+        tributes = tributes_by_month.get(key, 0)
+        rows_data.append(margin - iibb - tributes)
+
+    return rows_data
 
 
 def get_expenses_by_category(
