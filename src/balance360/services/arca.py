@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, pkcs7
 from cryptography.x509 import load_pem_x509_certificate
+from cryptography.x509.oid import NameOID
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
 from urllib3.poolmanager import PoolManager
@@ -135,6 +136,28 @@ def sign(xml: str) -> bytes:
         .sign(serialization.Encoding.DER, [])
     )
     return xml_signed
+
+
+def get_certificate_cuit() -> str:
+    """El CUIT duenio del certificado, del campo serialNumber del subject.
+
+    Es el mismo que WSAA autoriza, asi que es el que los servicios esperan como
+    `cuitRepresentada`. Se lee del certificado y no de una variable de entorno
+    justamente para que no puedan quedar en desacuerdo.
+    """
+    cert_path = settings.cert_path
+    if not cert_path:
+        raise ArcaError("Certificados de ARCA no configurados")
+
+    with open(cert_path, "rb") as cert_file:
+        cert = load_pem_x509_certificate(cert_file.read())
+
+    for attribute in cert.subject.get_attributes_for_oid(NameOID.SERIAL_NUMBER):
+        digits = "".join(c for c in str(attribute.value) if c.isdigit())
+        if len(digits) == 11:
+            return digits
+
+    raise ArcaError("El certificado de ARCA no tiene un CUIT en el subject")
 
 
 def parse_xml(response: str, service: str) -> dict:

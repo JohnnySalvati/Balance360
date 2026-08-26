@@ -61,6 +61,15 @@ class ArcaError(Balance360Error):
     pass
 
 
+class PadronError(Balance360Error):
+    """Consulta al padron que ARCA respondio, pero sin datos utiles.
+
+    No hereda de ArcaError a proposito: un CUIT inexistente es un error del dato
+    que cargo el usuario, no una falla del servicio, y el handler de main.py
+    loguea ArcaError con traceback.
+    """
+
+
 class WsfeError(ArcaError):
     pass
 

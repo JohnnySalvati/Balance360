@@ -1,0 +1,10 @@
+{# Opciones del select de condicion IVA. Compartido por el formulario de contacto
+   y por la respuesta del padron, que reemplaza el select entero por OOB swap:
+   asi la lista de condiciones se escribe una sola vez.
+
+   Contexto: `condicion_iva` (el enum) y `selected` (una CondicionIva o none). #}
+{% for c in condicion_iva %}
+<option value="{{ c.name }}" {% if selected and selected == c %}selected{% endif %}>
+    {{ c.name | replace('_', ' ') | title }}
+</option>
+{% endfor %}

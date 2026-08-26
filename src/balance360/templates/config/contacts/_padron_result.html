@@ -1,0 +1,29 @@
+{# Respuesta del boton "Traer de ARCA" del formulario de contacto.
+
+   El target real es #padron-status (el texto de confirmacion); los tres campos
+   que trae el padron se reemplazan por hx-swap-oob, que necesita que sean hijos
+   directos de la respuesta. Se reemplaza el control y no la celda entera, asi la
+   etiqueta de arriba se queda donde esta.
+
+   Las clases repiten las de _form_modal.html porque el control se reemplaza
+   completo: si alla cambian, aca tambien.
+
+   Contexto: `taxpayer` (services/padron.Taxpayer) y `condicion_iva` (el enum). #}
+<span class="text-green-700">
+    {{ taxpayer.name }}
+    {%- if not taxpayer.active %} <span class="text-amber-700">· clave INACTIVA en ARCA</span>{% endif %}
+</span>
+
+<input hx-swap-oob="true" type="text" name="name" id="contact-name" required maxlength="150"
+       value="{{ taxpayer.name }}"
+       class="border rounded px-3 py-2 text-sm">
+
+<select hx-swap-oob="true" name="condicion_iva" id="contact-condicion-iva" required
+        class="border rounded px-3 py-2 text-sm">
+    {% set selected = taxpayer.condicion_iva %}
+    {% include "config/contacts/_condicion_iva_options.html" %}
+</select>
+
+<input hx-swap-oob="true" type="text" name="address" id="contact-address" maxlength="200"
+       value="{{ taxpayer.address or '' }}"
+       class="border rounded px-3 py-2 text-sm">

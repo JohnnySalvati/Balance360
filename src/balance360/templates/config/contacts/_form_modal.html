@@ -20,7 +20,7 @@
 
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Nombre</label>
-                <input type="text" name="name" required maxlength="150"
+                <input type="text" name="name" id="contact-name" required maxlength="150"
                        value="{{ contact.name if is_edit else '' }}"
                        class="border rounded px-3 py-2 text-sm">
             </div>
@@ -48,28 +48,40 @@
                 </select>
             </div>
 
+            {# Con el CUIT alcanza para que ARCA devuelva razon social, domicilio y
+               condicion IVA: los tres llegan por OOB swap desde _padron_result.html.
+               Un error (CUIT inexistente, servicio caido, sin delegacion) sale por el
+               handler de Balance360Error, que lo muestra como toast y no swapea nada. #}
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Nro. de documento</label>
-                <input type="text" name="tax_id" maxlength="13"
-                       value="{{ contact.tax_id if is_edit and contact.tax_id else '' }}"
-                       class="border rounded px-3 py-2 text-sm">
+                <div class="flex gap-2">
+                    <input type="text" name="tax_id" id="contact-tax-id" maxlength="13"
+                           value="{{ contact.tax_id if is_edit and contact.tax_id else '' }}"
+                           class="border rounded px-3 py-2 text-sm flex-1 min-w-0">
+                    <button type="button"
+                            hx-get="/config/contacts/padron"
+                            hx-include="#contact-tax-id"
+                            hx-target="#padron-status"
+                            hx-swap="innerHTML"
+                            class="whitespace-nowrap rounded border border-blue-600 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50">
+                        Traer de ARCA
+                    </button>
+                </div>
+                <p id="padron-status" class="text-xs text-gray-500"></p>
             </div>
 
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Condición IVA</label>
-                <select name="condicion_iva" required class="border rounded px-3 py-2 text-sm">
-                    {% for c in condicion_iva %}
-                    <option value="{{ c.name }}"
-                            {% if is_edit and contact.condicion_iva == c %}selected{% endif %}>
-                        {{ c.name | replace('_', ' ') | title }}
-                    </option>
-                    {% endfor %}
+                <select name="condicion_iva" id="contact-condicion-iva" required
+                        class="border rounded px-3 py-2 text-sm">
+                    {% set selected = contact.condicion_iva if is_edit else none %}
+                    {% include "config/contacts/_condicion_iva_options.html" %}
                 </select>
             </div>
 
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Domicilio</label>
-                <input type="text" name="address" maxlength="200"
+                <input type="text" name="address" id="contact-address" maxlength="200"
                        value="{{ contact.address if is_edit and contact.address else '' }}"
                        class="border rounded px-3 py-2 text-sm">
             </div>

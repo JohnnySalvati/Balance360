@@ -8,6 +8,7 @@ from balance360.crud import contact as contact_crud
 from balance360.dependencies import get_db
 from balance360.enums import CondicionIva, ContactType, DocType
 from balance360.schemas.contact import ContactCreate, ContactUpdate
+from balance360.services import padron as padron_service
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/contacts")
@@ -42,6 +43,22 @@ def _form_context(contact=None):
         "condicion_iva": CondicionIva,
         "doc_type": DocType,
     }
+
+
+@router.get("/padron", response_class=HTMLResponse)
+def contact_from_padron(request: Request, tax_id: str = Query(default="")):
+    """Completa nombre, condicion IVA y domicilio con lo que ARCA tiene del CUIT.
+
+    No toca la base: devuelve los controles ya cargados para que el alta siga
+    siendo un solo submit y se pueda corregir lo que traiga el padron.
+    """
+    taxpayer = padron_service.get_taxpayer(tax_id)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="config/contacts/_padron_result.html",
+        context={"taxpayer": taxpayer, "condicion_iva": CondicionIva},
+    )
 
 
 @router.get("/new-form")
