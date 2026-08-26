@@ -2,6 +2,7 @@ import base64
 import json
 import ssl
 import xml.etree.ElementTree as ET
+import zlib
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -12,13 +13,16 @@ from cryptography.x509 import load_pem_x509_certificate
 from cryptography.x509.oid import NameOID
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 from urllib3.poolmanager import PoolManager
 from zeep import Client
 from zeep.cache import SqliteCache
 from zeep.exceptions import Fault
 from zeep.transports import Transport
 
-from balance360.database import settings
+from balance360.crud import arca_ticket as arca_ticket_crud
+from balance360.database import SessionLocal, settings
 from balance360.exceptions import ArcaError, WsaaError
 
 WSAA_URL = {
@@ -62,35 +66,68 @@ def build_client(url: str) -> Client:
     return Client(url, transport=transport)
 
 
-class TicketManager:
-    def __init__(self) -> None:
-        self.tickets: dict = self.read_file()
+TICKET_MARGIN = timedelta(minutes=5)
 
-    def save_new_ticket(self, service: str, token: str, sign: str, expiration_time: str):
-        self.tickets[f"{settings.afip_env}:{service}"] = {
-            "service": service,
-            "token": token,
-            "sign": sign,
-            "expiration_time": expiration_time,
-        }
-        with open("ticket_arca.json", "w", encoding="utf-8") as file:
-            json.dump(self.tickets, file, indent=4, ensure_ascii=False)
+LEGACY_TICKET_FILE = "ticket_arca.json"
 
-    def get_valid_ticket(self, service: str) -> dict | None:
-        ticket = self.tickets.get(f"{settings.afip_env}:{service}")
-        if ticket:
-            if datetime.fromisoformat(ticket["expiration_time"]) > datetime.now(
-                timezone.utc
-            ) + timedelta(minutes=5):
-                return ticket
 
-    def read_file(self) -> dict:
-        try:
-            with open("ticket_arca.json", "r", encoding="utf-8") as file:
-                return json.load(file)
+def _lock_key(env: str, service: str) -> int:
+    """Clave estable para el advisory lock de Postgres.
 
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {}
+    crc32 y no hash(): hash() de un str cambia en cada proceso (PYTHONHASHSEED),
+    asi que dos workers calcularian claves distintas y el lock no serviria de nada.
+    """
+    return zlib.crc32(f"arca-ticket:{env}:{service}".encode())
+
+
+def _is_usable(expiration_time: datetime) -> bool:
+    return expiration_time > datetime.now(timezone.utc) + TICKET_MARGIN
+
+
+def _as_dict(service: str, token: str, sign: str, expiration_time: datetime) -> dict:
+    return {
+        "service": service,
+        "token": token,
+        "sign": sign,
+        "expiration_time": expiration_time.isoformat(),
+    }
+
+
+def _adopt_legacy_ticket(db: Session, env: str, service: str) -> dict | None:
+    """Rescata a la base un ticket todavia vigente del cache viejo en archivo.
+
+    Existe solo para el deploy que introduce la tabla: el contenedor que se apaga
+    se lleva su ticket_arca.json, y sin esto la primera factura despues del deploy
+    le pide un ticket nuevo a WSAA, que lo rechaza mientras el anterior siga vivo.
+    Se puede borrar cuando ya no queden instalaciones con el archivo.
+    """
+    try:
+        with open(LEGACY_TICKET_FILE, encoding="utf-8") as file:
+            tickets = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    ticket = tickets.get(f"{env}:{service}") if isinstance(tickets, dict) else None
+    if not ticket:
+        return None
+
+    try:
+        expiration_time = datetime.fromisoformat(ticket["expiration_time"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    if expiration_time.tzinfo is None or not _is_usable(expiration_time):
+        return None
+
+    arca_ticket_crud.save(
+        db,
+        env=env,
+        service=service,
+        token=ticket["token"],
+        sign=ticket["sign"],
+        expiration_time=expiration_time,
+    )
+    return _as_dict(service, ticket["token"], ticket["sign"], expiration_time)
 
 
 def build_tra(service: str) -> str:
@@ -165,6 +202,12 @@ def parse_xml(response: str, service: str) -> dict:
     token = tree.findtext(".//token")
     sign = tree.findtext(".//sign")
     expiration_time = tree.findtext(".//expirationTime")
+
+    # findtext devuelve None si el tag no esta. Antes ese None se cacheaba igual y
+    # el error recien aparecia al facturar; ahora no llega a guardarse.
+    if not token or not sign or not expiration_time:
+        raise WsaaError("ARCA: la respuesta de WSAA no trae un ticket completo")
+
     return {"service": service, "token": token, "sign": sign, "expiration_time": expiration_time}
 
 
@@ -185,9 +228,41 @@ def arca_query(service: str) -> dict:
 
 
 def get_access_ticket(service: str) -> dict:
-    tiket_manager = TicketManager()
-    ticket = tiket_manager.get_valid_ticket(service)
-    if not ticket:
-        ticket = arca_query(service)
-        tiket_manager.save_new_ticket(**ticket)
-    return ticket
+    """Devuelve un ticket vigente, del cache o pidiendoselo a WSAA.
+
+    Abre su propia sesion a proposito, en vez de recibir el `db` del que llama. El
+    ticket tiene que quedar guardado aunque la operacion que lo pidio termine en
+    rollback: si viajara en la transaccion de la factura, un error de validacion la
+    revertiria junto con el ticket, y WSAA no emite otro por ~12 h. El cache seria
+    peor que no tenerlo.
+
+    El advisory lock cubre el otro lado del mismo problema: sin el, dos pedidos
+    simultaneos con el ticket vencido le piden uno a WSAA cada uno, y el segundo se
+    come "el CEE ya posee un TA valido". El primero que entra lo trae y lo guarda;
+    el segundo espera y se encuentra el ticket ya hecho.
+    """
+    env = settings.afip_env
+
+    with SessionLocal() as db:
+        db.execute(select(func.pg_advisory_xact_lock(_lock_key(env, service))))
+
+        ticket = arca_ticket_crud.get(db, env, service)
+        if ticket and _is_usable(ticket.expiration_time):
+            return _as_dict(service, ticket.token, ticket.sign, ticket.expiration_time)
+
+        adopted = _adopt_legacy_ticket(db, env, service)
+        if adopted:
+            db.commit()
+            return adopted
+
+        fresh = arca_query(service)
+        arca_ticket_crud.save(
+            db,
+            env=env,
+            service=service,
+            token=fresh["token"],
+            sign=fresh["sign"],
+            expiration_time=datetime.fromisoformat(fresh["expiration_time"]),
+        )
+        db.commit()
+        return fresh

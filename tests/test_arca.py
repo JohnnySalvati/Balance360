@@ -1,11 +1,8 @@
-from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from balance360.database import settings
 from balance360.enums import CondicionIva, ContactType, DocType, IvaAliquot, VoucherType
 from balance360.models.money import money
 from balance360.schemas.contact import ContactCreate
-from balance360.services.arca import TicketManager
 from balance360.services.invoice import _build_invoice_request
 from balance360.services.text import digits_only, format_cuit
 from tests import factories
@@ -50,31 +47,6 @@ def test_contact_create():
         doc_type=DocType.CUIT,
     )
     assert contact.tax_id is None
-
-
-def test_ticket_env_isolation(monkeypatch, tmp_path):
-    monkeypatch.chdir(tmp_path)
-
-    monkeypatch.setattr(settings, "afip_env", "homo")
-    ticket_manager = TicketManager()
-    homo_ticket = ticket_manager.save_new_ticket(
-        service="wsfe",
-        token="token123",
-        sign="sign123",
-        expiration_time=(datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
-    )
-
-    monkeypatch.setattr(settings, "afip_env", "prod")
-    ticket_manager = TicketManager()
-
-    prod_ticket = ticket_manager.get_valid_ticket("wsfe")
-    assert prod_ticket is None
-
-    monkeypatch.setattr(settings, "afip_env", "homo")
-    ticket_manager = TicketManager()
-
-    homo_ticket = ticket_manager.get_valid_ticket("wsfe")
-    assert homo_ticket is not None
 
 
 def test_iva_breakdown(db):

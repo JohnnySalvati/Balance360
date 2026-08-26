@@ -1,5 +1,6 @@
 from balance360.models.account import Account
 from balance360.models.app_config import AppConfig
+from balance360.models.arca_ticket import ArcaTicket
 from balance360.models.attachment import Attachment
 from balance360.models.category import Category
 from balance360.models.contact import Contact

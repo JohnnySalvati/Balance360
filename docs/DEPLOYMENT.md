@@ -183,4 +183,23 @@ PROD_CERT_PATH=/app/certs/prod.crt
 
 (`HOMO_*` pueden omitirse: en Settings son opcionales y con `AFIP_ENV=prod` no se usan.)
 
-Gotcha WSAA: el ticket de acceso se cachea en `ticket_arca.json`, relativo al CWD → vive **dentro** del contenedor y se pierde en cada redeploy. WSAA no emite un TA nuevo mientras el anterior (de local o de un contenedor anterior) siga vigente: si al facturar aparece "el CEE ya posee un TA válido", es eso — esperar a que venza (~12 h). Mejora pendiente: mover ese cache a Postgres.
+### Cache del ticket de WSAA
+
+Desde 2026-08-26 el ticket de acceso se guarda en la tabla `arca_tickets`, no en `ticket_arca.json`. Sobrevive al redeploy, así que el problema de quedar sin poder facturar hasta 12 h después de cada deploy ya no existe.
+
+Sigue vigente la regla de ARCA: **WSAA no emite un TA nuevo mientras el anterior siga vigente.** Si al facturar aparece "el CEE ya posee un TA válido", es que hay un ticket vivo emitido desde otro lado (típicamente la máquina de desarrollo apuntando al mismo `AFIP_ENV`) y hay que esperar a que venza.
+
+**Paso único al deployar la versión que crea la tabla.** El contenedor que se apaga se lleva su `ticket_arca.json`, y la tabla arranca vacía: si el TA de ese archivo todavía está vigente, la primera factura después del deploy se lo pide a WSAA y WSAA lo rechaza. Para evitarlo, rescatar el archivo **antes** de bajar el contenedor viejo:
+
+```bash
+# 1. ANTES del deploy, con el contenedor viejo todavía arriba:
+docker compose -f docker-compose.prod.yml exec app cat /app/ticket_arca.json > ticket_arca.json
+
+# 2. Deploy normal:
+docker compose -f docker-compose.prod.yml up -d --build
+
+# 3. Meter el archivo rescatado en el contenedor nuevo:
+docker compose -f docker-compose.prod.yml cp ticket_arca.json app:/app/ticket_arca.json
+```
+
+La primera llamada a ARCA adopta ese ticket a la tabla y no vuelve a mirar el archivo. Si el ticket rescatado ya estaba vencido, lo ignora y pide uno nuevo, que es lo correcto. Después del deploy el archivo se puede borrar.
