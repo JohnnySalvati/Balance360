@@ -39,7 +39,9 @@ Deferred tasks. Added here with context and decision date so they don't get lost
 - Time-series line/bar charts via Chart.js (already the global chart lib).
 - Reuse the reporting functions in `reports.py`; add multi-period aggregation (group by month).
 - Honor the established conventions: entity filter, currency "Ver en" selector, and the period partial.
-- Candidates: sales/purchases evolution, profit evolution, IVA position over time, and net worth over time (ties into the still-pending net-worth report).
+- Candidates: sales/purchases evolution, IVA position over time, and net worth over time (ties into the still-pending net-worth report).
+
+**Partially done 2026-08-26:** profit evolution exists as the "Ganancia (facturas)" line on the dashboard chart (`get_monthly_profit` in `reports.py`). It is not yet a report of its own: no currency selector, no entity/period filters, no table. The monthly grouping pattern to reuse is there.
 
 ### Per-entity email identity (surfaced 2026-08-06)
 **Added:** 2026-08-06

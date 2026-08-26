@@ -139,9 +139,23 @@ scp johnny@<vm>:~/Balance360/backup_20260820.dump .\prod.dump
    AFIP_ENV=prod
    PROD_PRIVATE_KEY_PATH=/app/certs/balance360.key
    PROD_CERT_PATH=/app/certs/prod.crt
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=465
+   SMTP_USER=miguelsalvati@gmail.com
+   SMTP_PASSWORD=<app password de Google, sin espacios>
+   SMTP_FROM=contacto@insoft.net.ar
    ```
 
    El host de `DATABASE_URL` es `db`: el nombre del servicio en el compose.
+
+   Las `SMTP_*` son **opcionales**: sin ellas la app arranca igual y el envío de
+   comprobantes por mail queda deshabilitado con un toast, no con un error. Por eso
+   conviene verificarlas explícitamente después de un deploy nuevo — no hay ningún
+   síntoma en el arranque. `SMTP_USER` y `SMTP_FROM` son distintas a propósito: la
+   primera es la cuenta que se autentica, la segunda el alias verificado que ve el
+   destinatario. Si el alias no está verificado en Gmail, Gmail **reescribe** el
+   `From` en silencio y el mail llega desde `@gmail.com`. Detalle completo en
+   `.env.example`.
 3. Copiar los certificados (sección 6).
 4. `docker compose -f docker-compose.prod.yml up -d --build`
 5. Restaurar datos (sección 3) o dejar que las migraciones creen el esquema vacío.
