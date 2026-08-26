@@ -18,6 +18,20 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     afip_env: Literal["homo", "prod"]
 
+    # SMTP. Opcionales a proposito: sin esto la app tiene que arrancar igual en
+    # desarrollo y en los tests. La ausencia se valida al momento de enviar, en
+    # services/email.py, que devuelve un EmailError legible en vez de un
+    # AttributeError sobre None a mitad del handshake.
+    smtp_host: str | None = None
+    smtp_port: int = 465
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None
+
+    @property
+    def smtp_configured(self) -> bool:
+        return all([self.smtp_host, self.smtp_user, self.smtp_password, self.smtp_from])
+
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, value: str) -> str:

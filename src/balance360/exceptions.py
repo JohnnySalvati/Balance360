@@ -80,3 +80,8 @@ class WsaaError(ArcaError):
 
 class QrValidationError(Balance360Error):
     pass
+
+
+class EmailError(Balance360Error):
+    """Fallo al enviar un mail: SMTP sin configurar, rechazo del servidor,
+    destinatario ausente. Sube al handler global y sale como toast."""

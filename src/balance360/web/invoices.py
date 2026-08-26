@@ -36,7 +36,7 @@ from balance360.enums import (
     TributeType,
     VoucherType,
 )
-from balance360.exceptions import InvoicePaymentError, InvoicePrintError
+from balance360.exceptions import EmailError, InvoicePaymentError, InvoicePrintError
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.invoice_tribute import InvoiceTribute
@@ -52,8 +52,9 @@ from balance360.services import invoice as invoice_service
 from balance360.services import product_match
 from balance360.services import product_match as product_match_service
 from balance360.services import serial_number as serial_number_service
-from balance360.services.invoice_pdf import build_qr
-from balance360.web.responses import format_validation_error, toast_error
+from balance360.services.email import send_email
+from balance360.services.invoice_pdf import build_qr, pdf_filename, render_pdf_bytes
+from balance360.web.responses import format_validation_error, toast_error, toast_success
 from balance360.web.templating import templates
 
 router = APIRouter(prefix="/invoices")
@@ -854,6 +855,25 @@ def update_lines(
     )
 
 
+def _invoice_pdf_html(invoice: Invoice) -> str:
+    """El HTML del comprobante, listo para convertir a PDF o mostrar como preview."""
+    return templates.get_template("invoices/pdf.html").render(
+        {"invoice": invoice, "qr": build_qr(invoice)}
+    )
+
+
+def _invoice_pdf(invoice: Invoice) -> bytes:
+    """Bytes del PDF, con la validacion de imprimible incluida.
+
+    Unico camino al PDF: lo usan la descarga, la vista previa y el envio por
+    mail. Antes el armado estaba copiado en dos rutas y el mail habria sido una
+    tercera copia.
+    """
+    if not invoice.is_printable:
+        raise InvoicePrintError("El comprobante no es IMPRIMIBLE")
+    return render_pdf_bytes(_invoice_pdf_html(invoice))
+
+
 @router.get("/{invoice_id}/pdf")
 def download_pdf(
     invoice: Invoice = Depends(get_invoice_or_404),
@@ -861,18 +881,16 @@ def download_pdf(
     if not invoice.is_printable:
         raise InvoicePrintError("El comprobante no es IMPRIMIBLE")
 
-    qr = build_qr(invoice)
-
-    html = templates.get_template("invoices/pdf.html").render({"invoice": invoice, "qr": qr})
-
     try:
-        from weasyprint import HTML
-    except (ImportError, OSError):
-        return HTMLResponse(html)  # dev local sin GTK → preview HTML
+        content = render_pdf_bytes(_invoice_pdf_html(invoice))
+    except InvoicePrintError:
+        # dev local sin GTK: se muestra el HTML para poder revisar el diseño.
+        return HTMLResponse(_invoice_pdf_html(invoice))
+
     return Response(
-        content=HTML(string=html).write_pdf(),
+        content=content,
         media_type="application/pdf",
-        headers={"Content-Disposition": 'inline; filename="comprobante.pdf"'},
+        headers={"Content-Disposition": f'inline; filename="{pdf_filename(invoice)}"'},
     )
 
 
@@ -880,22 +898,58 @@ def download_pdf(
 def render_invoice_pdf(
     invoice: Invoice = Depends(get_invoice_or_404),
 ):
+    return Response(
+        content=_invoice_pdf(invoice),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{pdf_filename(invoice)}"'},
+    )
+
+
+@router.get("/{invoice_id}/email-form", response_class=HTMLResponse)
+def invoice_email_form(request: Request, invoice: Invoice = Depends(get_invoice_or_404)):
+    return templates.TemplateResponse(
+        request=request, name="invoices/email_modal.html", context={"invoice": invoice}
+    )
+
+
+@router.post("/{invoice_id}/email", response_class=HTMLResponse)
+def send_invoice_email(
+    invoice: Invoice = Depends(get_invoice_or_404),
+    to: str = Form(...),
+    cc: str = Form(default=""),
+    subject: str = Form(...),
+    body: str = Form(default=""),
+):
+    """Manda el comprobante con el PDF adjunto.
+
+    Se revalida is_printable aunque el boton solo aparezca en comprobantes
+    autorizados: el template esconde el boton, no cierra el endpoint.
+
+    La ruta es `def` y no `async def` a proposito. smtplib es bloqueante; en una
+    ruta sync FastAPI la corre en un threadpool y el resto de la aplicacion
+    sigue respondiendo, mientras que en una `async def` bloquearia el event loop
+    durante todo el envio.
+    """
     if not invoice.is_printable:
         raise InvoicePrintError("El comprobante no es IMPRIMIBLE")
 
-    qr = build_qr(invoice)
+    recipients = _split_addresses(to)
+    if not recipients:
+        raise EmailError("Falta el destinatario")
 
-    html = templates.get_template("invoices/pdf.html").render({"invoice": invoice, "qr": qr})
-
-    try:
-        from weasyprint import HTML
-    except (ImportError, OSError):
-        return toast_error("No se pudo generar el PDF")  # dev local sin GTK → raises
-    return Response(
-        content=HTML(string=html).write_pdf(),
-        media_type="application/pdf",
-        headers={"Content-Disposition": 'inline; filename="comprobante.pdf"'},
+    send_email(
+        to=recipients,
+        cc=_split_addresses(cc),
+        subject=subject,
+        body=body,
+        attachments=[(pdf_filename(invoice), _invoice_pdf(invoice), "pdf")],
     )
+    return toast_success(f"Comprobante enviado a {', '.join(recipients)}")
+
+
+def _split_addresses(raw: str) -> list[str]:
+    """ "a@x.com, b@y.com" -> ["a@x.com", "b@y.com"], sin vacios ni espacios."""
+    return [address.strip() for address in raw.split(",") if address.strip()]
 
 
 @router.post("/{invoice_id}/credit-note")

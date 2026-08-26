@@ -6,9 +6,12 @@
                     class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
         </div>
 
+        {# El envio SMTP tarda segundos: hx-disabled-elt bloquea el submit mientras
+           el request esta en vuelo, para que no se manden dos mails con doble clic. #}
         <form hx-post="/invoices/{{ invoice.id }}/email"
               hx-target="#modal"
               hx-swap="outerHTML"
+              hx-disabled-elt="find button[type='submit']"
               class="flex flex-col gap-3">
 
             <div class="flex flex-col gap-1">
@@ -49,8 +52,10 @@ Saludos.</textarea>
                         class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
                     Cancelar
                 </button>
+                <span class="htmx-indicator self-center text-xs text-gray-500">Enviando…</span>
                 <button type="submit"
-                        class="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-800">
+                        class="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-800
+                               disabled:opacity-50 disabled:cursor-not-allowed">
                     Enviar
                 </button>
             </div>
