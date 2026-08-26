@@ -41,6 +41,13 @@ class VoucherType(enum.Enum):
         obj.arca_code = arca_code
         return obj
 
+    @property
+    def is_credit_note(self) -> bool:
+        return self in CREDIT_NOTE_VOUCHERS
+
+
+CREDIT_NOTE_VOUCHERS = (VoucherType.NCA, VoucherType.NCB, VoucherType.NCC)
+
 
 class SerialStatus(enum.Enum):
     pending = "pending"

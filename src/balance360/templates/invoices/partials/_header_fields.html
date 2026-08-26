@@ -40,6 +40,11 @@
    La clase .formal-only marca lo que solo existe en un comprobante formal:
    syncFormalFields la usa para ocultar Y deshabilitar de una sola pasada. #}
 {% set inv = invoice if invoice is defined and invoice else none %}
+{# Una NC nace de create_credit_note y arrastra su comprobante original; un
+   comprobante comun nunca se convierte en una. Ofrecer la otra mitad de las
+   letras es la unica forma de llegar por UI a una NC sin original, que es un
+   estado que el resto del sistema no puede reconstruir. #}
+{% set nc_header = inv.is_nc if inv else False %}
 {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
 
 {# ── El documento ─────────────────────────────────────────────────────────── #}
@@ -81,7 +86,7 @@
             <select name="voucher_type" id="voucher-type-select" {{ "required" if not inv else "" }}
                     class="rounded-l px-2 py-1 text-sm font-semibold bg-gray-100 border-r border-gray-300 focus:bg-blue-100 focus:outline-none">
                 <option value="">—</option>
-                {% for vt in voucher_type %}
+                {% for vt in voucher_type if vt.is_credit_note == nc_header %}
                 <option value="{{ vt.value }}"
                         {{ "selected" if inv and vt == inv.voucher_type else "" }}>{{ vt.value }}</option>
                 {% endfor %}
