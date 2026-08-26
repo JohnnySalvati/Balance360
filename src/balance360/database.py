@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     smtp_from: str | None = None
 
+    @field_validator("smtp_password")
+    @classmethod
+    def strip_smtp_password(cls, value: str | None) -> str | None:
+        """Google muestra la app password como "xxxx xxxx xxxx xxxx" y el
+        servidor la espera sin espacios. Se limpian aca y no en el .env porque
+        el copiado con espacios es el camino natural y se repite en cada
+        maquina donde se configure."""
+        return value.replace(" ", "") if value else value
+
     @property
     def smtp_configured(self) -> bool:
         return all([self.smtp_host, self.smtp_user, self.smtp_password, self.smtp_from])
