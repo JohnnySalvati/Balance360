@@ -180,6 +180,19 @@ def new_invoice_form(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/close-modal")
+def close_modal() -> HTMLResponse:
+    """Cierra el modal devolviendo el contenedor vacio.
+
+    Va declarada ANTES que /{invoice_id}: FastAPI resuelve las rutas en orden de
+    declaracion, y si quedara despues, "close-modal" entraria por el parametro
+    de ruta, fallaria al parsearse como UUID y devolveria un 422. Con un 4xx
+    HTMX no hace swap, asi que el modal se quedaba abierto y cada clic en la X o
+    en Cancelar repetia el mismo error.
+    """
+    return HTMLResponse('<div id="modal"></div>')
+
+
 @router.get("/{invoice_id}")
 def invoice_detail(
     request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)
