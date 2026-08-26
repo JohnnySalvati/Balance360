@@ -19,6 +19,7 @@ from balance360.reports import (
     get_iibb_on_sales,
     get_invoice_profit,
     get_iva_position,
+    get_monthly_evolution,
     get_tributes,
 )
 from balance360.services.exchange_rate import conversion_factor
@@ -398,6 +399,53 @@ def iibb_report(
         context={
             "period": period,
             "iibb_by_entity": iibb_by_entity,
+            "entities": user_entities,
+            "selected_entity_id": entity_id,
+            "currencies": currency_crud.get_all(db),
+            "selected_currency_id": currency_id,
+        },
+    )
+
+
+def get_evolution_period(
+    year: str = Query(default=""),
+    month: str = Query(default="all"),
+    date_from: str = Query(default=""),
+    date_to: str = Query(default=""),
+) -> Period:
+    """Como get_period pero el mes arranca en "Todos".
+
+    Un reporte de evolucion con el mes actual preseleccionado mostraria una sola
+    columna, que es justo lo que no sirve. El resto del filtro funciona igual.
+    """
+    return get_period(year=year, month=month, date_from=date_from, date_to=date_to)
+
+
+@router.get("/evolution")
+def evolution_report(
+    request: Request,
+    period: Period = Depends(get_evolution_period),
+    entity_id: str = Query(default=""),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    currency_id: str = Query(default=""),
+):
+    to_currency = currency_crud.get_by_id(db, UUID(currency_id)) if currency_id else None
+
+    user_entities = entity_crud.get_by_user(db, current_user.id)
+
+    entity_ids = [UUID(entity_id)] if entity_id else [e.id for e in user_entities]
+
+    evolution = get_monthly_evolution(
+        db, period.start, period.end, entity_ids=entity_ids, to_currency=to_currency
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="reports/evolution.html",
+        context={
+            "period": period,
+            "evolution": evolution,
             "entities": user_entities,
             "selected_entity_id": entity_id,
             "currencies": currency_crud.get_all(db),

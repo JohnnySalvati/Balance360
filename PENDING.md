@@ -30,18 +30,16 @@ Deferred tasks. Added here with context and decision date so they don't get lost
 - Respect the entity filter (multi-entity).
 - Likely a `current-account` report endpoint + template, reusing the `reports.py` + Chart.js patterns.
 
-### Evolution / trend charts in reports
-**Added:** 2026-08-06
+### Evolution / trend charts: IVA position and net worth over time
+**Added:** 2026-08-06 — **narrowed 2026-08-26**
 
-**Why:** reports currently show point-in-time or single-period figures (pie/doughnut, single-period tables). Trend lines over months would show trajectory, not just a snapshot.
+**Done 2026-08-26:** sales/purchases/profit evolution shipped as `/reports/evolution`, built on `get_monthly_evolution` in `reports.py`, with the entity filter, the currency selector and the period partial. The dashboard's "Ganancia (facturas)" line is the same function.
 
-**Scope:**
-- Time-series line/bar charts via Chart.js (already the global chart lib).
-- Reuse the reporting functions in `reports.py`; add multi-period aggregation (group by month).
-- Honor the established conventions: entity filter, currency "Ver en" selector, and the period partial.
-- Candidates: sales/purchases evolution, IVA position over time, and net worth over time (ties into the still-pending net-worth report).
+**Still pending:** the other two candidates from the original entry.
+- **IVA position over time.** `get_iva_position` groups by entity over one period; it needs the same year/month treatment `get_monthly_evolution` got. Worth having: the IVA position swings month to month and only the trend shows whether a credit balance is being consumed or accumulating.
+- **Net worth over time.** Harder, and not the same shape of problem: account balances are a running total, not a per-month aggregate, so it needs the balance *as of* the end of each month, converted at that month's exchange rate. Reusing `ars_rate_subquery` with a per-month reference date is the crux.
 
-**Partially done 2026-08-26:** profit evolution exists as the "Ganancia (facturas)" line on the dashboard chart (`get_monthly_profit` in `reports.py`). It is not yet a report of its own: no currency selector, no entity/period filters, no table. The monthly grouping pattern to reuse is there.
+**Reusable pattern:** `month_range()` / `month_idx()` / `MONTH_NAMES` in `reports.py` build the month window, and `MAX_EVOLUTION_MONTHS` caps it — "todos los años" in the period filter resolves to 1900-01-01, which would otherwise be a thousand columns.
 
 ### Serial numbers: movement history instead of two FK columns
 **Added:** 2026-08-25

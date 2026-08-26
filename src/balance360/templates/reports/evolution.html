@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Evolución mensual (facturas)</h1>
+    <div class="flex items-center gap-4">
+        {% set report_url = "/reports/evolution" %}
+        {% set result_target = "#evolution-result" %}
+        {% set filters_id = "evolution-filters" %}
+        {% include "reports/_currency_selector.html" %}
+        <a href="/reports" class="text-sm text-blue-600 hover:underline">← Reportes</a>
+    </div>
+</div>
+
+<form id="evolution-filters" hx-get="/reports/evolution" hx-target="#evolution-result" hx-select="#evolution-result"
+      hx-trigger="change" hx-push-url="true" hx-include="[name='currency_id']"
+      class="bg-white rounded shadow p-4 mb-6 flex flex-wrap items-end gap-4">
+    <div>
+        <label class="block text-xs text-gray-500 mb-1">Entidad</label>
+        <select name="entity_id" class="border rounded px-3 py-2 text-sm">
+            <option value="">Todas</option>
+            {% for e in entities %}
+            <option value="{{ e.id }}" {% if selected_entity_id == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% include "_period_filter.html" %}
+</form>
+
+<div id="evolution-result" class="flex-1 overflow-y-auto pr-1">
+    <p class="text-sm text-gray-500 mb-4">
+        Período: {{ period.start.strftime('%d/%m/%Y') }} — {{ period.end.strftime('%d/%m/%Y') }}
+        {% if evolution.truncated %}
+        <span class="ml-2 text-amber-600">
+            (se muestran los últimos {{ evolution.months | length }} meses)
+        </span>
+        {% endif %}
+    </p>
+
+    {% set totals = evolution.totals %}
+
+    {# Resumen #}
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6 max-w-5xl">
+        <div class="bg-white rounded shadow p-5">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Ventas netas</p>
+            <p class="text-2xl font-bold text-emerald-600 font-mono">{{ totals.net_sales | currency }}</p>
+        </div>
+        <div class="bg-white rounded shadow p-5">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Compras netas</p>
+            <p class="text-2xl font-bold text-rose-500 font-mono">{{ totals.net_purchases | currency }}</p>
+        </div>
+        <div class="bg-white rounded shadow p-5">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Impuestos</p>
+            <p class="text-2xl font-bold text-amber-600 font-mono">{{ totals.taxes | currency }}</p>
+        </div>
+        <div class="bg-white rounded shadow p-5">
+            <p class="text-xs uppercase tracking-wide text-gray-400">Ganancia</p>
+            <p class="text-2xl font-bold font-mono {% if totals.net_profit >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ totals.net_profit | currency }}</p>
+        </div>
+    </div>
+
+    {% if evolution.months %}
+    <div class="bg-white rounded shadow p-5 mb-6 max-w-5xl">
+        <div style="position: relative; height: 320px;">
+            <canvas id="evolutionChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Detalle mes a mes #}
+    <div class="bg-white rounded shadow max-w-5xl">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-100 text-left text-gray-600 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3">Mes</th>
+                    <th class="px-4 py-3 text-right">Ventas netas</th>
+                    <th class="px-4 py-3 text-right">Compras netas</th>
+                    <th class="px-4 py-3 text-right">Margen</th>
+                    <th class="px-4 py-3 text-right">Impuestos</th>
+                    <th class="px-4 py-3 text-right">Ganancia</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for m in evolution.months %}
+                <tr class="hover:bg-gray-200">
+                    <td class="px-4 py-3 text-gray-700">{{ m.label }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-emerald-600">{{ m.net_sales | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-rose-500">{{ m.net_purchases | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-gray-700">{{ m.margin | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-amber-600">{{ m.taxes | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold {% if m.net_profit >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ m.net_profit | currency }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Sin datos en el período.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if evolution.months %}
+            <tfoot class="bg-gray-100 border-t-2 border-gray-200 font-semibold">
+                <tr>
+                    <td class="px-4 py-3 uppercase text-xs text-gray-600">Total</td>
+                    <td class="px-4 py-3 text-right font-mono text-emerald-600">{{ totals.net_sales | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-rose-500">{{ totals.net_purchases | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-gray-700">{{ totals.margin | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono text-amber-600">{{ totals.taxes | currency }}</td>
+                    <td class="px-4 py-3 text-right font-mono {% if totals.net_profit >= 0 %}text-sky-600{% else %}text-rose-500{% endif %}">{{ totals.net_profit | currency }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+
+    <p class="text-xs text-gray-400 mt-3 max-w-5xl">
+        Base devengado: se calcula sobre los comprobantes confirmados, netos de notas de crédito
+        y sin IVA. «Impuestos» son IIBB sobre ventas más los tributos de cada comprobante; la
+        posición de IVA no se resta acá (tiene su propio reporte).
+    </p>
+
+    {% if evolution.months %}
+    <script>
+        (function () {
+            const ctx = document.getElementById('evolutionChart');
+            if (!ctx || typeof Chart === 'undefined') return;
+            // El swap de htmx reemplaza el canvas pero Chart.js sigue con el viejo
+            // registrado: sin destroy() el gráfico anterior queda dibujado encima.
+            const prev = Chart.getChart(ctx);
+            if (prev) prev.destroy();
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [{% for m in evolution.months %}{{ m.label | tojson }}, {% endfor %}],
+                    datasets: [
+                        { label: 'Ventas netas', backgroundColor: '#6ee7b7', data: [{% for m in evolution.months %}{{ m.net_sales }}, {% endfor %}], order: 1 },
+                        { label: 'Compras netas', backgroundColor: '#fda4af', data: [{% for m in evolution.months %}{{ m.net_purchases }}, {% endfor %}], order: 1 },
+                        {
+                            type: 'line',
+                            order: 0,
+                            label: 'Ganancia',
+                            data: [{% for m in evolution.months %}{{ m.net_profit }}, {% endfor %}],
+                            borderColor: '#3b82f6',
+                            backgroundColor: '#3b82f6',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 3,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        })();
+    </script>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,3 +1,4 @@
+import calendar
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -268,33 +269,44 @@ def get_monthly_income_expense(
     return rows_data
 
 
-def get_monthly_profit(
+MAX_EVOLUTION_MONTHS = 60
+
+
+def month_idx(day: date) -> int:
+    """Indice global de mes de una fecha. Ver month_range()."""
+    return day.year * 12 + day.month - 1
+
+
+def get_monthly_evolution(
     db: Session,
-    months: int = 12,
+    start: date,
+    end: date,
     entity_ids: list | None = None,
     to_currency: Currency | None = None,
     reference_date: date | None = None,
-) -> list:
-    """Ganancia neta por comprobantes, mes a mes, para la linea del dashboard.
+) -> dict:
+    """Ventas, compras y ganancia mes a mes dentro del periodo.
 
-    Devuelve una lista plana de importes alineada con get_monthly_income_expense:
-    misma cantidad de meses y mismo orden, porque el grafico aparea la linea con
-    las barras por posicion.
+    La ganancia usa la misma definicion que get_invoice_profit: margen sin IVA
+    menos IIBB menos tributos. Si difiriera, el mismo periodo mostraria un numero
+    en este reporte y otro en el de ganancia.
 
-    Usa la misma definicion que el reporte de ganancia (get_invoice_profit):
-    margen sin IVA menos IIBB menos tributos. Si las dos difirieran, el mismo
-    periodo mostraria un numero en Inicio y otro en Reportes.
-
-    Son tres consultas y no una porque InvoiceTribute y InvoiceLine cuelgan las dos
+    Son tres consultas y no una porque InvoiceTribute e InvoiceLine cuelgan las dos
     de Invoice: joinearlas juntas multiplica las filas (una factura con 3 renglones
     y 2 tributos suma 6 veces) e infla los totales sin que nada falle.
+
+    El periodo se recorta a los ultimos MAX_EVOLUTION_MONTHS meses: "todos los
+    anios" en el filtro resuelve a 1900-01-01, que serian mas de mil columnas.
     """
     if not reference_date:
         reference_date = date.today()
 
     entity_filter = Invoice.entity_id.in_(entity_ids) if entity_ids is not None else true()
 
-    start_idx, current_idx, start_window = month_range(months)
+    last_idx = month_idx(end)
+    first_idx = max(month_idx(start), last_idx - MAX_EVOLUTION_MONTHS + 1)
+    truncated = first_idx > month_idx(start)
+    window_start = date(year_from_idx(first_idx), month_from_idx(first_idx), 1)
 
     year_col = extract("year", Invoice.date).label("year")
     month_col = extract("month", Invoice.date).label("month")
@@ -319,7 +331,7 @@ def get_monthly_profit(
                 func.sum(line_amount).filter(Invoice.invoice_type == InvoiceType.purchase), 0
             ).label("net_purchases"),
         )
-        .where(Invoice.date >= start_window)
+        .where(Invoice.date.between(window_start, end))
         .where(Invoice.confirmed)
         .where(entity_filter)
         .where(not_(Invoice.tax_only))
@@ -343,7 +355,7 @@ def get_monthly_profit(
                 0,
             ).label("total"),
         )
-        .where(Invoice.date >= start_window)
+        .where(Invoice.date.between(window_start, end))
         .where(Invoice.confirmed)
         .where(Invoice.formal)
         .where(entity_filter)
@@ -361,7 +373,7 @@ def get_monthly_profit(
                 func.sum(InvoiceTribute.base_amount * InvoiceTribute.rate / 100 * factor), 0
             ).label("total"),
         )
-        .where(Invoice.date >= start_window)
+        .where(Invoice.date.between(window_start, end))
         .where(Invoice.confirmed)
         .where(or_(Invoice.formal, Invoice.tax_only))
         .where(entity_filter)
@@ -369,10 +381,13 @@ def get_monthly_profit(
         .group_by("year", "month")
     )
 
-    margin_by_month = {
-        (int(row.year), int(row.month)): row.net_sales - row.net_purchases
-        for row in db.execute(margin_stmt).all()
-    }
+    sales_by_month = {}
+    purchases_by_month = {}
+    for row in db.execute(margin_stmt).all():
+        key = (int(row.year), int(row.month))
+        sales_by_month[key] = row.net_sales
+        purchases_by_month[key] = row.net_purchases
+
     iibb_by_month = {
         (int(row.year), int(row.month)): row.total for row in db.execute(iibb_stmt).all()
     }
@@ -380,16 +395,64 @@ def get_monthly_profit(
         (int(row.year), int(row.month)): row.total for row in db.execute(tributes_stmt).all()
     }
 
-    rows_data = []
+    months = []
+    for idx in range(first_idx, last_idx + 1):
+        year = year_from_idx(idx)
+        month = month_from_idx(idx)
+        key = (year, month)
 
-    for idx in range(start_idx, current_idx + 1):
-        key = (year_from_idx(idx), month_from_idx(idx))
-        margin = margin_by_month.get(key, 0)
-        iibb = iibb_by_month.get(key, 0)
-        tributes = tributes_by_month.get(key, 0)
-        rows_data.append(margin - iibb - tributes)
+        net_sales = sales_by_month.get(key, 0)
+        net_purchases = purchases_by_month.get(key, 0)
+        margin = net_sales - net_purchases
+        taxes = iibb_by_month.get(key, 0) + tributes_by_month.get(key, 0)
 
-    return rows_data
+        months.append(
+            {
+                "label": f"{MONTH_NAMES[month]} {year}",
+                "year": year,
+                "month": month,
+                "net_sales": net_sales,
+                "net_purchases": net_purchases,
+                "margin": margin,
+                "taxes": taxes,
+                "net_profit": margin - taxes,
+            }
+        )
+
+    totals = {
+        field: sum(row[field] for row in months)
+        for field in ("net_sales", "net_purchases", "margin", "taxes", "net_profit")
+    }
+
+    return {"months": months, "totals": totals, "truncated": truncated}
+
+
+def get_monthly_profit(
+    db: Session,
+    months: int = 12,
+    entity_ids: list | None = None,
+    to_currency: Currency | None = None,
+    reference_date: date | None = None,
+) -> list:
+    """Ganancia neta mes a mes para la linea del dashboard.
+
+    Devuelve una lista plana alineada con get_monthly_income_expense: misma
+    cantidad de meses y mismo orden, porque el grafico aparea la linea con las
+    barras por posicion.
+    """
+    _, current_idx, start_window = month_range(months)
+    last_day = calendar.monthrange(year_from_idx(current_idx), month_from_idx(current_idx))[1]
+    end = date(year_from_idx(current_idx), month_from_idx(current_idx), last_day)
+
+    evolution = get_monthly_evolution(
+        db,
+        start=start_window,
+        end=end,
+        entity_ids=entity_ids,
+        to_currency=to_currency,
+        reference_date=reference_date,
+    )
+    return [row["net_profit"] for row in evolution["months"]]
 
 
 def get_expenses_by_category(
