@@ -73,6 +73,7 @@ def create_contact(
     request: Request,
     db: Session = Depends(get_db),
     name: str = Form(...),
+    trade_name: str | None = Form(default=""),
     tax_id: str = Form(default=""),
     contact_type: str = Form(...),
     condicion_iva: str = Form(...),
@@ -84,6 +85,7 @@ def create_contact(
         db,
         ContactCreate(
             name=name,
+            trade_name=trade_name or None,
             tax_id=tax_id or None,
             contact_type=ContactType(contact_type),
             condicion_iva=CondicionIva[condicion_iva],
@@ -111,6 +113,7 @@ def update_contact(
     contact_id: uuid.UUID,
     db: Session = Depends(get_db),
     name: str = Form(...),
+    trade_name: str | None = Form(default=""),
     tax_id: str = Form(default=""),
     contact_type: str = Form(...),
     condicion_iva: str = Form(...),
@@ -126,6 +129,7 @@ def update_contact(
         contact,
         ContactUpdate(
             name=name,
+            trade_name=trade_name or None,
             tax_id=tax_id or None,
             contact_type=ContactType(contact_type),
             condicion_iva=CondicionIva[condicion_iva],
@@ -146,7 +150,7 @@ def delete_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Contact not found")
     if contact.transactions:
         return HTMLResponse(
-            '<tr><td colspan="4" class="px-4 py-2 text-red-600 text-sm">'
+            '<tr><td colspan="5" class="px-4 py-2 text-red-600 text-sm">'
             f'No se puede eliminar "{contact.name}": tiene transacciones asociadas.'
             "</td></tr>"
         )

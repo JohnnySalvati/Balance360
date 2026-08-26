@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from balance360.models.contact import Contact
@@ -11,7 +11,12 @@ from balance360.services.text import digits_only
 def get_all(db: Session, search: str | None = None) -> list[Contact]:
     stmt = select(Contact)
     if search:
-        stmt = stmt.where(Contact.name.ilike(f"%{search}%"))
+        stmt = stmt.where(
+            or_(
+                Contact.name.ilike(f"%{search}%"),
+                Contact.trade_name.ilike(f"%{search}%"),
+            )
+        )
 
     contacts = db.execute(stmt.order_by(Contact.name)).scalars().all()
     return list(contacts)

@@ -19,6 +19,13 @@
               class="flex flex-col gap-3">
 
             <div class="flex flex-col gap-1">
+                <label class="text-xs text-gray-500">Nombre de fantasía</label>
+                <input type="text" name="trade_name" maxlength="150"
+                       value="{{ contact.trade_name if is_edit and contact.trade_name else '' }}"
+                       class="border rounded px-3 py-2 text-sm">
+            </div>
+
+            <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Nombre</label>
                 <input type="text" name="name" id="contact-name" required maxlength="150"
                        value="{{ contact.name if is_edit else '' }}"

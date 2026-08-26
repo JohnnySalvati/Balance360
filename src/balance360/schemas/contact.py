@@ -9,6 +9,7 @@ from balance360.services.text import digits_only
 
 class ContactBase(BaseModel):
     name: str
+    trade_name: str | None = None
     tax_id: str | None = None
     contact_type: ContactType
     condicion_iva: CondicionIva
@@ -36,6 +37,7 @@ class ContactRead(ContactBase):
 
 class ContactUpdate(BaseModel):
     name: str | None = None
+    trade_name: str | None = None
     tax_id: str | None = None
     contact_type: ContactType | None = None
     condicion_iva: CondicionIva | None = None

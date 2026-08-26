@@ -1,6 +1,7 @@
 {% set type_labels = {"customer": "Cliente", "supplier": "Proveedor", "both": "Ambos"} %}
 <tr id="con-row-{{ c.id }}" class="hover:bg-gray-200">
-    <td class="px-4 py-3 font-medium text-gray-800">{{ c.name }}</td>
+    <td class="px-4 py-3 font-medium text-gray-800">{{ c.trade_name or '—' }}</td>
+    <td class="px-4 py-3 text-gray-500">{{ c.name }}</td>
     <td class="px-4 py-3 text-gray-500">{{ type_labels[c.contact_type.value] }}</td>
     <td class="px-4 py-3 text-gray-400">{{ c.tax_id | cuit or '—' }}</td>
     <td class="px-4 py-3 text-right">

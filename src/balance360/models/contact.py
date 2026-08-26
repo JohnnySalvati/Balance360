@@ -18,6 +18,7 @@ from balance360.models.base import Base, TimestampMixin
 class Contact(Base, TimestampMixin):
     __tablename__ = "contacts"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    trade_name: Mapped[str | None] = mapped_column(String(150))
     name: Mapped[str] = mapped_column(String(150))
     condicion_iva: Mapped[CondicionIva] = mapped_column(Enum(CondicionIva))
     doc_type: Mapped[DocType] = mapped_column(Enum(DocType))
