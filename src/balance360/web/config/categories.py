@@ -107,7 +107,8 @@ def delete_category(
     if category.transactions or category.children:
         return HTMLResponse(
             '<tr><td colspan="4" class="px-4 py-2 text-red-600 text-sm">'
-            f'No se puede eliminar "{category.name}": tiene subcategorías o transacciones asociadas.'
+            f'No se puede eliminar "{category.name}": '
+            f'tiene subcategorías o transacciones asociadas.'
             "</td></tr>"
         )
     category_crud.delete(db, category)

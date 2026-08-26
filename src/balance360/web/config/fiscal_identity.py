@@ -148,7 +148,8 @@ def delete_fiscal_identity(
 ):
     if fiscal_identity.invoices:
         return toast_error(
-            f"No se puede eliminar, la identidad fiscal esta asociada a {','.join(f'{invoice.pos}-{invoice.number}' for invoice in fiscal_identity.invoices)}"
+            f"No se puede eliminar, la identidad fiscal esta asociada a "
+            f"{','.join(f'{invoice.pos}-{invoice.number}' for invoice in fiscal_identity.invoices)}"
         )
     fiscal_identity_crud.delete(db, fiscal_identity)
 

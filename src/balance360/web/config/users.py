@@ -66,7 +66,8 @@ def create_user(
     except IntegrityError:
         db.rollback()
         return HTMLResponse(
-            '<div id="modal"><p class="text-red-600 text-sm p-4">El email ya está registrado.</p></div>'
+            '<div id="modal"><p class="text-red-600 text-sm p-4">'
+            'El email ya está registrado.</p></div>'
         )
 
     response = HTMLResponse('<div id="modal"></div>')
