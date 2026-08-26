@@ -158,5 +158,7 @@ Cuando algo se posterga, se anota ahí — no se deja solo en la conversación.
 
 ## Commits
 
-Cuando Johnny dice que quiere commitear, **dale el mensaje de commit**; no corras `git commit`
-vos.
+Los commits los hacés vos directamente (decisión de Johnny, 2026-08-26): `git add` y
+`git commit`, sin pedir confirmación previa del mensaje. Seguí la convención del repo —
+Conventional Commits en español, con scope, y el cuerpo explicando el porqué, no el qué.
+Los trailers `Co-Authored-By` y `Claude-Session` van siempre.
