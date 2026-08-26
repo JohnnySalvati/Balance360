@@ -12,6 +12,7 @@ from balance360.enums import (
     DocType,
     InvoiceType,
     IvaAliquot,
+    SerialStatus,
     TransactionType,
     VoucherType,
 )
@@ -25,6 +26,8 @@ from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.models.import_rule import ImportRule
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
+from balance360.models.product import Product
+from balance360.models.serial_number import SerialNumber
 from balance360.services.import_rule import Classification
 
 
@@ -161,6 +164,39 @@ def make_invoice_line(
     db.commit()
     db.refresh(invoice_line)
     return invoice_line
+
+
+def make_product(
+    db: Session,
+    name="Test",
+    margin=Decimal("30"),
+    track_serial=False,
+):
+    product = Product(id=uuid.uuid4(), name=name, margin=margin, track_serial=track_serial)
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+def make_serial_number(
+    db: Session,
+    serial: str,
+    product_id: uuid.UUID,
+    purchase_line_id: uuid.UUID,
+    status=SerialStatus.pending,
+):
+    serial_number = SerialNumber(
+        id=uuid.uuid4(),
+        product_id=product_id,
+        serial=serial,
+        status=status,
+        purchase_line_id=purchase_line_id,
+    )
+    db.add(serial_number)
+    db.commit()
+    db.refresh(serial_number)
+    return serial_number
 
 
 def make_import_rule(

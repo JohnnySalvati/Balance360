@@ -50,16 +50,17 @@ def confirm_invoice(db: Session, invoice: Invoice):
     invoice.confirmed = True
 
     if invoice.is_nc:
-        assert invoice.related_invoice
-
-        for invoice_line in invoice.related_invoice.invoice_lines:
-            if invoice.invoice_type == InvoiceType.purchase:
-                for serial in invoice_line.purchased_serials:
-                    serial.status = SerialStatus.returned
-            else:
-                for serial in invoice_line.sold_serials:
-                    serial.status = SerialStatus.available
-                    serial.sale_line_id = None
+        # Una NC cargada a mano desde el portal de ARCA no tiene comprobante
+        # relacionado: es un estado valido y no hay seriales que mover.
+        if invoice.related_invoice is not None:
+            for invoice_line in invoice.related_invoice.invoice_lines:
+                if invoice.invoice_type == InvoiceType.purchase:
+                    for serial in invoice_line.purchased_serials:
+                        serial.status = SerialStatus.returned
+                else:
+                    for serial in invoice_line.sold_serials:
+                        serial.status = SerialStatus.available
+                        serial.sale_line_id = None
     else:
         for invoice_line in invoice.invoice_lines:
             if not invoice_line.product or not invoice_line.product.track_serial:
@@ -108,7 +109,10 @@ def register_payment(db: Session, invoice: Invoice, account: Account, payment_da
 
     data = TransactionCreate(
         date=payment_date,
-        description=f"{'Compra' if invoice.invoice_type == InvoiceType.purchase else 'Venta'} {ref} {invoice.contact.name}",
+        description=(
+            f"{'Compra' if invoice.invoice_type == InvoiceType.purchase else 'Venta'}"
+            f" {ref} {invoice.contact.name}"
+        ),
         amount=invoice.total,
         type=TransactionType.expense
         if invoice.invoice_type == InvoiceType.purchase
