@@ -43,15 +43,24 @@
 
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Mensaje</label>
+                {# La firma sale de la entidad emisora (Configuración -> Entidades). Va
+                   en el cuerpo editable y no pegada al enviar, para que se pueda
+                   cambiar o borrar en este mail sin tocar la configuración. #}
                 <textarea name="body" rows="4"
                           class="border rounded px-3 py-2 text-sm">Estimado/a {{ invoice.contact.name }},
 
 Adjuntamos el comprobante {{ invoice.voucher_type.value }} {{ invoice.pos }}-{{ invoice.number }}.
 
-Saludos.</textarea>
+Saludos.{% if invoice.entity.email_signature %}
+
+{{ invoice.entity.email_signature }}{% endif %}</textarea>
             </div>
 
-            <p class="text-xs text-gray-400">Se adjuntará el PDF del comprobante autorizado.</p>
+            <p class="text-xs text-gray-400">
+                Se adjuntará el PDF del comprobante autorizado.
+                Sale como <strong>{{ invoice.entity.email_display_name or invoice.entity.name }}</strong>{% if invoice.entity.email_reply_to %},
+                con respuesta a <strong>{{ invoice.entity.email_reply_to }}</strong>{% endif %}.
+            </p>
 
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"

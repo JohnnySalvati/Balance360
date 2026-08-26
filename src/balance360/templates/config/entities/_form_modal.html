@@ -4,7 +4,7 @@
 {% set selected_ids = (entity.fiscal_identities | map(attribute='id') | list) if is_edit else [] %}
 
 <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold">{{ title }}</h2>
             <button hx-get="/config/entities/close-modal"
@@ -51,6 +51,41 @@
                     <a href="/config/fiscal_identities/" class="text-blue-600 hover:underline">Identidades fiscales</a>.
                 </p>
                 {% endif %}
+            </div>
+
+            {# Identidad de mail de la entidad. El transporte SMTP es uno solo para
+               toda la app: aca solo se define como se presenta esta entidad. #}
+            <div class="border-t pt-3 mt-1">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Identidad de mail
+                </p>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Nombre del remitente</label>
+                    <input type="text" name="email_display_name" maxlength="100"
+                           placeholder="{{ entity.name if is_edit else 'Se usa el nombre de la entidad' }}"
+                           value="{{ entity.email_display_name or '' if is_edit else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                    <p class="text-xs text-gray-400">Si se deja vacío se usa el nombre de la entidad.</p>
+                </div>
+
+                <div class="flex flex-col gap-1 mt-3">
+                    <label class="text-xs text-gray-500">Responder a (Reply-To)</label>
+                    <input type="email" name="email_reply_to" maxlength="150"
+                           value="{{ entity.email_reply_to or '' if is_edit else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                    <p class="text-xs text-gray-400">
+                        Dirección a la que contesta el cliente. El remitente real no cambia:
+                        siempre sale de la casilla configurada en el servidor.
+                    </p>
+                </div>
+
+                <div class="flex flex-col gap-1 mt-3">
+                    <label class="text-xs text-gray-500">Firma</label>
+                    <textarea name="email_signature" rows="3"
+                              class="border rounded px-3 py-2 text-sm">{{ entity.email_signature or '' if is_edit else '' }}</textarea>
+                    <p class="text-xs text-gray-400">Se agrega al final del mensaje al enviar un comprobante.</p>
+                </div>
             </div>
 
             <div class="flex justify-end gap-2 mt-2">

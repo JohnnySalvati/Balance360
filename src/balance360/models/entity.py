@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, Uuid
+from sqlalchemy import String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
@@ -19,6 +19,15 @@ class Entity(Base, TimestampMixin):
     __tablename__ = "entities"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(150), unique=True)
+
+    # Identidad visible en los mails que manda esta entidad. El transporte SMTP es
+    # uno solo para toda la app (una casilla autenticada, que es lo que sostiene SPF
+    # y DKIM); lo unico que cambia por entidad es como se presenta. Por eso la
+    # direccion propia va en Reply-To y no en From: un From ajeno no valida y los
+    # servidores lo marcan como spam o lo reescriben.
+    email_display_name: Mapped[str | None] = mapped_column(String(100))
+    email_reply_to: Mapped[str | None] = mapped_column(String(150))
+    email_signature: Mapped[str | None] = mapped_column(Text)
 
     transactions: Mapped[list[Transaction]] = relationship(back_populates="entity")
     invoices: Mapped[list["Invoice"]] = relationship(back_populates="entity")

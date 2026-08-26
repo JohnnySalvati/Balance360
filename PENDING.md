@@ -43,17 +43,6 @@ Deferred tasks. Added here with context and decision date so they don't get lost
 
 **Partially done 2026-08-26:** profit evolution exists as the "Ganancia (facturas)" line on the dashboard chart (`get_monthly_profit` in `reports.py`). It is not yet a report of its own: no currency selector, no entity/period filters, no table. The monthly grouping pattern to reuse is there.
 
-### Per-entity email identity (surfaced 2026-08-06)
-**Added:** 2026-08-06
-
-**Why:** with "send comprobante by email", the SMTP transport should stay global (one authenticated mailbox on `insoft.net.ar` with SPF/DKIM — that's the deliverability lever). But once more than one entity emits comprobantes, the *visible* sender should reflect the issuing entity.
-
-**Scope:**
-- Keep SMTP host/user/password global in `Settings`.
-- Store a display name / reply-to / signature per entity (or per `FiscalIdentity`).
-- Keep `send_email` taking `from_display` / `reply_to` as parameters, so this becomes a call-site change with no transport change and no risky migration.
-- Deliverability note: don't put an arbitrary, unauthenticated address in `From`; use `Reply-To` for the entity's address instead.
-
 ### Serial numbers: movement history instead of two FK columns
 **Added:** 2026-08-25
 

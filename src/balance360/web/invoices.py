@@ -37,6 +37,7 @@ from balance360.enums import (
     VoucherType,
 )
 from balance360.exceptions import EmailError, InvoicePaymentError, InvoicePrintError
+from balance360.models.entity import Entity
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.invoice_tribute import InvoiceTribute
@@ -956,8 +957,20 @@ def send_invoice_email(
         subject=subject,
         body=body,
         attachments=[(pdf_filename(invoice), _invoice_pdf(invoice), "pdf")],
+        from_display=_sender_display_name(invoice.entity),
+        reply_to=invoice.entity.email_reply_to,
     )
     return toast_success(f"Comprobante enviado a {', '.join(recipients)}")
+
+
+def _sender_display_name(entity: Entity) -> str:
+    """Nombre visible del remitente, con el de la entidad como valor por defecto.
+
+    Solo cambia el nombre, no la direccion: el From sale siempre de la casilla
+    autenticada en SMTP_FROM. Poner ahi la direccion de la entidad haria que el
+    mail no valide contra SPF/DKIM; para eso esta el Reply-To.
+    """
+    return entity.email_display_name or entity.name
 
 
 def _split_addresses(raw: str) -> list[str]:

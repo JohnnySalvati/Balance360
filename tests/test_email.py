@@ -12,9 +12,11 @@ from types import SimpleNamespace
 import pytest
 
 from balance360.exceptions import EmailError
+from balance360.schemas.entity import EntityCreate
 from balance360.services import email as email_service
 from balance360.services.invoice_pdf import pdf_filename
-from balance360.web.invoices import _split_addresses
+from balance360.web.invoices import _sender_display_name, _split_addresses
+from tests import factories
 
 
 class FakeSMTP:
@@ -153,3 +155,61 @@ def test_split_addresses(raw, esperado):
 def test_pdf_filename_usa_letra_pos_y_numero():
     invoice = SimpleNamespace(voucher_type=SimpleNamespace(value="A"), pos=5, number=123)
     assert pdf_filename(invoice) == "A-00005-00000123.pdf"
+
+
+# --- Identidad de mail por entidad -------------------------------------------
+
+
+def test_el_nombre_del_remitente_cae_al_nombre_de_la_entidad(db):
+    """Sin configurar nada, la entidad ya se presenta con su nombre."""
+    entity = factories.make_entity(db, name="InSoft")
+
+    assert _sender_display_name(entity) == "InSoft"
+
+
+def test_el_nombre_configurado_gana(db):
+    entity = factories.make_entity(db, name="InSoft")
+    entity.email_display_name = "InSoft — Facturación"
+    db.commit()
+
+    assert _sender_display_name(entity) == "InSoft — Facturación"
+
+
+def test_la_direccion_de_la_entidad_va_en_reply_to_y_no_en_from(smtp):
+    """Un From ajeno a la casilla autenticada no valida SPF/DKIM.
+
+    Por eso la identidad de la entidad viaja en Reply-To: el destinatario le
+    contesta a la entidad, pero el mail sale —y se autentica— desde la casilla
+    configurada en el servidor.
+    """
+    email_service.send_email(
+        to=["cliente@ejemplo.com"],
+        subject="Asunto",
+        body="Cuerpo",
+        from_display="Familia",
+        reply_to="familia@ejemplo.com",
+    )
+
+    message, _ = smtp.sent[0]
+    assert message["From"] == "Familia <miguelsalvati@insoft.net.ar>"
+    assert message["Reply-To"] == "familia@ejemplo.com"
+
+
+def test_los_campos_vacios_del_form_se_guardan_como_none():
+    """Un input de texto vacio llega como "", no como None."""
+    data = EntityCreate(
+        name="InSoft",
+        email_display_name="",
+        email_reply_to="   ",
+        email_signature="",
+    )
+
+    assert data.email_display_name is None
+    assert data.email_reply_to is None
+    assert data.email_signature is None
+
+
+def test_se_limpian_los_espacios_de_los_bordes():
+    data = EntityCreate(name="InSoft", email_reply_to="  ventas@ejemplo.com  ")
+
+    assert data.email_reply_to == "ventas@ejemplo.com"

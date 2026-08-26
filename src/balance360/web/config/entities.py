@@ -60,10 +60,19 @@ def create_entity(
     db: Session = Depends(get_db),
     name: str = Form(...),
     fiscal_identity_ids: list[uuid.UUID] = Form(default=[]),
+    email_display_name: str = Form(default=""),
+    email_reply_to: str = Form(default=""),
+    email_signature: str = Form(default=""),
 ):
     entity_crud.create(
         db,
-        EntityCreate(name=name, fiscal_identity_ids=fiscal_identity_ids),
+        EntityCreate(
+            name=name,
+            fiscal_identity_ids=fiscal_identity_ids,
+            email_display_name=email_display_name,
+            email_reply_to=email_reply_to,
+            email_signature=email_signature,
+        ),
     )
     response = HTMLResponse('<div id="modal"></div>')
     response.headers["HX-Trigger"] = "refreshRows"
@@ -99,11 +108,20 @@ def update_entity(
     db: Session = Depends(get_db),
     name: str = Form(...),
     fiscal_identity_ids: list[uuid.UUID] = Form(default=[]),
+    email_display_name: str = Form(default=""),
+    email_reply_to: str = Form(default=""),
+    email_signature: str = Form(default=""),
 ):
     entity_crud.update(
         db,
         entity,
-        EntityUpdate(name=name, fiscal_identity_ids=fiscal_identity_ids),
+        EntityUpdate(
+            name=name,
+            fiscal_identity_ids=fiscal_identity_ids,
+            email_display_name=email_display_name,
+            email_reply_to=email_reply_to,
+            email_signature=email_signature,
+        ),
     )
     response = HTMLResponse('<div id="modal"></div>')
     response.headers["HX-Trigger"] = "refreshRows"
