@@ -27,7 +27,7 @@
     {% include "_period_filter.html" %}
 </form>
 
-<div id="profit-result">
+<div id="profit-result" class="flex-1 overflow-y-auto pr-1">
     <p class="text-sm text-gray-500 mb-4">
         Período: {{ period.start.strftime('%d/%m/%Y') }} — {{ period.end.strftime('%d/%m/%Y') }}
     </p>
