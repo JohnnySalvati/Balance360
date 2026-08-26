@@ -191,6 +191,8 @@ Sigue vigente la regla de ARCA: **WSAA no emite un TA nuevo mientras el anterior
 
 **Paso único al deployar la versión que crea la tabla.** El contenedor que se apaga se lleva su `ticket_arca.json`, y la tabla arranca vacía: si el TA de ese archivo todavía está vigente, la primera factura después del deploy se lo pide a WSAA y WSAA lo rechaza. Para evitarlo, rescatar el archivo **antes** de bajar el contenedor viejo:
 
+Todos los comandos se corren **desde el directorio del repo en la VM** (`~/Balance360`), que es donde está `docker-compose.prod.yml`.
+
 ```bash
 # 1. ANTES del deploy, con el contenedor viejo todavía arriba:
 docker compose -f docker-compose.prod.yml exec app cat /app/ticket_arca.json > ticket_arca.json
@@ -201,5 +203,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 # 3. Meter el archivo rescatado en el contenedor nuevo:
 docker compose -f docker-compose.prod.yml cp ticket_arca.json app:/app/ticket_arca.json
 ```
+
+Si el paso 1 responde `cat: /app/ticket_arca.json: No such file or directory`, **no hay nada que rescatar y se sigue de largo**: el archivo vive en el filesystem del contenedor, así que solo existe si se emitió al menos un comprobante desde la última vez que el contenedor se recreó. En ese caso conviene borrar el archivo vacío que dejó el redirect (`rm ticket_arca.json`) y saltear el paso 3.
 
 La primera llamada a ARCA adopta ese ticket a la tabla y no vuelve a mirar el archivo. Si el ticket rescatado ya estaba vencido, lo ignora y pide uno nuevo, que es lo correcto. Después del deploy el archivo se puede borrar.
