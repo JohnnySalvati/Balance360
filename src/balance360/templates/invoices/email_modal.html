@@ -7,11 +7,18 @@
         </div>
 
         {# El envio SMTP tarda segundos: hx-disabled-elt bloquea el submit mientras
-           el request esta en vuelo, para que no se manden dos mails con doble clic. #}
+           el request esta en vuelo, para que no se manden dos mails con doble clic.
+
+           El selector va por id y NO como "find button[type='submit']": htmx hereda
+           hx-disabled-elt hacia los hijos, y al heredarlo el boton Cancelar resolvia
+           el `find` contra sus propios descendientes, no encontraba nada y htmx
+           terminaba llamando getInternalData(null) -> TypeError, que abortaba el
+           request y dejaba el modal sin poder cerrarse. Un selector de documento
+           resuelve igual desde cualquier elemento del formulario. #}
         <form hx-post="/invoices/{{ invoice.id }}/email"
               hx-target="#modal"
               hx-swap="outerHTML"
-              hx-disabled-elt="find button[type='submit']"
+              hx-disabled-elt="#email-submit"
               class="flex flex-col gap-3">
 
             <div class="flex flex-col gap-1">
@@ -53,7 +60,7 @@ Saludos.</textarea>
                     Cancelar
                 </button>
                 <span class="htmx-indicator self-center text-xs text-gray-500">Enviando…</span>
-                <button type="submit"
+                <button type="submit" id="email-submit"
                         class="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-800
                                disabled:opacity-50 disabled:cursor-not-allowed">
                     Enviar
