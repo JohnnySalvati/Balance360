@@ -169,6 +169,76 @@ crea una factura, se copia un hecho consumado. Entra `formal`, `confirmed`, `aut
   Con más de una candidata se pide explícita: elegir por nuestra cuenta sería mandar plata al
   balance equivocado en silencio.
 
+### Alta propia, confirmación de mail y recuperación de contraseña (2026-08-29)
+
+Las tres pantallas sin sesión —`/login/`, `/register`, `/forgot-password`— más `/confirm-email`
+y `/reset-password`. Están en `web/auth.py`, que es el único módulo de `web/` montado sin
+`Depends(get_current_user)`.
+
+Lo pidió Johnny después de quedarse afuera: el navegador guarda las contraseñas **por
+dominio**, FactuMov y Balance360 viven las dos en `*.insoft.net.ar`, y guardar la de una encima
+de la otra le dejó la de acá irrecuperable. Hasta ese día la única salida era que **otro**
+usuario entrara a Configuración → Usuarios y se la cambiara — o sea que recuperar la cuenta
+propia dependía de que hubiera alguien más adentro.
+
+- **La cuenta que se crea sola nace apagada (`is_active=False`), y esa es la línea que sostiene
+  todo lo demás.** Las pantallas de esta app **no filtran por membresía**: `entity_crud.get_all`
+  trae todas las entidades y cualquiera adentro ve la contabilidad entera y puede administrar
+  usuarios. O sea que "registrarse" no puede significar "entrar": significa anotarse. Prender el
+  interruptor es un click en Configuración → Usuarios, y ahí sale el mail de "ya podés entrar".
+  La alternativa —dejar entrar y limitar lo que ve— es un sistema de permisos por entidad que
+  esta app no tiene, y escribirlo para poder abrir el registro sería empezar por el final.
+- **`get_current_user` ahora rechaza a los inactivos**, y no solo el login. La cookie es un JWT
+  de ocho horas sin fila que revocar: sin ese chequeo, desactivar a alguien no lo sacaba hasta
+  que su sesión venciera sola.
+- **Ninguna pantalla dice si una dirección tiene cuenta.** El registro termina siempre en
+  "revisá tu casilla" —sus tres ramas mandan un mail, para que las tres tarden parecido y puedan
+  fallar igual— y el "olvidé mi contraseña" también le escribe a una dirección sin cuenta: si
+  esa rama no mandara nada, sería la única que no puede fallar por SMTP y el error pasaría a
+  significar "esa dirección existe". Es el mismo criterio que ya tenía `/api/tokens`.
+- **La cuenta desactivada sí dice qué pasa**, igual que en `services/api_token.py`: quien llegó
+  hasta ahí ya demostró la contraseña, y "email o contraseña incorrectos" lo mandaría a cambiar
+  una que está bien.
+- **`email_confirmations` y `password_resets` son dos tablas con la misma forma** que
+  `api_tokens` —token opaco de 256 bits guardado como SHA-256, vencimiento en la fila, marca de
+  consumo en vez de borrar—. Que se repita es la decisión: una tabla genérica con una columna
+  `kind` las obligaría a compartir vencimiento, índices y limpieza, que es justo lo que no
+  comparten. La confirmación vive 24 h y el reset **una hora**: un token de confirmación vencido
+  cuesta un reenvío, uno de reset vivo es la cuenta entera para cualquiera que llegue a esa
+  casilla.
+- **Usar un link de reset apaga todos los demás** (`invalidate_all_for_user`); los de
+  confirmación no se apagan entre sí. Dos links de confirmación vivos hacen lo mismo y lo que
+  hacen ya está hecho; dos de reset son dos oportunidades de cambiar la contraseña, y la segunda
+  le queda a quien pidió la primera. Pedir otro **no** rompe el anterior en ninguno de los dos:
+  el que no encuentra el primer mail pide un segundo, y dejarlo con dos links muertos sería
+  castigarlo por buscar mal.
+- **Usar el link de reset confirma la dirección**: haberlo abierto prueba lo mismo que prueba el
+  de confirmación.
+- **Ninguno de los dos abre sesión.** El token vivió en una casilla de mail; convertirlo en
+  cookie dejaría adentro a cualquiera con acceso a ese mensaje.
+- **Registrarse encima de una cuenta sin confirmar emite un token nuevo pero no toca la
+  contraseña.** Pisarla es una toma de cuenta completa: al atacante le alcanza con registrarse
+  sobre una cuenta pendiente y esperar a que el dueño —que está esperando un mail— abra el link
+  que le llegue.
+- **El hash de la contraseña se calcula antes de mirar la base**, y en dos de las tres ramas se
+  tira. Es lo más caro del camino: hashear solo al crear haría que una dirección ya registrada
+  conteste notoriamente más rápido y la respuesta idéntica no serviría de nada. Por eso existe
+  `user_crud.create_with_hash`.
+- **`get_by_email` pasó a ser insensible a mayúsculas y a espacios.** Comparaba con `==` sobre
+  el texto tal cual, así que " Miguel@… " no encontraba al usuario de "miguel@…" — y eso no se
+  ve como "no te encontré" sino como "mail o contraseña incorrectos".
+- **Los errores se atrapan en las rutas**, contra la convención del proyecto. El handler global
+  contesta un `<h1>No se pudo completar la operación</h1>` pelado, que en un login es una pared:
+  el usuario no tiene dónde volver a intentar.
+- **Las cinco pantallas copian el look de FactuMov** (`templates/auth/_layout.html`): misma
+  columna angosta, marca arriba, tarjeta blanca, verde de InSoft en el botón y el crédito de la
+  casa abajo. No es prolijidad — la persona que usa las dos apps tiene que reconocer **qué
+  contraseña va en cada una**, que es exactamente lo que falló. El ícono
+  (`static/balance360-icon.svg`) es el mismo dibujo que la tarjeta de Balance360 en la landing.
+- **`reset_password.py` es la salida de emergencia**, del lado del servidor: pide la contraseña
+  nueva por consola y no la toma por argumento, para que no quede en el historial del shell. Es
+  para cuando el mail no sale o la dirección de la cuenta ya no existe.
+
 ## Gotchas aprendidos (no repetirlos)
 
 - **HTMX solo hace swap con respuestas 2xx.** Un error 4xx no reemplaza nada en el DOM. Por eso

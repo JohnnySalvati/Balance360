@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Balance360">
+  <title>Balance360</title>
+  <!--
+    El mismo dibujo que la tarjeta de Balance360 en la landing de InSoft
+    (LandingPage/insoft-v3-seo.html, tarjeta `card-b360`), traído acá para que la app pueda
+    mostrar su propia marca sin depender de un archivo que vive fuera de todo repo.
+
+    La construcción es la de la familia: fondo redondeado, un trazo verde de 14 con las puntas
+    redondeadas que dibuja la inicial —acá una B de dos panzas— y el punto blanco donde el
+    trazo se cierra, que es la cita al círculo del interruptor del logo de InSoft.
+  -->
+  <defs>
+    <linearGradient id="b360" gradientUnits="userSpaceOnUse" x1="0" y1="26" x2="0" y2="94">
+      <stop offset="0" stop-color="#2EBD59"/>
+      <stop offset="1" stop-color="#1B9E4B"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="23" fill="#0F172A"/>
+  <path d="M38 87 V33 H66 A13.5 13.5 0 0 1 66 60 H38 M38 60 H66 A13.5 13.5 0 0 1 66 87 H38"
+        fill="none" stroke="url(#b360)"
+        stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="66" cy="60" r="6" fill="#FFFFFF"/>
+</svg>

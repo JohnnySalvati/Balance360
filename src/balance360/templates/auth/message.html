@@ -1,0 +1,22 @@
+{#
+  La pantalla de "listo" y la de "esto no se pudo": un título, un párrafo y la vuelta al login.
+
+  Una sola plantilla para los cuatro finales del circuito —te mandamos el mail, confirmaste,
+  el link no sirve, la contraseña quedó cambiada— porque las cuatro son exactamente eso: un
+  texto y un link. Cuatro archivos que se diferencian en dos strings se desincronizan solos.
+#}
+{% extends "auth/_layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="bg-surface border border-line rounded-[10px] p-4">
+    <h1 class="text-xl font-semibold mb-2">{{ title }}</h1>
+    <p class="text-sm text-muted whitespace-pre-line">{{ message }}</p>
+</div>
+
+<p class="text-sm text-muted mt-4">
+    <a href="{{ link_href | default('/login/', true) }}" class="text-accent">
+        {{ link_text | default('Ir a ingresar', true) }}
+    </a>
+</p>
+{% endblock %}

@@ -10,6 +10,8 @@ from balance360.crud import user as user_crud
 from balance360.dependencies import get_current_user, get_db
 from balance360.models.user import User
 from balance360.schemas.user import UserCreate, UserUpdate
+from balance360.services import notifications
+from balance360.services.security import PASSWORD_MIN_LENGTH
 from balance360.web.responses import toast_error
 from balance360.web.templating import templates
 
@@ -95,12 +97,19 @@ def update_user(
     user = user_crud.get_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    # Antes de escribir: prender el interruptor de una cuenta que estaba apagada es el final
+    # del circuito de registro, y lo único que le avisa al que se anotó que ya puede entrar.
+    # Se mira acá y no adentro del CRUD porque es una transición —de apagado a prendido— y
+    # después del update el estado anterior no existe más.
+    activating = not user.is_active and bool(is_active)
     data = UserUpdate(
         email=email if email else None,
         full_name=full_name if full_name else None,
         is_active=is_active,
     )
     user_crud.update(db, user, data)
+    if activating:
+        notifications.send_account_activated(user.email, user.full_name)
     response = HTMLResponse('<div id="modal"></div>')
     response.headers["HX-Trigger"] = "refreshRows"
     return response
@@ -133,8 +142,8 @@ def reset_password(
     user: User = Depends(get_user_or_404),
     db: Session = Depends(get_db),
 ):
-    if len(new_password) < 8:
-        return toast_error("Debe tener 8 caracteres como minimo")
+    if len(new_password) < PASSWORD_MIN_LENGTH:
+        return toast_error(f"Debe tener {PASSWORD_MIN_LENGTH} caracteres como minimo")
     if new_password != new_password_confirm:
         return toast_error("Las passwords no coinciden")
 

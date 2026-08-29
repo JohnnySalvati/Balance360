@@ -1,0 +1,40 @@
+{% extends "auth/_layout.html" %}
+{% block title %}Elegir una contraseña{% endblock %}
+
+{% block content %}
+<h1 class="text-xl font-semibold mb-1">Elegir una contraseña</h1>
+<p class="text-sm text-muted mb-4">Para {{ email }}.</p>
+
+{# El token viaja en un campo oculto y no en la URL del POST: así no queda en el historial del
+   navegador ni en el log de accesos del proxy, que son dos lugares donde un permiso de una
+   hora no tiene por qué estar. #}
+<form method="post" action="/reset-password"
+      class="bg-surface border border-line rounded-[10px] p-4 flex flex-col gap-3.5">
+    <input type="hidden" name="token" value="{{ token }}">
+
+    {% if error %}
+    <p class="bg-[#fdecea] text-[#c0392b] rounded px-3 py-2 text-sm">{{ error }}</p>
+    {% endif %}
+
+    <div class="flex flex-col gap-1">
+        <label for="password" class="text-xs text-muted">Contraseña nueva</label>
+        <input id="password" type="password" name="password" required autofocus
+               minlength="{{ password_min_length }}" autocomplete="new-password"
+               class="w-full border border-line rounded px-3 py-2 text-sm">
+        <p class="text-xs text-muted">Mínimo {{ password_min_length }} caracteres.</p>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label for="password_confirm" class="text-xs text-muted">Repetila</label>
+        <input id="password_confirm" type="password" name="password_confirm" required
+               minlength="{{ password_min_length }}" autocomplete="new-password"
+               class="w-full border border-line rounded px-3 py-2 text-sm">
+    </div>
+
+    <button type="submit"
+            class="w-full bg-accent hover:bg-accentdark text-white rounded px-4 py-2.5 text-sm
+                   font-medium mt-1">
+        Guardar
+    </button>
+</form>
+{% endblock %}

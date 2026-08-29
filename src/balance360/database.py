@@ -28,6 +28,16 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     smtp_from: str | None = None
 
+    # De acá cuelgan los links que salen por mail: el de confirmar la dirección y el de
+    # elegir una contraseña nueva. Con el dominio real y con https://, porque es lo que la
+    # persona va a abrir desde su casilla — un link a localhost llega inservible.
+    app_base_url: str = "http://localhost:8000"
+
+    # A quién avisarle que alguien se registró. Es el único mail de la app que no le va a un
+    # usuario, y es lo que evita que enterarse de un alta nueva dependa de entrar a la base.
+    # Vacío es válido: el aviso queda en el log.
+    operator_email: str | None = None
+
     @field_validator("smtp_password")
     @classmethod
     def strip_smtp_password(cls, value: str | None) -> str | None:

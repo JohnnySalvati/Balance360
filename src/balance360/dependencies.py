@@ -67,6 +67,12 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    # Un usuario apagado no entra, y tampoco sigue adentro: la cookie es un JWT que vive ocho
+    # horas y no hay fila que revocar, así que sin este chequeo desactivar a alguien no lo saca
+    # hasta que su sesión venza sola. Desde que existe el registro público esto además es lo
+    # que separa "se anotó" de "ve la contabilidad" — la cuenta nace apagada.
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Cuenta desactivada")
     return user
 
 

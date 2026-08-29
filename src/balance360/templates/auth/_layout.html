@@ -1,0 +1,73 @@
+{#
+  El marco de las cinco pantallas sin sesión: ingresar, crear cuenta, recuperar la contraseña,
+  elegirla de nuevo y el resultado de confirmar la dirección.
+
+  **Copia la de FactuMov**, que es la app hermana y la que se escribió después: misma columna
+  angosta, misma marca arriba, misma tarjeta blanca con borde, mismo verde de InSoft en el
+  botón, y el crédito de la casa abajo. Que las dos se parezcan no es prolijidad — la persona
+  que entra a las dos tiene que reconocer dónde está y, sobre todo, **qué contraseña va acá**.
+  La confusión entre las dos ya costó una cuenta: el navegador guarda las credenciales por
+  dominio y las dos apps viven en `*.insoft.net.ar`.
+
+  Es un layout y no una copia por pantalla, por lo mismo que del otro lado: la marca escrita
+  una vez no se puede olvidar en la pantalla que se agregue mañana.
+
+  Tailwind por CDN como el resto de la app, con la paleta de FactuMov declarada arriba. El
+  verde es `#15803d` y no el `#2EBD59` de la marca: sobre blanco, el de la marca da 2,5:1 de
+  contraste y acá abajo es fondo de un botón con texto blanco encima, o sea texto. El verde
+  original sigue vivo tal cual adentro de los dos SVG, que es donde es un dibujo.
+#}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance360 — {% block title %}Iniciar sesión{% endblock %}</title>
+    <link rel="icon" href="/static/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              page: '#f6f7f9',
+              surface: '#ffffff',
+              line: '#dfe3e8',
+              ink: '#1c2430',
+              muted: '#64707d',
+              accent: '#15803d',
+              accentdark: '#116232',
+            },
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-page text-ink min-h-screen flex flex-col">
+
+    <div class="flex-1 w-full max-w-sm mx-auto px-4">
+        <div class="flex items-center justify-center gap-2 pt-8">
+            {# `alt=""` y no "Balance360": el nombre está escrito al lado y un lector de
+               pantalla lo leería dos veces seguidas. #}
+            <img src="/static/balance360-icon.svg" alt="" width="40" height="40">
+            <span class="text-2xl font-bold">Balance360</span>
+        </div>
+
+        <div class="mt-5">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {# Quién es el dueño de esto, para el que todavía no entró. #}
+    <p class="text-center my-8">
+        <a href="https://insoft.net.ar" target="_blank" rel="noreferrer"
+           class="inline-flex items-center gap-1.5 text-muted text-sm no-underline">
+            <span>Una app de</span>
+            {# 40 y no la altura del renglón: el SVG de la casa tiene su propio margen adentro
+               del viewBox, así que la marca se ve a menos de la mitad de lo que mide. #}
+            <img src="/static/insoft-logo.svg" alt="InSoft" height="40" class="h-10">
+        </a>
+    </p>
+
+</body>
+</html>

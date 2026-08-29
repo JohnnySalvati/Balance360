@@ -12,8 +12,6 @@ la que carga con el límite de intentos, la verificación en tiempo constante y 
 del token anterior.
 """
 
-import hashlib
-import secrets
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -23,10 +21,7 @@ from balance360.crud import user as user_crud
 from balance360.exceptions import ApiTokenAuthError, TooManyAttemptsError
 from balance360.models.api_token import ApiToken
 from balance360.services.rate_limit import RateLimiter
-
-# 32 bytes de entropía: 256 bits. Es lo que hace que buscar por hash sin salt sea seguro acá y
-# no lo sea con contraseñas — no existe diccionario ni fuerza bruta contra esto.
-_TOKEN_BYTES = 32
+from balance360.services.security import generate_opaque_token, hash_opaque_token
 
 # El prefijo no aporta seguridad: aporta reconocimiento. Un string suelto en un `.env` o en un
 # log se identifica de un vistazo, que es lo que decide si hay que rotarlo o no.
@@ -34,19 +29,18 @@ TOKEN_PREFIX = "b360_"
 
 
 def generate_token() -> str:
-    """Un token nuevo, en claro. **Es la única vez que existe así**: después solo queda el hash."""
-    return TOKEN_PREFIX + secrets.token_urlsafe(_TOKEN_BYTES)
+    """Un token nuevo, en claro. **Es la única vez que existe así**: después solo queda el hash.
+
+    El prefijo no aporta seguridad y por eso no es parte de `generate_opaque_token`: es de este
+    token y de ninguno de los otros dos, que nunca salen a un `.env` ni a un log.
+    """
+    return TOKEN_PREFIX + generate_opaque_token()
 
 
 def hash_token(token: str) -> str:
-    """La clave con la que se busca la fila.
-
-    Determinístico y sin salt a propósito. Un hash con salt obligaría a traer todos los tokens
-    y probarlos de a uno en cada request; con SHA-256 la búsqueda es un índice único. Lo que
-    haría insegura esa decisión —que el original sea adivinable— no aplica: el original lo
-    genera `generate_token`, no una persona.
-    """
-    return hashlib.sha256(token.encode()).hexdigest()
+    """La clave con la que se busca la fila. El porqué del SHA-256 sin salt está en
+    `services/security.py`, que es de donde salen los tres tokens opacos de la app."""
+    return hash_opaque_token(token)
 
 
 # Cinco intentos cada cuarto de hora, por dirección de mail. Es un presupuesto pensado para

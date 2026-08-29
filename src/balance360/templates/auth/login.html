@@ -1,0 +1,44 @@
+{% extends "auth/_layout.html" %}
+{% block title %}Iniciar sesión{% endblock %}
+
+{% block content %}
+<form method="post" action="/login/"
+      class="bg-surface border border-line rounded-[10px] p-4 flex flex-col gap-3.5">
+
+    {% if error %}
+    <p class="bg-[#fdecea] text-[#c0392b] rounded px-3 py-2 text-sm">{{ error }}</p>
+    {% endif %}
+
+    <div class="flex flex-col gap-1">
+        <label for="email" class="text-xs text-muted">Email</label>
+        {# `autocomplete="email"` y `current-password`, los dos estándar: es la forma de
+           decirle al navegador cuál de las contraseñas guardadas corresponde a este sitio. #}
+        <input id="email" type="email" name="email" required autofocus autocomplete="email"
+               value="{{ email or '' }}"
+               class="w-full border border-line rounded px-3 py-2 text-sm">
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label for="password" class="text-xs text-muted">Contraseña</label>
+        <input id="password" type="password" name="password" required
+               autocomplete="current-password"
+               class="w-full border border-line rounded px-3 py-2 text-sm">
+    </div>
+
+    <button type="submit"
+            class="w-full bg-accent hover:bg-accentdark text-white rounded px-4 py-2.5 text-sm
+                   font-medium mt-1">
+        Entrar
+    </button>
+</form>
+
+{# Los dos links van debajo del formulario y no al lado del campo. Quien necesita el primero
+   ya falló una vez, y donde mira después del cartel rojo es acá abajo; arriba competirían con
+   el botón de entrar, que es lo que se aprieta el 99% de las veces. #}
+<p class="text-sm text-muted mt-4">
+    <a href="/forgot-password" class="text-accent">Olvidé mi contraseña</a>
+</p>
+<p class="text-sm text-muted mt-2">
+    ¿No tenés cuenta? <a href="/register" class="text-accent">Creá una</a>.
+</p>
+{% endblock %}

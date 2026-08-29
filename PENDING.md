@@ -61,3 +61,46 @@ The second consequence is the one that keeps producing bugs. `status` is a *deri
 **Interim workaround (2026-08-25):** un-confirming a sale credit note whose original invoice carries serial-tracked products is rejected outright, because the link needed to restore them no longer exists. The purchase side round-trips correctly (`purchase_line_id` is never cleared) and needs nothing from this entry.
 
 **Trigger — this is a business question, not a scheduling one:** does a unit that came back through a credit note get *resold*? If that happens once a year, this can wait. If it happens regularly, every occurrence silently erases a sale from the record, and that justifies the work.
+
+### Per-entity authorization for the web screens
+**Added:** 2026-08-29 — surfaced by the public sign-up
+
+**Why:** `web/` shows everything to anyone who is logged in. `entity_crud.get_all(db)` is what
+transactions, reports, invoices and the dashboard call; `get_by_user` exists but only the `/api`
+side uses it, to route an incoming FactuMov invoice to the right entity. Any user also reaches
+Configuración → Usuarios, where they can create accounts and reset anybody's password.
+
+That was defensible while every user was created by hand by the one person who owns all three
+entities. It stopped being invisible the day the login grew a "Crear cuenta" link: from then on,
+the only thing standing between a stranger and InSoft's, Familia's and Escuela's books is
+`is_active=False` on the new account plus a human deciding to flip it.
+
+**The gate is real, and it is also the whole defense.** That is the part worth writing down: the
+sign-up is safe *because* of one boolean, not because the data is scoped.
+
+**Scope:**
+- Filter every `get_all` behind the screens by the current user's memberships — the entity
+  selector, the lists, the reports, the dashboard.
+- Decide what a user with no memberships sees: an empty app is fine, an error page is not.
+- Separate "can use the app" from "can administer users": today they are the same thing, and
+  every activated account can deactivate the one that activated it.
+- Only then is it worth reconsidering whether a confirmed account could be activated
+  automatically instead of by hand.
+
+### Password reset can't close the sessions that are already open
+**Added:** 2026-08-29
+
+**Why:** FactuMov revokes every `user_sessions` row when a password is reset — whoever resets
+because they suspect someone got in has to be left alone inside. Here the session is a JWT
+signed with `SECRET_KEY` and carrying its own 8-hour expiry: there is no row to revoke, so a
+session opened by someone else survives the reset for up to eight hours.
+
+**Scope (two options, pick when it matters):**
+- A `token_version` column on `users`, bumped on reset and carried in the JWT payload;
+  `get_current_user` compares them. Cheap, no new table, and it invalidates *all* sessions.
+- Or move to opaque sessions in a table, like FactuMov, which also buys "log out this device".
+
+**Trigger:** the day an account is actually compromised, or the first time someone asks to see
+their open sessions. Until then the 8-hour window plus the `is_active` switch — which *does*
+take effect on the next request — is enough.
+

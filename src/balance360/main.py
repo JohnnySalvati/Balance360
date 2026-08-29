@@ -72,6 +72,9 @@ app.include_router(import_rule.router, prefix="/api", dependencies=API_AUTH)
 app.include_router(issued_invoice.router, prefix="/api", dependencies=API_AUTH)
 app.include_router(web_router.router, dependencies=[Depends(get_current_user)])
 app.include_router(auth.router)
+# Sin `get_current_user`, igual que el de arriba: son las pantallas que se usan justamente
+# cuando no hay sesión —crear cuenta, confirmar la dirección, recuperar la contraseña—.
+app.include_router(auth.public_router)
 
 
 @app.exception_handler(401)

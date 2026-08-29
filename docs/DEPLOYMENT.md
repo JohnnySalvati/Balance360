@@ -144,6 +144,8 @@ scp johnny@<vm>:~/Balance360/backup_20260820.dump .\prod.dump
    SMTP_USER=miguelsalvati@gmail.com
    SMTP_PASSWORD=<app password de Google, sin espacios>
    SMTP_FROM=contacto@insoft.net.ar
+   APP_BASE_URL=https://balance360.insoft.net.ar
+   OPERATOR_EMAIL=miguelsalvati@gmail.com
    ```
 
    El host de `DATABASE_URL` es `db`: el nombre del servicio en el compose.
@@ -156,6 +158,13 @@ scp johnny@<vm>:~/Balance360/backup_20260820.dump .\prod.dump
    destinatario. Si el alias no está verificado en Gmail, Gmail **reescribe** el
    `From` en silencio y el mail llega desde `@gmail.com`. Detalle completo en
    `.env.example`.
+
+   `APP_BASE_URL` es de donde cuelgan los links que salen por mail: el de confirmar
+   la dirección al crear una cuenta y el de recuperar la contraseña. Tiene default
+   —`http://localhost:8000`— así que **un deploy sin esta variable no falla: manda
+   links a localhost**, que es el peor de los dos mundos porque el que los recibe no
+   tiene forma de saber por qué no le funcionan. `OPERATOR_EMAIL` es a quién le llega
+   el aviso de que alguien se registró; vacío es válido y queda en el log.
 3. Copiar los certificados (sección 6).
 4. `docker compose -f docker-compose.prod.yml up -d --build`
 5. Restaurar datos (sección 3) o dejar que las migraciones creen el esquema vacío.

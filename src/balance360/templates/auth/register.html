@@ -1,0 +1,54 @@
+{% extends "auth/_layout.html" %}
+{% block title %}Crear cuenta{% endblock %}
+
+{% block content %}
+<h1 class="text-xl font-semibold mb-1">Crear cuenta</h1>
+<p class="text-sm text-muted mb-4">
+    Te mandamos un mail para confirmar la dirección. Después de confirmarla, la cuenta queda a
+    la espera de que la habilitemos — te avisamos cuando puedas entrar.
+</p>
+
+<form method="post" action="/register"
+      class="bg-surface border border-line rounded-[10px] p-4 flex flex-col gap-3.5">
+
+    {% if error %}
+    <p class="bg-[#fdecea] text-[#c0392b] rounded px-3 py-2 text-sm">{{ error }}</p>
+    {% endif %}
+
+    <div class="flex flex-col gap-1">
+        <label for="full_name" class="text-xs text-muted">Nombre y apellido</label>
+        <input id="full_name" type="text" name="full_name" required autofocus
+               maxlength="{{ full_name_max_length }}" autocomplete="name"
+               value="{{ full_name or '' }}"
+               class="w-full border border-line rounded px-3 py-2 text-sm">
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label for="email" class="text-xs text-muted">Email</label>
+        <input id="email" type="email" name="email" required
+               maxlength="{{ email_max_length }}" autocomplete="email"
+               value="{{ email or '' }}"
+               class="w-full border border-line rounded px-3 py-2 text-sm">
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <label for="password" class="text-xs text-muted">Contraseña</label>
+        {# `new-password` y no `password`: es lo que hace que el navegador ofrezca generar una
+           y no que autocomplete la de otro sitio del mismo dominio. #}
+        <input id="password" type="password" name="password" required
+               minlength="{{ password_min_length }}" autocomplete="new-password"
+               class="w-full border border-line rounded px-3 py-2 text-sm">
+        <p class="text-xs text-muted">Mínimo {{ password_min_length }} caracteres.</p>
+    </div>
+
+    <button type="submit"
+            class="w-full bg-accent hover:bg-accentdark text-white rounded px-4 py-2.5 text-sm
+                   font-medium mt-1">
+        Crear cuenta
+    </button>
+</form>
+
+<p class="text-sm text-muted mt-4">
+    ¿Ya tenés cuenta? <a href="/login/" class="text-accent">Entrá</a>.
+</p>
+{% endblock %}
