@@ -36,3 +36,16 @@ class Entity(Base, TimestampMixin):
     fiscal_identities: Mapped[list["FiscalIdentity"]] = relationship(
         secondary="entity_fiscal_identities", back_populates="entities"
     )
+
+    @property
+    def fiscal_identity_ids(self) -> list[uuid.UUID]:
+        """Los ids de las identidades fiscales, que es como las nombran los schemas.
+
+        `EntityCreate` y `EntityUpdate` reciben ids, asi que `EntityRead` devuelve ids: entrada
+        y salida hablan el mismo idioma y el cliente puede mandar de vuelta lo que recibio. Sin
+        esta propiedad la relacion se llama `fiscal_identities` y el campo `fiscal_identity_ids`
+        no existe en ningun lado, con lo cual `from_attributes` no lo encuentra y **la respuesta**
+        no valida: un 500 en cada GET de `/api/entities`, que es por donde FactuMov prueba el
+        token.
+        """
+        return [identity.id for identity in self.fiscal_identities]
