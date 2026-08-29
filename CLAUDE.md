@@ -116,6 +116,13 @@ crea una factura, se copia un hecho consumado. Entra `formal`, `confirmed`, `aut
   `create_api_token.py`) o la cookie de siempre. Los handlers de 401 y de `Balance360Error`
   responden JSON cuando el path empieza con `/api`: antes el 401 redirigía al login y un
   cliente HTTP recibía el HTML con status 200.
+- **El token no caduca: se revoca.** `api_tokens` no tiene expiración, solo `revoked_at`
+  (`NULL` = vivo), así que se emite una vez por integración y por base. `revoke_api_token.py`
+  es el otro lado del par: sin nombre lista los del usuario con su `last_used_at` —la pregunta
+  previa a revocar cualquier credencial vieja—, y con un nombre o un prefijo de id revoca ese.
+  Emitir sin poder revocar dejaba una credencial que solo se apagaba con un UPDATE a mano
+  contra la base de producción, que es justo lo que no hay que estar haciendo el día que un
+  token se filtra.
 - **Los enums viajan por nombre, no por valor.** `CondicionIva.FINAL` vale 6 acá y 5 en
   FactuMov, que corrigió los códigos contra la tabla de ARCA. Por valor, un consumidor final
   entraría como monotributista sin dar error. **Los códigos de acá siguen sin revisar** — ver
