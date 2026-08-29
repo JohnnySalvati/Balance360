@@ -104,6 +104,39 @@ Entidades reales: InSoft (empresa), Familia, Escuela. Los clientes son `contact`
   `__new__` para que `.value` siga siendo el string que persiste SQLAlchemy.
 - Punto de venta 2 = portal de ARCA (manual); punto de venta 5 = esta app vía web services.
 
+### Registro de comprobantes de FactuMov (2026-08-29)
+
+FactuMov emite y `POST /api/invoices/issued` lo registra acá. Lo que llega ya tiene CAE: no se
+crea una factura, se copia un hecho consumado. Entra `formal`, `confirmed`, `authorized` y
+**impago** — el cobro es otro hecho, con otra fecha.
+
+- **`/api` ahora pide credencial.** Antes se montaba pelado: solo `web_router` llevaba
+  `Depends(get_current_user)`, así que cualquiera con la URL leía y escribía. `get_api_user`
+  acepta el token de máquina (`Authorization: Bearer`, tabla `api_tokens`, se emite con
+  `create_api_token.py`) o la cookie de siempre. Los handlers de 401 y de `Balance360Error`
+  responden JSON cuando el path empieza con `/api`: antes el 401 redirigía al login y un
+  cliente HTTP recibía el HTML con status 200.
+- **Los enums viajan por nombre, no por valor.** `CondicionIva.FINAL` vale 6 acá y 5 en
+  FactuMov, que corrigió los códigos contra la tabla de ARCA. Por valor, un consumidor final
+  entraría como monotributista sin dar error. **Los códigos de acá siguen sin revisar** — ver
+  la nota de FactuMov en `docs/emision-y-envio.md`.
+- **`unit_price` pasó a cuatro decimales.** Acá el unitario es siempre neto; en FactuMov una B
+  guarda el precio con el IVA adentro. Una B de $100 al 21% necesita un neto de 82,6446: con
+  dos decimales el total más cercano es 99,99, un centavo menos que el CAE.
+- **Las líneas se colapsan a cantidad 1** cuando la letra es B o cuando la cantidad es
+  fraccionaria, con el importe de la línea como unitario y la cantidad original en la
+  descripción ("Consultoría (1,5 × $8.000)"). `quantity` es entero porque está atado al stock
+  y a los seriales; truncar 1,5 facturaría de menos.
+- **Se verifica que los importes cierren** contra los que autorizó ARCA, y si no, no se guarda
+  nada. Como los totales se derivan de las líneas, una traducción mal hecha no daría error:
+  daría un total distinto que nadie mira hasta la declaración del mes siguiente.
+- **Idempotente por `invoices.external_source` + `external_id`**, con unique. El que llama
+  reintenta, y un comprobante duplicado no se puede borrar sin dejar un agujero en la
+  numeración.
+- La entidad se deduce del CUIT del emisor, entre las entidades del usuario dueño del token.
+  Con más de una candidata se pide explícita: elegir por nuestra cuenta sería mandar plata al
+  balance equivocado en silencio.
+
 ## Gotchas aprendidos (no repetirlos)
 
 - **HTMX solo hace swap con respuestas 2xx.** Un error 4xx no reemplaza nada en el DOM. Por eso

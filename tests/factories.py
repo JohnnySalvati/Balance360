@@ -27,7 +27,9 @@ from balance360.models.import_rule import ImportRule
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.product import Product
+from balance360.models.entity_membership import EntityMembership
 from balance360.models.serial_number import SerialNumber
+from balance360.models.user import User
 from balance360.services.import_rule import Classification
 
 
@@ -76,6 +78,27 @@ def make_contact(
     db.commit()
     db.refresh(contact)
     return contact
+
+
+def make_user(db: Session, email=None, full_name="Test User"):
+    user = User(
+        id=uuid.uuid4(),
+        email=email or f"{uuid.uuid4().hex[:12]}@testing.com.ar",
+        hashed_password="x",
+        full_name=full_name,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def make_membership(db: Session, user_id: uuid.UUID, entity_id: uuid.UUID):
+    membership = EntityMembership(id=uuid.uuid4(), user_id=user_id, entity_id=entity_id)
+    db.add(membership)
+    db.commit()
+    db.refresh(membership)
+    return membership
 
 
 def make_currency(

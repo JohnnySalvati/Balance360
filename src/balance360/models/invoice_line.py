@@ -23,7 +23,24 @@ class InvoiceLine(Base, TimestampMixin):
     product_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("products.id"))
     description: Mapped[str | None] = mapped_column(String(200))
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
-    unit_price: Mapped[Decimal] = mapped_column(Numeric(precision=18, scale=2))
+    # Cuatro decimales y no dos, y el motivo es entero de la integración con FactuMov.
+    #
+    # Acá el precio unitario se guarda **neto** siempre: para una factura B, el bruto se
+    # deriva (`gross_unit_price = money(unit_price * (1 + iva_rate/100))`). FactuMov hace lo
+    # contrario —en B guarda el precio con el IVA adentro, que es como se carga y como se
+    # imprime—, así que registrar una B suya obliga a convertir el precio a neto acá.
+    #
+    # Con dos decimales esa conversión **no cierra**, y no es un caso raro: una B de $100 al
+    # 21% necesita un neto de 82,6446. El más cercano de dos decimales es 82,64, que vuelve a
+    # dar 99,99 — un centavo menos que lo que ARCA autorizó. Con 82,65 da 100,01. O sea que el
+    # total de $100 era **inexpresable**, y un comprobante autorizado cuyo total no es el del
+    # CAE es exactamente lo que `IssuedInvoiceMismatchError` no deja entrar.
+    #
+    # El cambio es una ampliación: los precios que ya estaban tienen dos decimales y siguen
+    # valiendo lo mismo. Lo único que se ve distinto es una línea traída de FactuMov, que
+    # puede mostrar un unitario con cuatro decimales — el importe de la línea, que es lo que
+    # se lee, sigue redondeado a dos por `money()`.
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(precision=18, scale=4))
     iva_aliquot: Mapped[IvaAliquot] = mapped_column(
         Enum(IvaAliquot, values_callable=lambda obj: [e.name for e in obj])
     )

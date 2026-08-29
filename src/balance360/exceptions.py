@@ -85,3 +85,28 @@ class QrValidationError(Balance360Error):
 class EmailError(Balance360Error):
     """Fallo al enviar un mail: SMTP sin configurar, rechazo del servidor,
     destinatario ausente. Sube al handler global y sale como toast."""
+
+
+class IssuedInvoiceError(Balance360Error):
+    """No se pudo registrar acá un comprobante que ya emitió otra app (FactuMov).
+
+    Es siempre un problema de datos que le falta a Balance360 —el CUIT que no está cargado, la
+    entidad que no se puede deducir, el comprobante que ya estaba— y no una falla de la otra
+    app. Por eso el mensaje se propaga tal cual: es lo único que el usuario de FactuMov va a
+    ver, y tiene que decirle qué hacer de este lado.
+    """
+
+
+class IssuedInvoiceConflictError(IssuedInvoiceError):
+    status = 409
+
+
+class IssuedInvoiceMismatchError(IssuedInvoiceError):
+    """Los importes que reproduce Balance360 no dan los que ARCA autorizó.
+
+    Corta el registro en vez de guardar la diferencia. Un comprobante autorizado cuyo total
+    acá no es el del CAE es peor que un comprobante ausente: el ausente se nota, y este se
+    arrastra a los reportes y a la declaración sin que nadie lo mire.
+    """
+
+    status = 422

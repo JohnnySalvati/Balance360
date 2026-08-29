@@ -16,6 +16,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 from balance360.models import (  # noqa: F401
     account,
+    api_token,
     attachment,
     category,
     contact,
