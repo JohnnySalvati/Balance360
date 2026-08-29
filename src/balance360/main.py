@@ -23,6 +23,7 @@ from balance360.models import (  # noqa: F401
 )
 from balance360.routers import (
     account,
+    api_token,
     category,
     contact,
     currency,
@@ -52,6 +53,12 @@ app.mount(path="/static", app=static_files, name="static")
 # `get_api_user` acepta el token de máquina o la cookie de sesión — ver su docstring—, así
 # que esto no rompe nada de lo que ya funcionaba desde el navegador.
 API_AUTH = [Depends(get_api_user)]
+
+# **La excepción, y la única.** `/api/tokens` es el endpoint que emite la credencial con la
+# que se entra a todo lo demás: pedirle credencial sería pedir lo que todavía no se tiene.
+# Autentica con mail y contraseña, y por eso es el único de la app con límite de intentos —
+# ver `services/rate_limit.py`.
+app.include_router(api_token.router, prefix="/api")
 
 app.include_router(category.router, prefix="/api", dependencies=API_AUTH)
 app.include_router(currency.router, prefix="/api", dependencies=API_AUTH)
@@ -92,7 +99,13 @@ async def balance360_error_handler(request: FastAPIRequest, exc: Balance360Error
     # HTTP que recibe `<h1>No se pudo completar…` no tiene de dónde sacar el motivo, y con
     # 400 fijo tampoco puede distinguir "esto se arregla y reintentás" de "esto ya estaba".
     if request.url.path.startswith("/api"):
-        return JSONResponse({"detail": str(exc)}, status_code=exc.status)
+        # `Retry-After` cuando el error trae con qué armarlo. Un 429 pelado no le dice al
+        # cliente cuánto esperar, así que reintenta enseguida y se gasta el resto de la
+        # ventana en pedidos que ya sabemos que van a fallar. Segundos enteros y redondeando
+        # para arriba: un `Retry-After: 0` invita a reintentar de inmediato.
+        retry_after = getattr(exc, "retry_after", None)
+        headers = {"Retry-After": str(int(retry_after) + 1)} if retry_after is not None else None
+        return JSONResponse({"detail": str(exc)}, status_code=exc.status, headers=headers)
 
     if request.headers.get("HX-Request"):
         return toast_error(str(exc))

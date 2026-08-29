@@ -110,3 +110,30 @@ class IssuedInvoiceMismatchError(IssuedInvoiceError):
     """
 
     status = 422
+
+
+class ApiTokenAuthError(Balance360Error):
+    """El mail o la contraseña con que se pidió un token de `/api` no son.
+
+    401 y no 400: lo que falló es la autenticación, y el que llama —FactuMov— necesita
+    distinguirlo para no reintentar. El mensaje es el mismo para un mail que no existe y para
+    una contraseña equivocada, a propósito: dos mensajes distintos convierten este endpoint
+    en una lista de qué direcciones tienen cuenta acá.
+    """
+
+    status = 401
+
+
+class TooManyAttemptsError(Balance360Error):
+    """Se agotó el presupuesto de intentos de una ventana.
+
+    Lleva los segundos que faltan porque la respuesta útil no es "no" sino "todavía no": el
+    handler de `main.py` los saca de acá para el header `Retry-After`, que es lo que le
+    permite a un cliente esperar en vez de reintentar en loop y gastar el resto de la ventana.
+    """
+
+    status = 429
+
+    def __init__(self, message: str, retry_after: float) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after

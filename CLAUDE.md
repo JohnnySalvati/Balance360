@@ -123,6 +123,31 @@ crea una factura, se copia un hecho consumado. Entra `formal`, `confirmed`, `aut
   Emitir sin poder revocar dejaba una credencial que solo se apagaba con un UPDATE a mano
   contra la base de producción, que es justo lo que no hay que estar haciendo el día que un
   token se filtra.
+- **El token se lo emite el que lo va a usar (2026-08-29).** `POST /api/tokens` recibe mail,
+  contraseña y un nombre, y devuelve un token nuevo. Es el **único** router de `/api` que se
+  monta sin `get_api_user`, y no puede ser de otra manera: es el que autentica. Reemplaza al
+  `create_api_token.py` corrido por ssh, que hacía que conectar una integración dependiera de
+  quien administra la VM; el script sigue estando para emitir a mano. La contraseña **se usa y
+  no se guarda en ningún lado** — ese es todo el punto: el que llama la cambia por una
+  credencial que se revoca sola, y se olvida de ella.
+- **Emitir revoca el token anterior con el mismo nombre.** Como no caducan, sin esto cada
+  reconexión dejaría vivo un secreto que no usa nadie y que nadie va a acordarse de apagar. Por
+  nombre y no por usuario: apagar todo lo que la persona tenga emitido porque reconectó
+  FactuMov le rompería las otras integraciones sin avisarle.
+- **`services/rate_limit.py`: cinco intentos cada quince minutos, por mail.** Es el primer
+  límite de intentos de esta app y existe porque `/api/tokens` es el primer endpoint que
+  contesta "esa contraseña no es" sin haber autenticado a nadie, o sea un oráculo. Se cuentan
+  **los fallidos**, que es lo único que defiende de algo. La clave es el mail y **no la IP**:
+  todos los pedidos legítimos vienen de la misma —la del servidor de FactuMov, que llama en
+  nombre de cada usuario—, así que por IP el primero que se pasa deja afuera a todos los demás;
+  y detrás de Caddy la IP que ve la app es la del proxy salvo que se configure el reenvío,
+  mientras que leer `X-Forwarded-For` a mano es un límite que cualquiera esquiva mandando uno
+  distinto en cada request. Es un piso, no el techo: el rociado —una contraseña contra mil
+  direcciones— se frena en el borde. En memoria y por proceso, igual que el de FactuMov.
+- **El mensaje de "no" es el mismo** para un mail que no existe y para una contraseña
+  equivocada, y el mail inexistente igual paga un `dummy_verify()`: dos mensajes distintos —o
+  dos tiempos distintos— convierten el endpoint en la lista de qué direcciones tienen cuenta
+  acá. La cuenta desactivada sí dice qué pasa, porque a esa altura ya demostró la contraseña.
 - **Los enums viajan por nombre, no por valor.** `CondicionIva.FINAL` vale 6 acá y 5 en
   FactuMov, que corrigió los códigos contra la tabla de ARCA. Por valor, un consumidor final
   entraría como monotributista sin dar error. **Los códigos de acá siguen sin revisar** — ver

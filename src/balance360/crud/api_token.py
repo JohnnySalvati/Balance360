@@ -59,3 +59,24 @@ def touch(db: Session, api_token: ApiToken) -> None:
 def revoke(db: Session, api_token: ApiToken) -> None:
     api_token.revoked_at = datetime.now(timezone.utc)
     db.flush()
+
+
+def get_active_by_name(db: Session, user_id: uuid.UUID, name: str) -> list[ApiToken]:
+    """Los tokens vivos que ese usuario tiene con ese nombre.
+
+    Existe para que emitir uno nuevo pueda apagar al anterior de la misma integración. Es una
+    lista y no un `ApiToken | None` porque nada impide que haya dos: `create` nunca miró el
+    nombre, y los que quedaron de antes hay que poder apagarlos a todos.
+    """
+    tokens = (
+        db.execute(
+            select(ApiToken).where(
+                ApiToken.user_id == user_id,
+                ApiToken.name == name,
+                ApiToken.revoked_at.is_(None),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return list(tokens)

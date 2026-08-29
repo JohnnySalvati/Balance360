@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from balance360.models.base import Base
+from balance360.services.rate_limit import reset_all
 
 
 class Settings(BaseSettings):
@@ -23,6 +24,15 @@ def tables(engine):
     Base.metadata.create_all(engine)
     yield
     Base.metadata.drop_all(engine)
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiters():
+    """Los limitadores son globales de módulo: sin esto, el que gasta la ventana se la deja
+    gastada al test siguiente, y el que falla no es el que lo rompió."""
+    reset_all()
+    yield
+    reset_all()
 
 
 @pytest.fixture(scope="function")
