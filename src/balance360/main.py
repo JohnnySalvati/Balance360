@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi import Request as FastAPIRequest
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from balance360.dependencies import get_api_user, get_current_user
@@ -45,6 +45,20 @@ app = FastAPI(title="Balance360")
 static_files = StaticFiles(directory=Path(__file__).parent / "static")
 
 app.mount(path="/static", app=static_files, name="static")
+
+
+# Balance360 está entera detrás del login: no hay una sola página que valga la pena indexar.
+# Acá no alcanza con dejar un archivo, como en FactuMov: el proxy le pasa todo a FastAPI y
+# `static_files` cuelga de `/static`, así que el archivo quedaría en `/static/robots.txt` y
+# un crawler nunca lo mira — robots.txt solo cuenta si está en la raíz del dominio. Sin esto,
+# `/robots.txt` cae en el 404 JSON de la app, que para Google significa "rastreá todo".
+#
+# Va antes de los routers para que ninguno lo tape, y colgado de `app` y no de `web_router`
+# para que no herede el `Depends(get_current_user)`: un robots.txt que redirige al login no
+# lo lee nadie.
+@app.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
+async def robots_txt() -> str:
+    return "User-agent: *\nDisallow: /\n"
 
 # Todo `/api` pide credencial. Hasta acá no pedía ninguna: los routers JSON se montaban
 # pelados y solo `web_router` llevaba `Depends(get_current_user)`, así que cualquiera que
