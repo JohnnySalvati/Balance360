@@ -8,6 +8,7 @@ from balance360.crud import contact as contact_crud
 from balance360.dependencies import get_db
 from balance360.enums import CondicionIva, ContactType, DocType
 from balance360.schemas.contact import ContactCreate, ContactUpdate
+from balance360.services import contact as contact_service
 from balance360.services import padron as padron_service
 from balance360.web.templating import templates
 
@@ -81,7 +82,7 @@ def create_contact(
     email: str | None = Form(default=""),
     address: str | None = Form(default=""),
 ):
-    contact_crud.create(
+    contact_service.create(
         db,
         ContactCreate(
             name=name,
@@ -124,7 +125,7 @@ def update_contact(
     contact = contact_crud.get_by_id(db, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
-    contact_crud.update(
+    contact_service.update(
         db,
         contact,
         ContactUpdate(

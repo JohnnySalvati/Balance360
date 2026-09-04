@@ -239,6 +239,35 @@ propia dependía de que hubiera alguien más adentro.
   nueva por consola y no la toma por argumento, para que no quede en el historial del shell. Es
   para cuando el mail no sale o la dirección de la cuenta ya no existe.
 
+### El CUIT de un contacto es único (2026-09-04)
+
+Un CUIT identifica a un sujeto, así que dos `contacts` con el mismo CUIT son dos mitades de la
+historia de un mismo cliente y ningún reporte por contacto muestra el total. Pasó con AOMA:
+"AOMA Bs. As." y "Asociacion Obrera Minera Argentina", los dos con 30503218107, con los
+comprobantes repartidos entre las dos fichas.
+
+- **Dos capas, y las dos hacen falta.** `services/contact.py` da el mensaje que se puede leer
+  (nombra al contacto que ya tiene ese CUIT); el índice único parcial `uq_contacts_tax_id` es
+  la garantía: dos requests concurrentes pasan los dos por la validación antes de que ninguno
+  haya insertado, y cualquier script suelto escribe por `crud` sin pasar por el servicio.
+- **Parcial (`WHERE tax_id IS NOT NULL`)**: el contacto sin CUIT es legítimo y frecuente —el
+  consumidor final, la persona a la que no se le factura— y de esos tiene que haber muchos.
+  En Postgres varios NULL ya conviven en un único; el `WHERE` deja escrito que es la intención.
+- **`""` no es NULL** y sí choca contra el índice. El validador de `ContactCreate`/`ContactUpdate`
+  normaliza la cadena vacía a NULL, y la migración limpia lo que ya haya entrado por la API JSON.
+- **Todas las altas pasan por `services/contact.py`**: el modal de Configuración, el alta rápida
+  desde una factura (`web/invoices.py`), el `POST /api/contacts` y el receptor que crea
+  `services/issued_invoice.py` cuando llega un comprobante de FactuMov con un CUIT desconocido.
+- **`get_by_tax_id` hace `.first()` sobre una consulta sin orden**, así que con duplicados
+  devolvía cualquiera de las dos fichas — y es la función que resuelve el receptor de lo que
+  llega de FactuMov y el proveedor de un PDF importado. El índice es lo que la vuelve
+  determinista.
+- **Unificar dos fichas del mismo CUIT sí toca comprobantes ya autorizados**, contra la regla de
+  no editar lo emitido, y está bien: del receptor lo único que viaja en el pedido del CAE es el
+  CUIT, y el CUIT no cambia. Cambia a cuál de las dos fichas del mismo sujeto apunta la fila.
+  Con un CUIT distinto sería otra cosa y no se arreglaría con un UPDATE.
+  Herramienta: `scripts/merge_duplicate_contacts.sql`.
+
 ## Gotchas aprendidos (no repetirlos)
 
 - **HTMX solo hace swap con respuestas 2xx.** Un error 4xx no reemplaza nada en el DOM. Por eso

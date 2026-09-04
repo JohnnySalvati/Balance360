@@ -27,10 +27,16 @@ def get_by_id(db: Session, contact_id: uuid.UUID) -> Contact | None:
     return contact
 
 
-def get_by_tax_id(db: Session, tax_id: str) -> Contact | None:
-    return (
-        db.execute(select(Contact).where(Contact.tax_id == digits_only(tax_id))).scalars().first()
-    )
+def get_by_tax_id(db: Session, tax_id: str, exclude_id: uuid.UUID | None = None) -> Contact | None:
+    """El contacto que tiene ese CUIT, o None.
+
+    `exclude_id` es para la edición: al validar un contacto contra sí mismo, "ya existe uno
+    con este CUIT" siempre sería verdad —es él— y no se podría guardar ningún otro cambio.
+    """
+    stmt = select(Contact).where(Contact.tax_id == digits_only(tax_id))
+    if exclude_id is not None:
+        stmt = stmt.where(Contact.id != exclude_id)
+    return db.execute(stmt).scalars().first()
 
 
 def create(db: Session, data: ContactCreate) -> Contact:
@@ -41,7 +47,7 @@ def create(db: Session, data: ContactCreate) -> Contact:
     return db_contact
 
 
-def delete(db: Session, contact: Contact):
+def delete(db: Session, contact: Contact) -> None:
     db.delete(contact)
     db.flush()
 

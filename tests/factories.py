@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+import itertools
 import uuid
 from decimal import Decimal
 
@@ -56,10 +57,28 @@ def make_fiscal_identity(
     return fiscal_identity
 
 
+_tax_id_seq = itertools.count(1)
+
+# Sentinela: `tax_id=None` tiene que poder significar "contacto sin CUIT", que es un caso
+# real y el único que el índice único deja repetir. Con None como default no habría forma
+# de pedirlo.
+_AUTO = object()
+
+
+def _next_tax_id() -> str:
+    """Un CUIT distinto por contacto.
+
+    `contacts.tax_id` es único: con un default fijo, el segundo `make_contact` de un test
+    —o el que `make_invoice` crea solo cuando no le pasan contacto— rebotaba contra el
+    índice, y el error apuntaba al factory en vez de a lo que el test estaba probando.
+    """
+    return f"20{next(_tax_id_seq):09d}"
+
+
 def make_contact(
     db: Session,
     name="Test",
-    tax_id="11111111111",
+    tax_id=_AUTO,
     contact_type=ContactType.both,
     email="test@testing.com.ar",
     condicion_iva=CondicionIva.INSCRIPTO,
@@ -68,7 +87,7 @@ def make_contact(
     contact = Contact(
         id=uuid.uuid4(),
         name=name,
-        tax_id=tax_id,
+        tax_id=_next_tax_id() if tax_id is _AUTO else tax_id,
         contact_type=contact_type,
         email=email,
         condicion_iva=condicion_iva,

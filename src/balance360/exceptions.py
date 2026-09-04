@@ -41,6 +41,18 @@ class ProductDeleteError(Balance360Error):
     pass
 
 
+class ContactDuplicateTaxIdError(Balance360Error):
+    """Ya hay un contacto cargado con ese CUIT.
+
+    409 y no 400: el dato que mandaron no está mal formado, choca con algo que ya existe, y
+    el que llama —una persona en el modal o FactuMov contra `/api`— tiene que poder
+    distinguir "corregí el número" de "usá el contacto que ya está". El mensaje nombra al
+    contacto existente porque sin eso la respuesta es un "no" sin dónde buscar.
+    """
+
+    status = 409
+
+
 class SerialValidationError(Balance360Error):
     pass
 

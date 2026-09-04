@@ -18,14 +18,23 @@ class ContactBase(BaseModel):
     address: str | None = None
 
 
-class ContactCreate(ContactBase):
-    pass
+def _normalize_tax_id(v: str | None) -> str | None:
+    """Deja solo los dígitos, y la cadena vacía la convierte en NULL.
 
+    El `or None` es lo que sostiene el índice único parcial de `contacts`: en Postgres
+    varios NULL conviven, pero varias cadenas vacías no. Sin esto, el segundo contacto sin
+    CUIT cargado por un camino que manda `""` en vez de omitir el campo —la API JSON, el
+    alta rápida desde una factura— rebotaría contra el índice diciendo que el CUIT está
+    repetido, que es justo lo que no pasa.
+    """
+    return digits_only(v) or None
+
+
+class ContactCreate(ContactBase):
     @field_validator("tax_id")
     @classmethod
-    def validate_tax_id(cls, v: str) -> str | None:
-        tax_id = None if v is None else digits_only(v)
-        return tax_id
+    def validate_tax_id(cls, v: str | None) -> str | None:
+        return _normalize_tax_id(v)
 
 
 class ContactRead(ContactBase):
@@ -47,9 +56,8 @@ class ContactUpdate(BaseModel):
 
     @field_validator("tax_id")
     @classmethod
-    def validate_tax_id(cls, v: str) -> str | None:
-        tax_id = None if v is None else digits_only(v)
-        return tax_id
+    def validate_tax_id(cls, v: str | None) -> str | None:
+        return _normalize_tax_id(v)
 
 
 class ContactShort(BaseModel):

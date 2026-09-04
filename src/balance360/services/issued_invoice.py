@@ -45,6 +45,7 @@ from balance360.schemas.contact import ContactCreate
 from balance360.schemas.invoice import InvoiceCreate
 from balance360.schemas.invoice_line import InvoiceLineCreate
 from balance360.schemas.issued_invoice import IssuedInvoiceCreate, IssuedInvoiceLine
+from balance360.services import contact as contact_service
 from balance360.services.text import digits_only
 
 logger = logging.getLogger(__name__)
@@ -243,7 +244,7 @@ def _contact(db: Session, data: IssuedInvoiceCreate) -> Contact:
         if existing is not None:
             return existing
 
-    return contact_crud.create(
+    return contact_service.create(
         db,
         ContactCreate(
             name=customer.name,

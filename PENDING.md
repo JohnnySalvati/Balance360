@@ -103,4 +103,3 @@ session opened by someone else survives the reset for up to eight hours.
 **Trigger:** the day an account is actually compromised, or the first time someone asks to see
 their open sessions. Until then the 8-hour window plus the `is_active` switch — which *does*
 take effect on the next request — is enough.
-

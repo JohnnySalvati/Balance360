@@ -3,10 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from balance360.crud.contact import create, delete, get_all, get_by_id, update
+from balance360.crud.contact import delete, get_all, get_by_id
 from balance360.dependencies import get_db
 from balance360.models.contact import Contact
 from balance360.schemas.contact import ContactCreate, ContactRead, ContactUpdate
+from balance360.services import contact as contact_service
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
@@ -30,7 +31,7 @@ def get_contact(contact: Contact = Depends(get_contact_or_404)):
 
 @router.post("/", response_model=ContactRead)
 def create_contact(data: ContactCreate, db: Session = Depends(get_db)):
-    return create(db, data)
+    return contact_service.create(db, data)
 
 
 @router.delete("/{contact_id}", status_code=204)
@@ -44,4 +45,4 @@ def update_contact(
     contact: Contact = Depends(get_contact_or_404),
     db: Session = Depends(get_db),
 ):
-    return update(db, contact, data)
+    return contact_service.update(db, contact, data)

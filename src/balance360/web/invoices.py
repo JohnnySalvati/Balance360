@@ -589,6 +589,7 @@ async def quick_contact(
 ):
     from balance360.enums import CondicionIva, ContactType, DocType
     from balance360.schemas.contact import ContactCreate
+    from balance360.services import contact as contact_service
 
     data = ContactCreate(
         name=name,
@@ -597,7 +598,7 @@ async def quick_contact(
         condicion_iva=CondicionIva[condicion_iva],
         doc_type=DocType.CUIT,
     )
-    contact = contact_crud.create(db, data)
+    contact = contact_service.create(db, data)
     return {"id": str(contact.id), "name": contact.name}
 
 
