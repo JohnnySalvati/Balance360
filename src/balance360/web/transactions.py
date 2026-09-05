@@ -18,6 +18,7 @@ from balance360.dependencies import get_db
 from balance360.enums import ClassificationStatus, TransactionType
 from balance360.models.transaction import Transaction
 from balance360.schemas.transaction import TransactionCreate, TransactionUpdate
+from balance360.services import transaction as transaction_service
 from balance360.services.import_rule import (
     Classification,
     RuleConflictError,
@@ -377,7 +378,7 @@ def transaction_delete(transaction_id: UUID, db: Session = Depends(get_db)):
     transaction = transaction_crud.get_by_id(db, transaction_id)
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    transaction_crud.delete(db, transaction)
+    transaction_service.delete(db, transaction)
     return HTMLResponse("")
 
 
