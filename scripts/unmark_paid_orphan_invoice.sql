@@ -28,13 +28,14 @@
 -- Ver docs/DEPLOYMENT.md para llegar a la base.
 
 \set ON_ERROR_STOP on
-\set invoice_id '462ddcd0-ac9c-4d8c-9808-89d75e90351a'
 
 BEGIN;
 
 DO $$
 DECLARE
-    target   uuid := :'invoice_id';
+    -- El id va como literal y no como variable de psql: :'...' no se sustituye
+    -- adentro de un bloque DO (el dollar-quote es opaco para psql).
+    target   uuid := '462ddcd0-ac9c-4d8c-9808-89d75e90351a';
     inv      record;
     tx_count integer;
 BEGIN
@@ -72,7 +73,9 @@ DO $$
 DECLARE
     still_paid boolean;
 BEGIN
-    SELECT paid INTO still_paid FROM invoices WHERE id = :'invoice_id';
+    SELECT paid INTO still_paid
+      FROM invoices
+     WHERE id = '462ddcd0-ac9c-4d8c-9808-89d75e90351a';
     IF still_paid THEN
         RAISE EXCEPTION 'El comprobante sigue paid = true. Revierto.';
     END IF;
@@ -84,4 +87,4 @@ COMMIT;
 SELECT i.id, i.invoice_type, i.formal, i.confirmed, i.paid, i.authorized,
        (SELECT count(*) FROM transactions t WHERE t.invoice_id = i.id) AS transacciones
   FROM invoices i
- WHERE i.id = :'invoice_id';
+ WHERE i.id = '462ddcd0-ac9c-4d8c-9808-89d75e90351a';
