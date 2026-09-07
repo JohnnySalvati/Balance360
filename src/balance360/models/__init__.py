@@ -1,4 +1,5 @@
 from balance360.models.account import Account
+from balance360.models.api_token import ApiToken
 from balance360.models.app_config import AppConfig
 from balance360.models.arca_ticket import ArcaTicket
 from balance360.models.attachment import Attachment

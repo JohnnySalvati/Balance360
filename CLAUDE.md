@@ -46,6 +46,9 @@ uv run alembic upgrade head
 uv run uvicorn balance360.main:app --reload
 ```
 
+Cada corrida de `pytest` trabaja en su propio esquema de `balance360_test`, nombrado con el
+PID, y lo dropea al terminar: dos corridas simultáneas no se pisan (ver `tests/conftest.py`).
+
 La base de desarrollo corre en Docker (`docker-compose.yml`, usuario `postgres`, contenedor
 `balance360-db-1`). Producción está en una VM detrás de nginx con `docker-compose.prod.yml`
 y **usuario distinto** — ahí siempre `-U "$POSTGRES_USER"`. Ver `docs/DEPLOYMENT.md`.
