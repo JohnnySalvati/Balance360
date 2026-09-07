@@ -129,3 +129,34 @@ session opened by someone else survives the reset for up to eight hours.
 **Trigger:** the day an account is actually compromised, or the first time someone asks to see
 their open sessions. Until then the 8-hour window plus the `is_active` switch — which *does*
 take effect on the next request — is enough.
+### Two pytest runs at once destroy each other's test database
+**Added:** 2026-09-07 — cost about half an hour of chasing a phantom regression
+
+**Why:** `tests/conftest.py` has one session-scoped `tables` fixture that does
+`Base.metadata.create_all(engine)` on entry and `drop_all(engine)` on exit, against the single
+`balance360_test` database named in `.env`. There is nothing keyed to the process. Two pytest
+runs at the same time — two terminals, two agent sessions on the same checkout, or the day
+someone adds `pytest-xdist` — share that database, and whichever finishes first drops the whole
+schema out from under the other. The victim reports `psycopg.errors.UndefinedTable: relation
+"users" does not exist` in the middle of an otherwise healthy run.
+
+**What makes it expensive is that it does not look like an infrastructure problem.** The
+failures land in clusters, move between modules from run to run, and name whatever table the
+victim touched next, so they read as a regression in the code being written at that moment.
+The tell is `UndefinedTable` on a table nobody's change went near.
+
+**Scope:**
+- Give each run its own database — a name suffixed with the PID, or a template database cloned
+  per run — so `create_all` / `drop_all` can't cross process boundaries.
+- Or take a Postgres advisory lock in the `tables` fixture, so the second run waits instead of
+  interleaving. Cheaper, and enough for the two-terminals case; it does not help xdist.
+- While in there: `models/__init__.py` imports every model **except** `api_token`, so
+  `Base.metadata` is complete only for code that happens to import
+  `balance360.models.api_token` some other way. The suite gets away with it because
+  `tests/test_api_token.py` imports it during collection; anything else that calls `drop_all`
+  fails on `DependentObjectsStillExist: cannot drop table users ... constraint
+  api_tokens_user_id_fkey`, and the table survives. One import line.
+
+**Trigger:** low as long as one person runs the suite from one terminal. It becomes a real
+blocker the moment two sessions work on the checkout at once — which is exactly when it is
+hardest to read, because there is a fresh diff to blame.
