@@ -1,3 +1,11 @@
+{# Como se nombra el comprobante en el asunto y el cuerpo. El fiscal lleva letra
+   y numeracion; el informal no tiene ninguna de las dos, asi que se nombra por
+   tipo — igual que el titulo del PDF (pdf_informal.html). #}
+{% if invoice.is_fiscal_document %}
+    {% set comp_ref = "Comprobante " ~ invoice.voucher_type.value ~ " " ~ invoice.pos ~ "-" ~ invoice.number %}
+{% else %}
+    {% set comp_ref = "Comprobante de venta" if invoice.invoice_type.value == "sale" else "Comprobante de compra" %}
+{% endif %}
 <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
         <div class="flex justify-between items-center mb-4">
@@ -37,7 +45,7 @@
             <div class="flex flex-col gap-1">
                 <label class="text-xs text-gray-500">Asunto</label>
                 <input type="text" name="subject" required maxlength="200"
-                       value="Comprobante {{ invoice.voucher_type.value }} {{ invoice.pos }}-{{ invoice.number }}"
+                       value="{{ comp_ref }}"
                        class="border rounded px-3 py-2 text-sm">
             </div>
 
@@ -49,7 +57,7 @@
                 <textarea name="body" rows="4"
                           class="border rounded px-3 py-2 text-sm">Estimado/a {{ invoice.contact.name }},
 
-Adjuntamos el comprobante {{ invoice.voucher_type.value }} {{ invoice.pos }}-{{ invoice.number }}.
+{% if invoice.is_fiscal_document %}Adjuntamos el comprobante {{ invoice.voucher_type.value }} {{ invoice.pos }}-{{ invoice.number }}.{% else %}Adjuntamos el comprobante correspondiente a la operación.{% endif %}
 
 Saludos.{% if invoice.entity.email_signature %}
 
@@ -57,7 +65,7 @@ Saludos.{% if invoice.entity.email_signature %}
             </div>
 
             <p class="text-xs text-gray-400">
-                Se adjuntará el PDF del comprobante autorizado.
+                {% if invoice.is_fiscal_document %}Se adjuntará el PDF del comprobante autorizado.{% else %}Se adjuntará el PDF del comprobante interno (sin validez fiscal).{% endif %}
                 Sale como <strong>{{ invoice.entity.email_display_name or invoice.entity.name }}</strong>{% if invoice.entity.email_reply_to %},
                 con respuesta a <strong>{{ invoice.entity.email_reply_to }}</strong>{% endif %}.
             </p>

@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from balance360.enums import InvoiceType, VoucherType
 from balance360.services.invoice_pdf import pdf_filename
 from balance360.web.invoices import _invoice_pdf_html
+from balance360.web.templating import templates
 from tests import factories
 
 
@@ -55,6 +56,20 @@ def test_el_pdf_informal_no_parece_una_factura(db):
         assert marca_fiscal not in html
     # El total sí está.
     assert "150.000" in html
+
+
+def test_email_modal_informal_no_deja_letra_ni_numero_vacios(db):
+    """El asunto y el cuerpo del mail se nombran por tipo, no con la letra y la
+    numeracion que un informal no tiene."""
+    invoice = _informal_sale(db, confirmed=True)
+
+    html = templates.get_template("invoices/email_modal.html").render({"invoice": invoice})
+
+    assert 'value="Comprobante de venta"' in html
+    assert "sin validez fiscal" in html
+    # Nada de "Comprobante  -" ni "A None-None".
+    assert " -." not in html
+    assert "None" not in html
 
 
 def test_pdf_filename_informal_usa_fecha_y_id():
