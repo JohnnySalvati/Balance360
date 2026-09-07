@@ -1,11 +1,12 @@
 import json
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from balance360.crud import account as account_crud
@@ -14,9 +15,8 @@ from balance360.crud import contact as contact_crud
 from balance360.crud import entity as entity_crud
 from balance360.crud import import_rule as import_rule_crud
 from balance360.crud import transaction as transaction_crud
-from balance360.dependencies import get_db
+from balance360.dependencies import Period, get_db, get_period
 from balance360.enums import ClassificationStatus, TransactionType
-from balance360.models.transaction import Transaction
 from balance360.schemas.transaction import TransactionCreate, TransactionUpdate
 from balance360.services import transaction as transaction_service
 from balance360.services.import_rule import (
@@ -32,21 +32,108 @@ router = APIRouter()
 PAGE_SIZE = 50
 
 
-@router.get("/transactions")
-def transaction_list(request: Request, db: Session = Depends(get_db)):
-    entities = entity_crud.get_all(db)
-    contacts = contact_crud.get_all(db)
-    categories = category_crud.get_all(db)
-    accounts = account_crud.get_all(db)
+@dataclass
+class TransactionFilters:
+    """Los filtros propios de esta pantalla, tal cual llegan del form (strings crudos).
 
+    Se guardan sin parsear por la misma razón que `Period` guarda year y month asi:
+    el template los vuelve a pintar en los `<select>` comparando strings. La
+    conversión a los tipos que espera el crud vive en `as_crud_kwargs`, un solo
+    lugar para los dos que la necesitan (la grilla y "reaplicar reglas").
+
+    El período NO está acá: viene aparte en un `Period`, igual que en los reportes.
+    """
+
+    transaction_type: str = ""
+    account_id: str = ""
+    classification_status: str = ""
+    description: str = ""
+    entity_id: str = ""
+    category_id: str = ""
+
+    def as_crud_kwargs(self) -> dict[str, Any]:
+        return {
+            "transaction_type": (
+                TransactionType(self.transaction_type) if self.transaction_type else None
+            ),
+            "account_id": UUID(self.account_id) if self.account_id else None,
+            "classification_status": (
+                ClassificationStatus(self.classification_status)
+                if self.classification_status
+                else None
+            ),
+            "description": self.description,
+            "entity_id": UUID(self.entity_id) if self.entity_id else None,
+            "category_id": UUID(self.category_id) if self.category_id else None,
+        }
+
+
+def get_transaction_filters(
+    transaction_type: str = Query(default=""),
+    account_id: str = Query(default=""),
+    classification_status: str = Query(default=""),
+    description: str = Query(default=""),
+    entity_id: str = Query(default=""),
+    category_id: str = Query(default=""),
+) -> TransactionFilters:
+    return TransactionFilters(
+        transaction_type=transaction_type,
+        account_id=account_id,
+        classification_status=classification_status,
+        description=description,
+        entity_id=entity_id,
+        category_id=category_id,
+    )
+
+
+def rows_context(
+    db: Session, period: Period, filters: TransactionFilters, page: int
+) -> dict[str, Any]:
+    """Contexto de `transactions/rows.html`.
+
+    El período entra como date_from/date_to del crud: `Period` ya resolvió la
+    prioridad entre "desde/hasta" y el par año/mes.
+
+    La entidad vacía significa *sin filtrar*, no "las entidades del usuario" como
+    en los reportes: una transacción recién importada tiene `entity_id` en NULL y
+    clasificarla es justamente para lo que existe esta pantalla. Un `IN (...)`
+    sobre una columna NULL da NULL —no False— y las esconderia a todas.
+    """
+    query = filters.as_crud_kwargs() | {"date_from": period.start, "date_to": period.end}
+    filtered_count = transaction_crud.count_all(db, **query)
+
+    return {
+        "transactions": transaction_crud.get_all(
+            db, **query, limit=PAGE_SIZE, offset=(page - 1) * PAGE_SIZE
+        ),
+        "total_count": transaction_crud.count_all(db),
+        "filtered_count": filtered_count,
+        "page": page,
+        "total_pages": (filtered_count + PAGE_SIZE - 1) // PAGE_SIZE,
+        "entities": entity_crud.get_all(db),
+        "contacts": contact_crud.get_all(db),
+        "categories": category_crud.get_all(db),
+        "accounts": account_crud.get_all(db),
+    }
+
+
+@router.get("/transactions")
+def transaction_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    period: Period = Depends(get_period),
+    filters: TransactionFilters = Depends(get_transaction_filters),
+):
     return templates.TemplateResponse(
         request=request,
         name="transactions/list.html",
         context={
-            "entities": entities,
-            "contacts": contacts,
-            "categories": categories,
-            "accounts": accounts,
+            "period": period,
+            "filters": filters,
+            "entities": entity_crud.get_all(db),
+            "contacts": contact_crud.get_all(db),
+            "categories": category_crud.get_all(db),
+            "accounts": account_crud.get_all(db),
         },
     )
 
@@ -55,72 +142,14 @@ def transaction_list(request: Request, db: Session = Depends(get_db)):
 def transaction_rows(
     request: Request,
     db: Session = Depends(get_db),
-    date_from: str = Query(default=""),
-    date_to: str = Query(default=""),
-    transaction_type: str = Query(default=""),
-    account_id: str = Query(default=""),
-    classification_status: str = Query(default=""),
-    description: str = Query(default=""),
-    entity_id: str = Query(default=""),
-    category_id: str = Query(default=""),
+    period: Period = Depends(get_period),
+    filters: TransactionFilters = Depends(get_transaction_filters),
     page: int = Query(default=1),
 ):
-    offset = (page - 1) * PAGE_SIZE
-
-    date_from_parsed = date.fromisoformat(date_from) if date_from else None
-    date_to_parsed = date.fromisoformat(date_to) if date_to else None
-    type_parsed = TransactionType(transaction_type) if transaction_type else None
-    account_id_parsed = UUID(account_id) if account_id else None
-    classification_status_parsed = (
-        ClassificationStatus(classification_status) if classification_status else None
-    )
-    entity_id_parsed = UUID(entity_id) if entity_id else None
-    category_id_parsed = UUID(category_id) if category_id else None
-
-    transactions = transaction_crud.get_all(
-        db,
-        date_from=date_from_parsed,
-        date_to=date_to_parsed,
-        transaction_type=type_parsed,
-        account_id=account_id_parsed,
-        classification_status=classification_status_parsed,
-        description=description,
-        entity_id=entity_id_parsed,
-        category_id=category_id_parsed,
-        limit=PAGE_SIZE,
-        offset=offset,
-    )
-
-    total_count = db.scalar(select(func.count()).select_from(Transaction)) or 0
-
-    filtered_count = transaction_crud.count_all(
-        db,
-        date_from=date_from_parsed,
-        date_to=date_to_parsed,
-        transaction_type=type_parsed,
-        account_id=account_id_parsed,
-        classification_status=classification_status_parsed,
-        description=description,
-        entity_id=entity_id_parsed,
-        category_id=category_id_parsed,
-    )
-
-    total_pages = (filtered_count + PAGE_SIZE - 1) // PAGE_SIZE
-
     return templates.TemplateResponse(
         request=request,
         name="transactions/rows.html",
-        context={
-            "transactions": transactions,
-            "total_count": total_count,
-            "entities": entity_crud.get_all(db),
-            "contacts": contact_crud.get_all(db),
-            "categories": category_crud.get_all(db),
-            "accounts": account_crud.get_all(db),
-            "page": page,
-            "total_pages": total_pages,
-            "filtered_count": filtered_count,
-        },
+        context=rows_context(db, period, filters, page),
     )
 
 
@@ -262,6 +291,8 @@ def classify_transaction(
 def apply_rules(
     request: Request,
     db: Session = Depends(get_db),
+    year: str = Form(default=""),
+    month: str = Form(default=""),
     date_from: str = Form(default=""),
     date_to: str = Form(default=""),
     transaction_type: str = Form(default=""),
@@ -288,58 +319,23 @@ def apply_rules(
                 setattr(transaction, field, value)
     db.flush()
 
-    date_from_parsed = date.fromisoformat(date_from) if date_from else None
-    date_to_parsed = date.fromisoformat(date_to) if date_to else None
-    type_parsed = TransactionType(transaction_type) if transaction_type else None
-    account_id_parsed = UUID(account_id) if account_id else None
-    classification_status_parsed = (
-        ClassificationStatus(classification_status) if classification_status else None
-    )
-    entity_id_parsed = UUID(entity_id) if entity_id else None
-    category_id_parsed = UUID(category_id) if category_id else None
-
-    filtered = transaction_crud.get_all(
-        db,
-        date_from=date_from_parsed,
-        date_to=date_to_parsed,
-        transaction_type=type_parsed,
-        account_id=account_id_parsed,
-        classification_status=classification_status_parsed,
+    # `get_period` y `get_transaction_filters` leen de la query string, y acá los
+    # filtros llegan en el body del POST: se las llama como funciones comunes con
+    # los valores del form. Mismo recurso que usa `get_evolution_period`.
+    period = get_period(year=year, month=month, date_from=date_from, date_to=date_to)
+    filters = TransactionFilters(
+        transaction_type=transaction_type,
+        account_id=account_id,
+        classification_status=classification_status,
         description=description,
-        entity_id=entity_id_parsed,
-        category_id=category_id_parsed,
-        limit=PAGE_SIZE,
-        offset=(page - 1) * PAGE_SIZE,
+        entity_id=entity_id,
+        category_id=category_id,
     )
-
-    filtered_count = transaction_crud.count_all(
-        db,
-        date_from=date_from_parsed,
-        date_to=date_to_parsed,
-        transaction_type=type_parsed,
-        account_id=account_id_parsed,
-        classification_status=classification_status_parsed,
-        description=description,
-        entity_id=entity_id_parsed,
-        category_id=category_id_parsed,
-    )
-
-    total_pages = (filtered_count + PAGE_SIZE - 1) // PAGE_SIZE
 
     response = templates.TemplateResponse(
         request=request,
         name="transactions/rows.html",
-        context={
-            "transactions": filtered,
-            "total_count": transaction_crud.count_all(db),
-            "entities": entity_crud.get_all(db),
-            "contacts": contact_crud.get_all(db),
-            "categories": category_crud.get_all(db),
-            "accounts": account_crud.get_all(db),
-            "page": page,
-            "total_pages": total_pages,
-            "filtered_count": filtered_count,
-        },
+        context=rows_context(db, period, filters, page),
     )
     response.headers["HX-Trigger"] = "refreshChart"
     return response
