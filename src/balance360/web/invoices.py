@@ -381,7 +381,7 @@ def delete_invoice_line(
     if invoice_line.invoice.id != invoice.id:
         raise HTTPException(status_code=404, detail="Invoice line mistmach invoice")
 
-    invoice_line_crud.delete(db, invoice_line)
+    invoice_service.delete_invoice_line(db, invoice_line)
 
     return templates.TemplateResponse(
         request=request,
@@ -800,6 +800,10 @@ def scan_serial(
     )
 
     if not invoice_line:
+        # La alícuota se hereda de la compra (su IVA es crédito fiscal), salvo que
+        # el comprobante no lleve IVA: un informal o una C no pueden tener líneas
+        # con IVA y la confirmación las rechaza. Misma condición que new_line_form.html.
+        carries_iva = invoice.applies_iva and invoice.formal
         invoice_line = invoice_line_crud.create(
             db,
             InvoiceLineCreate(
@@ -808,7 +812,9 @@ def scan_serial(
                 quantity=1,
                 unit_price=serial_number.purchase_line.unit_price
                 * (1 + serial_number.product.margin / 100),
-                iva_aliquot=serial_number.purchase_line.iva_aliquot,
+                iva_aliquot=(
+                    serial_number.purchase_line.iva_aliquot if carries_iva else IvaAliquot.exempt
+                ),
             ),
         )
 

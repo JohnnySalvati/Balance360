@@ -6,12 +6,15 @@ seriales en Devuelto, y des-confirmarla los tiene que devolver a Disponible.
 
 from decimal import Decimal
 
+from balance360.crud import invoice_line as invoice_line_crud
 from balance360.enums import InvoiceType, IvaAliquot, SerialStatus, VoucherType
 from balance360.services.invoice import (
     confirm_invoice,
     create_credit_note,
+    delete_invoice_line,
     unconfirm_invoice,
 )
+from balance360.web import invoices as invoice_routes
 from tests import factories
 
 SERIALS = ("HKS-DDR3-0001", "HKS-DDR3-0002")
@@ -113,3 +116,82 @@ def test_nc_without_related_invoice_confirms_without_touching_serials(db):
 
     assert not loose_nc.confirmed
     assert _statuses(db, serials) == [SerialStatus.available] * 2
+
+
+def _make_sale_with_reserved_serial(db):
+    """Venta informal sin confirmar con un serial reservado a su unica linea."""
+    entity = factories.make_entity(db)
+    product = factories.make_product(db, name="Gabinete GAMEMAX NOVA N5", track_serial=True)
+
+    purchase = factories.make_invoice(db, invoice_type=InvoiceType.purchase, entity_id=entity.id)
+    purchase_line = factories.make_invoice_line(
+        db, purchase.id, product_id=product.id, quantity=1, unit_price=Decimal("51000")
+    )
+    serial = factories.make_serial_number(
+        db, "GMX-0001", product.id, purchase_line.id, status=SerialStatus.available
+    )
+
+    sale = factories.make_invoice(
+        db,
+        invoice_type=InvoiceType.sale,
+        entity_id=entity.id,
+        contact_id=purchase.contact_id,
+        fiscal_identity_id=purchase.fiscal_identity_id,
+        formal=False,
+    )
+    sale.voucher_type = None
+    sale_line = factories.make_invoice_line(db, sale.id, product_id=product.id, quantity=1)
+    serial.sale_line_id = sale_line.id
+    serial.status = SerialStatus.reserved
+    db.commit()
+    return sale, sale_line, serial
+
+
+def test_deleting_sale_line_releases_its_reserved_serials(db):
+    """Borrar la linea tiene que soltar el serial: la FK es SET NULL y el estado
+    no se revierte solo, asi que sin esto queda en `reserved` sin venta."""
+    sale, sale_line, serial = _make_sale_with_reserved_serial(db)
+
+    delete_invoice_line(db, sale_line)
+
+    db.refresh(serial)
+    assert serial.status == SerialStatus.available
+    assert serial.sale_line_id is None
+    assert invoice_line_crud.get_by_id(db, sale_line.id) is None
+
+
+def test_scanning_serial_into_informal_sale_creates_exempt_line(db):
+    """Un informal no puede tener lineas con IVA: la alicuota de la compra no se
+    hereda aunque el escaneo sea el que crea la linea."""
+    sale, _, serial = _make_sale_with_reserved_serial(db)
+    # Reusar la venta como informal fresca: sacar la linea y el serial de escena.
+    db.refresh(sale)
+    for line in list(sale.invoice_lines):
+        delete_invoice_line(db, line)
+    serial.purchase_line.iva_aliquot = IvaAliquot.reduced
+    db.commit()
+
+    invoice_routes.scan_serial(request=None, invoice=sale, serial=serial.serial, db=db)
+
+    db.refresh(sale)
+    line = sale.invoice_lines[0]
+    assert line.iva_aliquot == IvaAliquot.exempt
+    assert line.iva_rate == Decimal(0)
+
+
+def test_scanning_serial_into_formal_sale_inherits_purchase_aliquot(db):
+    """En un comprobante formal la alicuota si se hereda de la compra: su IVA es
+    lo que despues se declara."""
+    sale, _, serial = _make_sale_with_reserved_serial(db)
+    db.refresh(sale)
+    for line in list(sale.invoice_lines):
+        delete_invoice_line(db, line)
+    sale.formal = True
+    sale.voucher_type = VoucherType.A
+    serial.purchase_line.iva_aliquot = IvaAliquot.reduced
+    db.commit()
+
+    invoice_routes.scan_serial(request=None, invoice=sale, serial=serial.serial, db=db)
+
+    db.refresh(sale)
+    assert sale.invoice_lines[0].iva_aliquot == IvaAliquot.reduced

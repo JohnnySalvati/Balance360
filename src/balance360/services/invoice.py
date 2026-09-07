@@ -35,6 +35,7 @@ from balance360.exceptions import (
 )
 from balance360.models.account import Account
 from balance360.models.invoice import Invoice
+from balance360.models.invoice_line import InvoiceLine
 from balance360.models.serial_number import SerialNumber
 from balance360.schemas.invoice import InvoiceCreate
 from balance360.schemas.invoice_line import InvoiceLineCreate
@@ -143,6 +144,23 @@ def delete_invoice(db: Session, invoice: Invoice):
                 serial.sale_line_id = None
 
     invoice_crud.delete(db, invoice)
+    db.flush()
+
+
+def delete_invoice_line(db: Session, invoice_line: InvoiceLine) -> None:
+    """Borra una linea de un comprobante sin confirmar y suelta sus seriales.
+
+    La FK sale_line_id es ON DELETE SET NULL: al borrar la linea el serial pierde
+    el vinculo con la venta, pero su estado no se toca solo y queda en `reserved`
+    para siempre —fuera del stock disponible y sin comprobante que lo explique—.
+    Mismo criterio que delete_invoice. Solo una venta reserva seriales; en una
+    compra sold_serials esta vacio y el bucle no hace nada.
+    """
+    for serial in invoice_line.sold_serials:
+        serial.status = SerialStatus.available
+        serial.sale_line_id = None
+
+    invoice_line_crud.delete(db, invoice_line)
     db.flush()
 
 

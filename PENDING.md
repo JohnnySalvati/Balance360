@@ -87,6 +87,32 @@ sign-up is safe *because* of one boolean, not because the data is scoped.
 - Only then is it worth reconsidering whether a confirmed account could be activated
   automatically instead of by hand.
 
+### Switching a comprobante to informal leaves its lines carrying IVA
+**Added:** 2026-09-06 — surfaced next to the scan-serial IVA bug (that one is fixed)
+
+**Why:** `normalize_fields_by_formality` (`services/invoice.py`) clears the header fiscal
+fields when a comprobante is set to informal, but never touches the lines. A comprobante built
+formal with 21%/10,5% lines, then unchecked to informal, keeps those `iva_aliquot` values.
+
+Two things then conspire. `Invoice.applies_iva` is `voucher_type not in (C, NCC)`, and an
+informal has `voucher_type = None` — `None not in (...)` is `True` in Python, so an informal
+wrongly reports `applies_iva = True`. `iva_breakdown` then takes the "IVA incluido" branch and
+derives a phantom IVA amount that the totals show, even though the per-line IVA column is
+hidden (`shows_iva` also needs `invoice.formal`). Confirmation catches it — `_validate_formality`
+rejects any line with `iva_rate != 0` — but there is no in-UI way to fix it: the informal form
+shows no alícuota selector, so the only recourse is deleting and re-adding every line.
+
+**Scope:**
+- `normalize_fields_by_formality`: when going informal, reset every line to `IvaAliquot.exempt`
+  (mirrors what `_validate_formality` already demands, and what the scan path now does on create).
+- `applies_iva`: make it `False` when `voucher_type is None` (informal) — both the Python
+  property and `_applies_iva_expression`. Probably `self.formal and voucher_type not in (...)`.
+- Check `iva_breakdown` / `discriminates_iva` for the same `voucher_type IS NULL` three-valued
+  logic trap flagged for `is_nc` in CLAUDE.md's gotchas.
+
+**Trigger:** low — needs someone to build formal then toggle. But it is a silent wrong total
+until confirmation, and the fix is small.
+
 ### Password reset can't close the sessions that are already open
 **Added:** 2026-08-29
 
