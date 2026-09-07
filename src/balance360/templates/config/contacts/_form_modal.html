@@ -1,7 +1,22 @@
+{# Formulario de contacto. Lo usan dos altas distintas:
+
+     - Configuración → Contactos, que refresca la tabla (HX-Trigger refreshRows).
+     - El alta/edición de un comprobante, que necesita el contacto nuevo metido en
+       el select del encabezado.
+
+   Cambia sólo a dónde va el POST, así que en vez de duplicar el formulario —con su
+   botón de padrón y su lista de condiciones IVA— el que lo abre pasa `create_url`.
+   `default_contact_type` es para que el comprobante lo abra ya en Proveedor o en
+   Cliente según sea compra o venta.
+
+   Contexto: contact_type, condicion_iva, doc_type (los enums), `contact` (opcional,
+   modo edición), `create_url` y `default_contact_type` (opcionales). #}
 {% set is_edit = contact is defined and contact %}
-{% set action_url = "/config/contacts/" ~ contact.id if is_edit else "/config/contacts/" %}
+{% set create_url = create_url | default("/config/contacts/", true) %}
+{% set action_url = "/config/contacts/" ~ contact.id if is_edit else create_url %}
 {% set title = "Editar contacto" if is_edit else "Nuevo contacto" %}
 {% set type_labels = {"customer": "Cliente", "supplier": "Proveedor", "both": "Ambos"} %}
+{% set current_type = contact.contact_type if is_edit else default_contact_type | default(none, true) %}
 
 <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
@@ -36,7 +51,7 @@
                 <label class="text-xs text-gray-500">Tipo</label>
                 <select name="contact_type" class="border rounded px-3 py-2 text-sm">
                     {% for t in contact_type %}
-                    <option value="{{ t.value }}" {% if is_edit and contact.contact_type == t %}selected{% endif %}>
+                    <option value="{{ t.value }}" {% if current_type == t %}selected{% endif %}>
                         {{ type_labels[t.value] }}
                     </option>
                     {% endfor %}

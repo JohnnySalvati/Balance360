@@ -30,6 +30,9 @@ from balance360.crud import serial_number as serial_number_crud
 from balance360.dependencies import Period, get_current_user, get_db, get_period
 from balance360.enums import (
     Concepto,
+    CondicionIva,
+    ContactType,
+    DocType,
     InvoiceType,
     IvaAliquot,
     SerialStatus,
@@ -44,11 +47,13 @@ from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.product import Product
 from balance360.models.serial_number import SerialNumber
 from balance360.models.user import User
+from balance360.schemas.contact import ContactCreate
 from balance360.schemas.invoice import InvoiceCreate, InvoiceUpdate
 from balance360.schemas.invoice_line import InvoiceLineCreate, InvoiceLineUpdate
 from balance360.schemas.invoice_tribute import InvoiceTributeCreate
 from balance360.schemas.product import ProductCreate
 from balance360.schemas.serial_number import SerialNumberUpdate
+from balance360.services import contact as contact_service
 from balance360.services import invoice as invoice_service
 from balance360.services import product_match
 from balance360.services import product_match as product_match_service
@@ -192,6 +197,86 @@ def close_modal() -> HTMLResponse:
     en Cancelar repetia el mismo error.
     """
     return HTMLResponse('<div id="modal"></div>')
+
+
+@router.get("/contact-form", response_class=HTMLResponse)
+def new_contact_form(request: Request, invoice_type: str = Query(default="")):
+    """Alta de contacto sin salir del comprobante.
+
+    Reusa el modal de Configuracion (mismo formulario, mismo boton de padron) y solo
+    le cambia a donde postea. Va declarada ANTES que /{invoice_id} por lo mismo que
+    /close-modal: si no, "contact-form" entraria por el parametro de ruta y fallaria
+    al parsearse como UUID.
+
+    El tipo viene preseleccionado segun el comprobante —proveedor en una compra,
+    cliente en una venta— porque es el que el select del encabezado deja visible:
+    crear el contacto del otro tipo lo dejaria fuera de la lista justo despues de
+    haberlo creado.
+    """
+    return templates.TemplateResponse(
+        request=request,
+        name="config/contacts/_form_modal.html",
+        context={
+            "contact": None,
+            "contact_type": ContactType,
+            "condicion_iva": CondicionIva,
+            "doc_type": DocType,
+            "create_url": "/invoices/contacts",
+            "default_contact_type": (
+                ContactType.customer if invoice_type == "sale" else ContactType.supplier
+            ),
+        },
+    )
+
+
+@router.post("/contacts", response_class=HTMLResponse)
+def create_contact_from_invoice(
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+    trade_name: str | None = Form(default=""),
+    tax_id: str = Form(default=""),
+    contact_type: str = Form(...),
+    condicion_iva: str = Form(...),
+    doc_type: str = Form(...),
+    email: str | None = Form(default=""),
+    address: str | None = Form(default=""),
+) -> HTMLResponse:
+    """Crea el contacto y avisa al formulario del comprobante para que lo elija.
+
+    Devuelve el modal vacio y los datos del contacto por HX-Trigger, no un select
+    nuevo: el del encabezado tiene las opciones filtradas por tipo de comprobante y
+    los `data-condicion` que deciden que letra se admite, y re-renderizarlo desde
+    aca obligaria a repetir todo ese estado. Lo agrega el listener `contactCreated`
+    de static/js/invoice_form.js.
+
+    El CUIT repetido sube como Balance360Error: el handler global lo muestra como
+    toast con `HX-Reswap: none`, asi que el modal queda abierto con lo tipeado.
+    """
+    contact = contact_service.create(
+        db,
+        ContactCreate(
+            name=name,
+            trade_name=trade_name or None,
+            tax_id=tax_id or None,
+            contact_type=ContactType(contact_type),
+            condicion_iva=CondicionIva[condicion_iva],
+            doc_type=DocType[doc_type],
+            email=email or None,
+            address=address or None,
+        ),
+    )
+    response = HTMLResponse('<div id="modal"></div>')
+    response.headers["HX-Trigger"] = json.dumps(
+        {
+            "contactCreated": {
+                "id": str(contact.id),
+                "name": contact.name,
+                "contact_type": contact.contact_type.value,
+                "condicion_iva": contact.condicion_iva.name,
+            }
+        }
+    )
+    return response
 
 
 @router.get("/{invoice_id}")
@@ -587,10 +672,6 @@ async def quick_contact(
     tax_id: str = Form(...),
     condicion_iva: str = Form(...),
 ):
-    from balance360.enums import CondicionIva, ContactType, DocType
-    from balance360.schemas.contact import ContactCreate
-    from balance360.services import contact as contact_service
-
     data = ContactCreate(
         name=name,
         tax_id=tax_id,

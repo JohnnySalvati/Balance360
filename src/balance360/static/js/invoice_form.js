@@ -14,6 +14,9 @@
 // Contrato con el template que lo incluye:
 //   - Debe definir una función global `toggleFormal(checked)` (difiere entre alta
 //     y edición: el alta además ajusta los `required` de tipo/pto. de venta/número).
+//   - Debe definir una función global `filterContacts(invoiceType)` (difiere igual:
+//     el alta cae en el placeholder cuando lo elegido deja de corresponder al tipo,
+//     la edición solo oculta). La llama el listener de `contactCreated`.
 //   - Debe existir en el DOM: #invoice-type, #voucher-type-select, #contact-select,
 //     #fiscal-identity-select, #fiscal-identity-label, #formal-check, #service-dates,
 //     #voucher-id, #informal-note, #pos-input, #number-input, y las celdas que solo
@@ -139,4 +142,27 @@ function applyVoucherFilter() {
 // Recalcular las letras cuando cambian las identidades por cambio de entidad.
 document.body.addEventListener('htmx:afterSwap', function(e) {
     if (e.target.id === 'fiscal-identity-select') applyVoucherFilter();
+});
+
+// Alta de contacto desde el propio comprobante: POST /invoices/contacts cierra el
+// modal y manda los datos por HX-Trigger.
+//
+// Se agrega la opción a mano en vez de re-renderizar el select porque el select ya
+// tiene estado que el servidor no conoce: qué opciones están ocultas por el tipo de
+// comprobante y el `data-condicion` de cada una, que es lo que decide la letra
+// admitida. Reponerlo desde el back sería mandar todo eso en la respuesta.
+//
+// Después se reaplican los dos filtros: filterContacts porque la opción nueva entra
+// sin `hidden` y hay que ver si corresponde al tipo, y applyVoucherFilter porque la
+// condición IVA del contacto cambia qué letras se pueden emitir.
+document.body.addEventListener('contactCreated', function (e) {
+    const select = document.getElementById('contact-select');
+    if (!select) return;
+    const opt = new Option(e.detail.name, e.detail.id);
+    opt.dataset.type = e.detail.contact_type;
+    opt.dataset.condicion = e.detail.condicion_iva;
+    select.add(opt);
+    select.value = e.detail.id;
+    filterContacts(document.getElementById('invoice-type').value);
+    applyVoucherFilter();
 });

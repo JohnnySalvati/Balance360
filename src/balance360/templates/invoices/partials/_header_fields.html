@@ -38,7 +38,10 @@
    #from-date-input, #to-date-input, #due-date-input— porque header_display.html
    los nombra en ?focus= para abrir la edición con el cursor puesto ahí.
    La clase .formal-only marca lo que solo existe en un comprobante formal:
-   syncFormalFields la usa para ocultar Y deshabilitar de una sola pasada. #}
+   syncFormalFields la usa para ocultar Y deshabilitar de una sola pasada.
+
+   La pagina que incluye este partial tiene que tener un <div id="modal"> FUERA del
+   <form>: es el destino del "+ Nuevo" contacto. #}
 {% set inv = invoice if invoice is defined and invoice else none %}
 {# Una NC nace de create_credit_note y arrastra su comprobante original; un
    comprobante comun nunca se convierte en una. Ofrecer la otra mitad de las
@@ -180,8 +183,22 @@
         </select>
     </div>
 
+    {# El "+ Nuevo" abre el mismo modal que Configuracion → Contactos (con el boton
+       de padron incluido) y postea a /invoices/contacts, que devuelve el contacto
+       por HX-Trigger para que invoice_form.js lo agregue al select y lo elija. El
+       modal NO puede colgar de aca: esto vive adentro del <form> del comprobante y
+       un <form> anidado lo descarta el parser. Va a #modal, que ponen detail.html y
+       new_form.html fuera del formulario. #}
     <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-3">
-        <label class="text-xs text-gray-500">Contacto</label>
+        <div class="flex items-center justify-between gap-2">
+            <label class="text-xs text-gray-500">Contacto</label>
+            <button type="button"
+                    hx-get="/invoices/contact-form"
+                    hx-include="#invoice-type"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-xs text-blue-600 hover:underline">+ Nuevo</button>
+        </div>
         <select name="contact_id" id="contact-select" required
                 onchange="applyVoucherFilter()"
                 class="border border-gray-300 rounded px-2 py-1 text-sm">

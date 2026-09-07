@@ -39,6 +39,10 @@
     </div>
 </div>
 
+{# Destino del "+ Nuevo" contacto de _header_fields.html. Va fuera del formulario:
+   el modal trae su propio <form> y anidados el parser los descarta. #}
+<div id="modal"></div>
+
 <!-- Botón PDF — disponible para compras y ventas -->
 <div id="pdf-upload-row">
     <button type="button" onclick="document.getElementById('pdf-modal').showModal()"
@@ -112,18 +116,22 @@ function toggleFormal(checked) {
     }
 }
 
+// Solo se resetea la selección si el contacto elegido dejó de corresponder al tipo
+// de comprobante; antes se reseteaba siempre, y eso deshacía el contacto que acabara
+// de crear el "+ Nuevo" (el listener contactCreated vuelve a llamar acá). La primera
+// opción visible es el placeholder, así que al cambiar de compra a venta se sigue
+// cayendo en "— Seleccionar contacto —" como hasta ahora.
 function filterContacts(invoiceType) {
     const select = document.getElementById('contact-select');
-    const options = select.querySelectorAll('option');
     const allowed = invoiceType === 'purchase' ? ['supplier', 'both'] : ['customer', 'both'];
     let firstVisible = null;
-    options.forEach(opt => {
-        const type = opt.dataset.type;
-        const visible = allowed.includes(type);
+    select.querySelectorAll('option').forEach(opt => {
+        const visible = allowed.includes(opt.dataset.type);
         opt.hidden = !visible;
         if (visible && !firstVisible) firstVisible = opt;
     });
-    if (firstVisible) select.value = firstVisible.value;
+    const current = select.options[select.selectedIndex];
+    if ((!current || current.hidden) && firstVisible) select.value = firstVisible.value;
 }
 
 function toggleNumberField(invoiceType) {
