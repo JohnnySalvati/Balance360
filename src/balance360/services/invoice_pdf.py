@@ -3,6 +3,7 @@ import json
 
 import segno
 
+from balance360.enums import InvoiceType
 from balance360.exceptions import InvoicePrintError, QrValidationError
 from balance360.models.invoice import Invoice
 
@@ -58,8 +59,12 @@ def render_pdf_bytes(html: str) -> bytes:
 def pdf_filename(invoice: Invoice) -> str:
     """Nombre del archivo adjunto en el mail.
 
-    Lleva letra, punto de venta y numero para que el destinatario no acumule
-    cinco archivos llamados todos 'comprobante.pdf'.
+    El formal lleva letra, punto de venta y numero para que el destinatario no
+    acumule cinco archivos llamados todos 'comprobante.pdf'. El informal no tiene
+    numeracion, asi que se nombra con la fecha y un tramo del id.
     """
-    letter = invoice.voucher_type.value if invoice.voucher_type else "X"
-    return f"{letter}-{invoice.pos:05d}-{invoice.number:08d}.pdf"
+    if invoice.voucher_type and invoice.pos and invoice.number:
+        return f"{invoice.voucher_type.value}-{invoice.pos:05d}-{invoice.number:08d}.pdf"
+
+    kind = "venta" if invoice.invoice_type == InvoiceType.sale else "compra"
+    return f"comprobante-{kind}-{invoice.date:%Y%m%d}-{str(invoice.id)[:8]}.pdf"

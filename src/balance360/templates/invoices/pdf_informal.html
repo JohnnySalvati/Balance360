@@ -1,0 +1,156 @@
+{# Comprobante informal: documento interno, SIN validez fiscal.
+
+   Contexto: invoice (formal=False, confirmed). No recibe qr ni datos de ARCA.
+
+   El diseño es a propósito distinto del de pdf.html: nada de recuadro de letra,
+   CAE, QR ni "ORIGINAL". Un informal no es una factura y no tiene que poder
+   pasar por una. De ahí el banner, la marca de agua y la nota al pie.
+
+   El filtro `currency` da formato argentino y redondea vía money() (ROUND_HALF_UP),
+   igual que en el resto de la app. Un informal no lleva IVA en las líneas
+   (`_validate_formality` lo rechaza), así que no hay columna de alícuota. #}
+{% set is_sale = invoice.invoice_type.value == "sale" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 1.6cm; }
+  * { box-sizing: border-box; }
+  body { font-family: "DejaVu Sans", sans-serif; font-size: 9pt; color: #1e293b; margin: 0; }
+
+  @media screen {
+    body { background: #e5e5e5; padding: 1cm 0; }
+    .sheet { width: 19cm; margin: 0 auto; background: #fff; padding: 1.6cm;
+             box-shadow: 0 0 10px rgba(0,0,0,.25); }
+  }
+
+  /* ── Marca de agua ── */
+  .watermark {
+    position: fixed; top: 42%; left: 0; right: 0; text-align: center;
+    font-size: 46pt; font-weight: bold; letter-spacing: 6px;
+    color: #e2e8f0; transform: rotate(-24deg); z-index: 0;
+  }
+  .content { position: relative; z-index: 1; }
+
+  /* ── Encabezado ── */
+  .head { display: table; width: 100%; margin-bottom: 4px; }
+  .head > div { display: table-cell; vertical-align: bottom; }
+  .emisor { font-size: 16pt; font-weight: bold; }
+  .doc-kind { text-align: right; font-size: 10pt; color: #475569; }
+  .doc-ref { text-align: right; font-size: 8pt; color: #94a3b8; }
+
+  /* ── Banner "sin validez fiscal" ── */
+  .banner {
+    border: 1.5px solid #475569; border-radius: 4px;
+    padding: 6px 10px; margin: 10px 0 16px;
+    text-align: center; color: #334155;
+  }
+  .banner .t { font-weight: bold; font-size: 10pt; letter-spacing: 1px; }
+  .banner .s { font-size: 7.5pt; color: #64748b; margin-top: 2px; }
+
+  /* ── Partes ── */
+  .parties { display: table; width: 100%; margin-bottom: 14px; }
+  .parties > div { display: table-cell; width: 50%; vertical-align: top; padding-right: 14px; }
+  .parties h3 { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 1px;
+                color: #94a3b8; margin: 0 0 3px; }
+  .parties .line { margin: 1px 0; }
+
+  /* ── Ítems ── */
+  table.items { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+  table.items th { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .5px;
+                   color: #64748b; text-align: right; padding: 5px 6px;
+                   border-bottom: 1.5px solid #cbd5e1; }
+  table.items th.desc { text-align: left; }
+  table.items td { padding: 5px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; }
+  table.items td.desc { text-align: left; }
+  .num { white-space: nowrap; }
+
+  /* ── Totales ── */
+  .totals { width: 45%; margin-left: 55%; }
+  .totals .row { display: table; width: 100%; padding: 2px 6px; }
+  .totals .row span { display: table-cell; }
+  .totals .row .lbl { text-align: right; padding-right: 12px; color: #475569; }
+  .totals .row .val { text-align: right; white-space: nowrap; }
+  .totals .grand { border-top: 1.5px solid #cbd5e1; margin-top: 3px; padding-top: 5px; }
+  .totals .grand .lbl, .totals .grand .val { font-size: 12pt; font-weight: bold; color: #1e293b; }
+
+  /* ── Pie ── */
+  .foot { margin-top: 28px; padding-top: 8px; border-top: 1px solid #e2e8f0;
+          font-size: 7.5pt; color: #94a3b8; }
+</style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="watermark">SIN VALIDEZ FISCAL</div>
+    <div class="content">
+
+      <div class="head">
+        <div class="emisor">{{ invoice.entity.name }}</div>
+        <div>
+          <div class="doc-kind">{{ "Comprobante de venta" if is_sale else "Comprobante de compra" }}</div>
+          <div class="doc-ref">Ref. interna {{ invoice.id.hex[:8].upper() }}
+              &nbsp;·&nbsp; {{ invoice.date.strftime("%d/%m/%Y") }}</div>
+        </div>
+      </div>
+
+      <div class="banner">
+        <div class="t">DOCUMENTO NO FISCAL</div>
+        <div class="s">No es una factura ni un comprobante autorizado por ARCA.
+            No da derecho a cómputo de crédito fiscal.</div>
+      </div>
+
+      <div class="parties">
+        <div>
+          <h3>Emisor</h3>
+          <div class="line">{{ invoice.entity.name }}</div>
+        </div>
+        <div>
+          <h3>{{ "Cliente" if is_sale else "Proveedor" }}</h3>
+          <div class="line">{{ invoice.contact.name }}</div>
+          {% if invoice.contact.tax_id %}<div class="line">CUIT/CUIL {{ invoice.contact.tax_id | cuit }}</div>{% endif %}
+          {% if invoice.contact.address %}<div class="line">{{ invoice.contact.address }}</div>{% endif %}
+        </div>
+      </div>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th class="desc">Detalle</th>
+            <th>Cantidad</th>
+            <th>Precio unit.</th>
+            <th>Importe</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in invoice.invoice_lines %}
+          <tr>
+            <td class="desc">{{ line.description or (line.product.name if line.product else "—") }}</td>
+            <td class="num">{{ line.quantity }}</td>
+            <td class="num">{{ line.unit_price | currency }}</td>
+            <td class="num">{{ line.net_amount | currency }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% set trib_total = invoice.invoice_tributes | sum(attribute="amount", start=0) %}
+      <div class="totals">
+        {% if trib_total %}
+        <div class="row"><span class="lbl">Subtotal</span><span class="val">{{ (invoice.total - trib_total) | currency }}</span></div>
+        {% for tribute in invoice.invoice_tributes %}
+        <div class="row"><span class="lbl">{{ tribute.description }}</span><span class="val">{{ tribute.amount | currency }}</span></div>
+        {% endfor %}
+        {% endif %}
+        <div class="row grand"><span class="lbl">Total</span><span class="val">{{ invoice.total | currency }}</span></div>
+      </div>
+
+      <div class="foot">
+        Comprobante interno generado por Balance360 el {{ invoice.date.strftime("%d/%m/%Y") }}.
+        Documento sin efectos fiscales — para uso administrativo entre las partes.
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

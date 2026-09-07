@@ -877,10 +877,17 @@ def update_lines(
 
 
 def _invoice_pdf_html(invoice: Invoice) -> str:
-    """El HTML del comprobante, listo para convertir a PDF o mostrar como preview."""
-    return templates.get_template("invoices/pdf.html").render(
-        {"invoice": invoice, "qr": build_qr(invoice)}
-    )
+    """El HTML del comprobante, listo para convertir a PDF o mostrar como preview.
+
+    El fiscal autorizado usa el layout de ARCA (RG 1415) con CAE y QR. El informal
+    usa un formato aparte, deliberadamente distinto: es un comprobante interno y
+    no tiene que poder confundirse con una factura.
+    """
+    if invoice.is_fiscal_document:
+        return templates.get_template("invoices/pdf.html").render(
+            {"invoice": invoice, "qr": build_qr(invoice)}
+        )
+    return templates.get_template("invoices/pdf_informal.html").render({"invoice": invoice})
 
 
 def _invoice_pdf(invoice: Invoice) -> bytes:

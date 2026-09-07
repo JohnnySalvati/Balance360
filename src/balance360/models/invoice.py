@@ -157,5 +157,16 @@ class Invoice(Base, TimestampMixin):
         return cls.voucher_type.notin_([VoucherType.C, VoucherType.NCC])
 
     @property
-    def is_printable(self) -> bool:
+    def is_fiscal_document(self) -> bool:
+        """Formal y autorizado: se imprime con el layout de ARCA, con CAE y QR."""
         return bool(self.authorized and self.cae and self.fiscal_identity)
+
+    @property
+    def is_printable(self) -> bool:
+        """Hay un PDF para generar.
+
+        El fiscal autorizado sale con el formato de ARCA; el informal confirmado,
+        como comprobante interno sin validez fiscal. Un borrador no se imprime:
+        sus numeros todavia pueden cambiar.
+        """
+        return self.is_fiscal_document or (not self.formal and self.confirmed)
