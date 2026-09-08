@@ -21,6 +21,7 @@ class InvoiceCreate(BaseModel):
     confirmed: bool = False
     paid: bool = False
     authorized: bool = False
+    fulfilled_at: datetime.date | None = None
     cae: str | None = None
     cae_expiry: datetime.date | None = None
     concepto: Concepto = Concepto.products
@@ -58,6 +59,7 @@ class InvoiceUpdate(BaseModel):
     confirmed: bool | None = None
     paid: bool | None = None
     authorized: bool | None = None
+    fulfilled_at: datetime.date | None = None
     cae: str | None = None
     cae_expiry: datetime.date | None = None
     concepto: Concepto | None = None
@@ -97,6 +99,7 @@ class InvoiceRead(BaseModel):
     confirmed: bool = False
     paid: bool = False
     authorized: bool = False
+    fulfilled_at: datetime.date | None = None
     cae: str | None = None
     cae_expiry: datetime.date | None = None
     created_at: datetime.datetime

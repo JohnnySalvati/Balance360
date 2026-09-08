@@ -1,8 +1,8 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import select, true
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy import exists, select, true
+from sqlalchemy.orm import Session, aliased, joinedload, selectinload
 
 from balance360.enums import InvoiceType
 from balance360.models.invoice import Invoice
@@ -36,6 +36,40 @@ def get_all(
 
     invoices = db.execute(stmt).scalars().all()
     return list(invoices)
+
+
+def get_pending_fulfillment(
+    db: Session, entity_ids: list[uuid.UUID] | None = None
+) -> list[Invoice]:
+    """Comprobantes confirmados cuya mercaderia todavia no se movio.
+
+    Es la red que sostiene todo lo demas: separar el hecho fiscal del fisico solo es
+    seguro si hay una pantalla que muestre lo que quedo colgado. Sin esto, una venta
+    facturada y no entregada no se distingue de una entregada hasta que el stock no
+    cierra, meses despues.
+
+    Los anulados por una NC confirmada no cuentan: esos ya no se van a entregar nunca.
+    """
+    annulling_nc = aliased(Invoice)
+    annulled = exists().where(annulling_nc.related_invoice_id == Invoice.id, annulling_nc.confirmed)
+
+    stmt = (
+        select(Invoice)
+        .where(Invoice.confirmed)
+        .where(Invoice.fulfilled_at.is_(None))
+        .where(~annulled)
+        .order_by(Invoice.date)
+        .options(
+            joinedload(Invoice.entity),
+            joinedload(Invoice.contact),
+            selectinload(Invoice.invoice_lines),
+        )
+    )
+
+    if entity_ids is not None:
+        stmt = stmt.where(Invoice.entity_id.in_(entity_ids))
+
+    return list(db.execute(stmt).scalars().all())
 
 
 def get_by_id(db: Session, invoice_id: uuid.UUID) -> Invoice | None:

@@ -58,9 +58,34 @@ The second consequence is the one that keeps producing bugs. `status` is a *deri
 - Migration + backfill of the existing serials from the two current columns.
 - Rewrite what touches serials: `confirm_invoice`, `unconfirm_invoice`, `delete_invoice`, `validate_confirmation`, `validate_unconfirmation`, `add_serial_to_line`, `remove_serial_from_line`, `stock/serials.html`, `stock/serial_detail.html`.
 
-**Interim workaround (2026-08-25):** un-confirming a sale credit note whose original invoice carries serial-tracked products is rejected outright, because the link needed to restore them no longer exists. The purchase side round-trips correctly (`purchase_line_id` is never cleared) and needs nothing from this entry.
+**Interim workaround (2026-08-25, moved 2026-09-08):** the rejection now lives in
+`validate_unfulfillment` instead of `validate_unconfirmation` — reverting the *movement* is
+what would need the link, and un-confirming is only reachable after that. It also covers one
+more case since fulfilment was split out: a credit note that annuls a sale which was invoiced
+but never delivered releases its reserved serials the same way (`_release_commitment`), so it
+is just as irreversible. The purchase side round-trips correctly (`purchase_line_id` is never
+cleared) and needs nothing from this entry.
 
 **Trigger — this is a business question, not a scheduling one:** does a unit that came back through a credit note get *resold*? If that happens once a year, this can wait. If it happens regularly, every occurrence silently erases a sale from the record, and that justifies the work.
+
+### Fulfilment: no partial deliveries, and no per-entity filter on the pending list
+**Added:** 2026-09-08 — alongside `fulfilled_at`
+
+**Why:** splitting the physical movement out of `confirmed` was done with one boolean-shaped
+column: a comprobante is either moved or not. Two things were left out on purpose.
+
+- **Partial deliveries.** Ten units invoiced, four delivered today and six next week is one
+  comprobante with two movements, and `fulfilled_at` can only hold one. Today the workaround
+  is to mark it delivered when the last unit goes out, which makes the stock right at the end
+  and wrong in between. Doing it properly means the movement belongs to the *line* (or to the
+  serial — see the entry above, which wants exactly that table), not to the header.
+- **The pending list ignores entity membership.** `/stock/pending` calls
+  `get_pending_fulfillment(db)` with no `entity_ids`, like every other screen in `web/`. The
+  function already takes the argument; it is the per-entity authorization entry below that
+  decides where the filter comes from, so wiring it here alone would be half a rule.
+
+**Trigger:** the first is worth doing when a delivery actually splits — until then the extra
+table costs more than it returns. The second lands with per-entity authorization.
 
 ### Per-entity authorization for the web screens
 **Added:** 2026-08-29 — surfaced by the public sign-up

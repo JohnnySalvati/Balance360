@@ -17,6 +17,7 @@
             Buscar
         </button>
         <a href="/stock/serials" class="text-sm text-gray-400 hover:text-blue-600">Ver todos</a>
+        <a href="/stock/pending" class="text-sm text-purple-600 hover:underline">Pendientes</a>
     </form>
 </div>
 
@@ -64,9 +65,16 @@ function scanSerialFromPhoto(input) {
 <div id="stock-table" class="flex-1 overflow-y-auto bg-white rounded shadow">
     <table class="w-full text-sm">
         <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
+            {# Físico es lo que hay en el estante: solo cuenta comprobantes cuyo
+               movimiento ya se registró. Comprometido es lo vendido y no entregado,
+               en camino lo comprado y no recibido, y disponible la resta que importa
+               a la hora de prometer una unidad más. #}
             <tr>
                 <th class="px-4 py-3">Producto</th>
-                <th class="px-4 py-3 text-right">Stock</th>
+                <th class="px-4 py-3 text-right">Físico</th>
+                <th class="px-4 py-3 text-right">Comprometido</th>
+                <th class="px-4 py-3 text-right">Disponible</th>
+                <th class="px-4 py-3 text-right">En camino</th>
                 <th class="px-4 py-3 text-right">Último precio compra</th>
                 <th class="px-4 py-3 text-right">Valorización</th>
             </tr>
@@ -79,6 +87,16 @@ function scanSerialFromPhoto(input) {
                 <td class="px-4 py-3 text-right
                     {% if item.stock_qty <= 0 %}text-red-500{% else %}text-gray-800{% endif %}">
                     {{ item.stock_qty }}
+                </td>
+                <td class="px-4 py-3 text-right {% if item.pending_out %}text-purple-600{% else %}text-gray-400{% endif %}">
+                    {{ item.pending_out or "—" }}
+                </td>
+                <td class="px-4 py-3 text-right font-medium
+                    {% if item.available_qty < 0 %}text-red-500{% else %}text-gray-800{% endif %}">
+                    {{ item.available_qty }}
+                </td>
+                <td class="px-4 py-3 text-right {% if item.pending_in %}text-blue-600{% else %}text-gray-400{% endif %}">
+                    {{ item.pending_in or "—" }}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-600">
                     {% if item.unit_price %}
@@ -93,14 +111,14 @@ function scanSerialFromPhoto(input) {
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="px-4 py-6 text-center text-gray-400">No hay productos con movimientos.</td>
+                <td colspan="7" class="px-4 py-6 text-center text-gray-400">No hay productos con movimientos.</td>
             </tr>
             {% endfor %}
         </tbody>
         {% if stock_items %}
         <tfoot class="bg-gray-100 text-xs text-gray-600 uppercase">
             <tr>
-                <td colspan="3" class="px-4 py-3 text-right font-medium">Total valorización</td>
+                <td colspan="6" class="px-4 py-3 text-right font-medium">Total valorización</td>
                 <td class="px-4 py-3 text-right font-semibold text-gray-800">
                     {{ (stock_items | sum(attribute="valuation")) | currency }}
                 </td>

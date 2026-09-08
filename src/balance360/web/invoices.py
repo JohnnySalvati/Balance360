@@ -493,6 +493,25 @@ def unconfirm_invoice(
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
 
 
+@router.post("/{invoice_id}/fulfill", response_class=HTMLResponse)
+def fulfill_invoice(
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db),
+    fulfilled_at: str = Form(...),
+):
+    invoice_service.fulfill_invoice(db, invoice, datetime.date.fromisoformat(fulfilled_at))
+    return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
+
+
+@router.post("/{invoice_id}/unfulfill", response_class=HTMLResponse)
+def unfulfill_invoice(
+    invoice: Invoice = Depends(get_invoice_or_404),
+    db: Session = Depends(get_db),
+):
+    invoice_service.unfulfill_invoice(db, invoice)
+    return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
+
+
 @router.post("/{invoice_id}/pay", response_class=HTMLResponse)
 def pay_invoice(
     invoice: Invoice = Depends(get_invoice_or_404),

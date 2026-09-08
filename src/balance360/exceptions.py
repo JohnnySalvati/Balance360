@@ -18,6 +18,16 @@ class InvoiceDeleteError(Balance360Error):
     pass
 
 
+class InvoiceFulfillmentError(Balance360Error):
+    """No se puede registrar (o revertir) el movimiento fisico de un comprobante.
+
+    Es el par de InvoiceConfirmationError para el otro hecho: confirmar dice que el
+    comprobante vale, entregar/recibir dice que las unidades se movieron. Los motivos
+    que antes bloqueaban la confirmacion —faltan seriales, no hay stock— bloquean ahora
+    esto, y por eso llevan una excepcion propia: la confirmacion ya no los mira.
+    """
+
+
 class InvoiceRequestError(Balance360Error):
     pass
 

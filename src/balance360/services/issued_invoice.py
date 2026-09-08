@@ -103,6 +103,10 @@ def register(db: Session, user: User, data: IssuedInvoiceCreate) -> tuple[Invoic
             confirmed=True,
             authorized=True,
             paid=False,
+            # Nace con el movimiento hecho: sus lineas no se vinculan a productos, asi
+            # que no hay nada fisico que quede pendiente. Sin esto, cada comprobante de
+            # FactuMov aterrizaria en la lista de entregas pendientes y no saldria nunca.
+            fulfilled_at=data.date,
             cae=data.cae,
             cae_expiry=data.cae_expiry,
             concepto=data.concepto,

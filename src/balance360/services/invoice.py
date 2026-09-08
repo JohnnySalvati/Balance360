@@ -30,6 +30,7 @@ from balance360.exceptions import (
     InvoiceConfirmationError,
     InvoiceCreditNoteError,
     InvoiceDeleteError,
+    InvoiceFulfillmentError,
     InvoicePaymentError,
     InvoiceRequestError,
 )
@@ -47,31 +48,21 @@ from balance360.services.wsfe import authorize_invoice as wsfe_authorize_invoice
 
 
 def confirm_invoice(db: Session, invoice: Invoice):
-    validate_confirmation(db, invoice)
-    invoice.confirmed = True
+    """Congela el comprobante como documento, y mueve la mercaderia si ya se puede.
 
-    if invoice.is_nc:
-        # Una NC cargada a mano desde el portal de ARCA no tiene comprobante
-        # relacionado: es un estado valido y no hay seriales que mover.
-        if invoice.related_invoice is not None:
-            for invoice_line in invoice.related_invoice.invoice_lines:
-                if invoice.invoice_type == InvoiceType.purchase:
-                    for serial in invoice_line.purchased_serials:
-                        serial.status = SerialStatus.returned
-                else:
-                    for serial in invoice_line.sold_serials:
-                        serial.status = SerialStatus.available
-                        serial.sale_line_id = None
-    else:
-        for invoice_line in invoice.invoice_lines:
-            if not invoice_line.product or not invoice_line.product.track_serial:
-                continue
-            if invoice.invoice_type == InvoiceType.purchase:
-                for serial in invoice_line.purchased_serials:
-                    serial.status = SerialStatus.available
-            else:
-                for serial in invoice_line.sold_serials:
-                    serial.status = SerialStatus.sold
+    Confirmar dejo de exigir seriales y stock: eso pasa a ser el otro hecho, el que
+    registra `fulfill_invoice`. Lo que se conserva es el tramite de todos los dias —
+    cuando la mercaderia esta y los seriales ya estan cargados, confirmar sigue moviendo
+    el stock en el mismo click. Cuando falta algo, el comprobante queda confirmado con
+    la entrega pendiente en vez de rechazado, y esa es toda la diferencia: se puede
+    autorizar, imprimir y cobrar sin tener todavia la unidad fisica.
+    """
+    validate_confirmation(invoice)
+    invoice.confirmed = True
+    db.flush()
+
+    if fulfillment_error(db, invoice) is None:
+        fulfill_invoice(db, invoice, invoice.date)
 
     db.flush()
 
@@ -79,28 +70,111 @@ def confirm_invoice(db: Session, invoice: Invoice):
 def unconfirm_invoice(db: Session, invoice: Invoice):
     validate_unconfirmation(invoice)
     invoice.confirmed = False
+    db.flush()
 
-    if invoice.is_nc:
-        if invoice.related_invoice is not None:
-            for invoice_line in invoice.related_invoice.invoice_lines:
-                if not invoice_line.product or not invoice_line.product.track_serial:
-                    continue
-                if invoice.related_invoice.invoice_type == InvoiceType.purchase:
-                    for serial in invoice_line.purchased_serials:
-                        serial.status = SerialStatus.available
-                #  The else branch is unreachable on purpose by validate_unconfirmation.
-                #  The reason in Pending.md
-    else:
-        for invoice_line in invoice.invoice_lines:
-            if not invoice_line.product or not invoice_line.product.track_serial:
-                continue
+
+def fulfill_invoice(db: Session, invoice: Invoice, on: date) -> None:
+    """Registra que las unidades se movieron: entregadas al cliente, recibidas del proveedor.
+
+    Es lo que mueve los seriales y lo que hace que la linea cuente en el stock. `on` es
+    el dia del movimiento, que no tiene por que ser el del comprobante.
+    """
+    if not invoice.confirmed:
+        raise InvoiceFulfillmentError("El comprobante no esta confirmado")
+    if invoice.fulfilled:
+        raise InvoiceFulfillmentError("El movimiento ya esta registrado")
+
+    error = fulfillment_error(db, invoice)
+    if error:
+        raise InvoiceFulfillmentError(error)
+
+    _advance_serials(invoice)
+    invoice.fulfilled_at = on
+    db.flush()
+
+
+def unfulfill_invoice(db: Session, invoice: Invoice) -> None:
+    """Deshace el movimiento fisico. El comprobante sigue confirmado."""
+    validate_unfulfillment(invoice)
+    _rewind_serials(invoice)
+    invoice.fulfilled_at = None
+    db.flush()
+
+
+def _serial_lines(invoice: Invoice) -> list[InvoiceLine]:
+    """Las lineas cuyo producto lleva numero de serie; el resto no mueve seriales."""
+    return [line for line in invoice.invoice_lines if line.product and line.product.track_serial]
+
+
+def _advance_serials(invoice: Invoice) -> None:
+    if not invoice.is_nc:
+        for line in _serial_lines(invoice):
             if invoice.invoice_type == InvoiceType.purchase:
-                for serial in invoice_line.purchased_serials:
+                for serial in line.purchased_serials:
+                    serial.status = SerialStatus.available
+            else:
+                for serial in line.sold_serials:
+                    serial.status = SerialStatus.sold
+        return
+
+    # Una NC no mueve sus propias lineas: deshace las del comprobante original. Una NC
+    # cargada a mano desde ARCA no tiene original, y ahi no hay seriales que mover.
+    original = invoice.related_invoice
+    if original is None:
+        return
+
+    if not original.fulfilled:
+        _release_commitment(original)
+        return
+
+    for line in _serial_lines(original):
+        if invoice.invoice_type == InvoiceType.purchase:
+            for serial in line.purchased_serials:
+                serial.status = SerialStatus.returned
+        else:
+            for serial in line.sold_serials:
+                serial.status = SerialStatus.available
+                serial.sale_line_id = None
+
+
+def _release_commitment(original: Invoice) -> None:
+    """La NC anula un movimiento que todavia no habia ocurrido.
+
+    Es el caso que abre facturar antes de entregar: una venta emitida —con CAE incluso—
+    que se cae antes de la entrega. No hay nada que devolver, pero las unidades que esa
+    venta tenia reservadas tienen que volver al stock disponible; si no, quedan fuera de
+    circulacion sin ningun comprobante que lo explique.
+
+    La compra no necesita nada aca: sus seriales serian promesas de unidades que nunca
+    llegaron, y `_credit_note_error` no deja llegar hasta aca si hay alguno cargado.
+    """
+    for line in _serial_lines(original):
+        for serial in line.sold_serials:
+            serial.status = SerialStatus.available
+            serial.sale_line_id = None
+
+
+def _rewind_serials(invoice: Invoice) -> None:
+    if not invoice.is_nc:
+        for line in _serial_lines(invoice):
+            if invoice.invoice_type == InvoiceType.purchase:
+                for serial in line.purchased_serials:
                     serial.status = SerialStatus.pending
             else:
-                for serial in invoice_line.sold_serials:
+                for serial in line.sold_serials:
                     serial.status = SerialStatus.reserved
-    db.flush()
+        return
+
+    original = invoice.related_invoice
+    if original is None or not original.fulfilled:
+        return
+    # La rama de venta es inalcanzable a proposito: validate_unfulfillment la rechaza
+    # porque el vinculo que haria falta para restaurar los seriales ya no existe.
+    # El motivo esta en PENDING.md.
+    if invoice.invoice_type == InvoiceType.purchase:
+        for line in _serial_lines(original):
+            for serial in line.purchased_serials:
+                serial.status = SerialStatus.available
 
 
 def register_payment(db: Session, invoice: Invoice, account: Account, payment_date: date):
@@ -339,11 +413,17 @@ _SERIAL_STATUS_ERROR = {
 }
 
 
-def _wrong_status_error(serial: SerialNumber, required: SerialStatus) -> InvoiceConfirmationError:
-    return InvoiceConfirmationError(f"El serial {serial.serial} {_SERIAL_STATUS_ERROR[required]}")
+def _wrong_status_message(serial: SerialNumber, required: SerialStatus) -> str:
+    return f"El serial {serial.serial} {_SERIAL_STATUS_ERROR[required]}"
 
 
-def validate_confirmation(db: Session, invoice: Invoice) -> None:
+def validate_confirmation(invoice: Invoice) -> None:
+    """Lo que hace valido al comprobante como documento.
+
+    Nada fisico: los seriales y el stock los mira `fulfillment_error`. Un comprobante
+    puede ser impecable como documento —y declarable, y cobrable— antes de que la
+    mercaderia exista.
+    """
     if invoice.confirmed:
         raise InvoiceConfirmationError("El comprobante ya esta confirmado")
 
@@ -356,12 +436,6 @@ def validate_confirmation(db: Session, invoice: Invoice) -> None:
         )
 
     _validate_formality(invoice)
-
-    # Una NC no mueve sus propias lineas: deshace las del comprobante original.
-    if invoice.is_nc:
-        _validate_credit_note(db, invoice)
-    else:
-        _validate_lines(db, invoice)
 
 
 def _validate_formality(invoice: Invoice) -> None:
@@ -388,55 +462,99 @@ def _validate_formality(invoice: Invoice) -> None:
         raise InvoiceConfirmationError("Tipo de comprobante no admitido")
 
 
-def _validate_credit_note(db: Session, invoice: Invoice) -> None:
+def fulfillment_error(db: Session, invoice: Invoice) -> str | None:
+    """Que falta para poder registrar el movimiento fisico, o None si no falta nada.
+
+    Devuelve el motivo en vez de lanzar porque tiene dos usos con la misma pregunta
+    adentro: `fulfill_invoice` lo convierte en excepcion, y `confirm_invoice` lo usa
+    para decidir si puede mover el stock en el mismo acto. Tambien es lo que la lista
+    de pendientes muestra en la columna "Falta".
+    """
+    if invoice.is_nc:
+        return _credit_note_error(db, invoice)
+
+    is_sale = invoice.invoice_type == InvoiceType.sale
+    required = SerialStatus.reserved if is_sale else SerialStatus.pending
+
+    if is_sale:
+        error = _stock_error(db, invoice, invoice.entity_id)
+        if error:
+            return error
+
+    for line in _serial_lines(invoice):
+        product = line.product
+        assert product  # _serial_lines ya filtro por producto; esto es para mypy
+
+        serials = line.sold_serials if is_sale else line.purchased_serials
+        missing = line.quantity - len(serials)
+        if missing > 0:
+            return f"Faltan {missing} de {line.quantity} seriales de {product.name}"
+        if missing < 0:
+            return f"Cantidad erronea de seriales para {product.name}"
+
+        for serial in serials:
+            if serial.product_id != line.product_id:
+                return "El serial no corresponde a este producto"
+            if serial.status != required:
+                return _wrong_status_message(serial, required)
+            if is_sale and serial.purchase_line.invoice.entity_id != invoice.entity_id:
+                return "El serial no fue comprado por esta entidad"
+
+    return None
+
+
+def _credit_note_error(db: Session, invoice: Invoice) -> str | None:
     """Una NC se valida contra el comprobante original, no contra sus propias lineas."""
     original = invoice.related_invoice
+    # Una NC cargada a mano desde el portal de ARCA no tiene original: no mueve nada.
     if original is None:
-        return
+        return None
+
+    if not original.fulfilled:
+        # El original nunca se movio, asi que la NC no devuelve: anula. Lo unico que hay
+        # que soltar es lo que habia quedado comprometido. En una compra eso serian
+        # seriales `pending` de unidades que nunca llegaron, y borrarlos por nuestra
+        # cuenta seria decidir solos que ese numero de serie no existio.
+        if invoice.invoice_type == InvoiceType.purchase and any(
+            line.purchased_serials for line in _serial_lines(original)
+        ):
+            return "La compra tiene seriales cargados: quitalos antes de anularla con la NC"
+        return None
 
     if invoice.invoice_type == InvoiceType.purchase:
         # Devolver al proveedor saca unidades del deposito: tienen que estar.
-        _validate_stock(db, original, invoice.entity_id)
-        ensure_serials_have_status(original, SerialStatus.available)
-    else:
-        ensure_serials_have_status(original, SerialStatus.sold)
+        return _stock_error(db, original, invoice.entity_id) or _serials_status_error(
+            original, SerialStatus.available
+        )
+    return _serials_status_error(original, SerialStatus.sold)
 
 
-def _validate_stock(db: Session, source: Invoice, entity_id: UUID) -> None:
-    """Stock suficiente para los productos de `source` que no llevan seriales.
+def _stock_error(db: Session, source: Invoice, entity_id: UUID) -> str | None:
+    """Stock fisico suficiente para los productos de `source` que no llevan seriales.
 
-    Los que llevan seriales no se cuentan por stock sino por serial, en _validate_lines.
+    Los que llevan seriales no se cuentan por stock sino por serial, unidad por unidad.
     """
     for line in source.invoice_lines:
         if not line.product or line.product.track_serial:
             continue
         if get_product_stock(db, line.product.id, entity_id) < line.quantity:
-            raise InvoiceConfirmationError(f"Stock insuficiente de {line.product.name}")
+            return f"Stock insuficiente de {line.product.name}"
+    return None
 
 
-def _validate_lines(db: Session, invoice: Invoice) -> None:
-    """Comprobante normal: cada linea con producto tiene que ser entregable."""
-    is_sale = invoice.invoice_type == InvoiceType.sale
-    required = SerialStatus.reserved if is_sale else SerialStatus.pending
-
-    if is_sale:
-        _validate_stock(db, invoice, invoice.entity_id)
-
-    for line in invoice.invoice_lines:
-        if not line.product or not line.product.track_serial:
-            continue
-
-        serials = line.sold_serials if is_sale else line.purchased_serials
-        if line.quantity != len(serials):
-            raise InvoiceConfirmationError(f"Cantidad erronea de seriales para {line.product.name}")
-
-        for serial in serials:
-            if serial.product_id != line.product_id:
-                raise InvoiceConfirmationError("El serial no corresponde a este producto")
+def _serials_status_error(invoice: Invoice, required: SerialStatus) -> str | None:
+    is_purchase = invoice.invoice_type == InvoiceType.purchase
+    for line in _serial_lines(invoice):
+        for serial in line.purchased_serials if is_purchase else line.sold_serials:
             if serial.status != required:
-                raise _wrong_status_error(serial, required)
-            if is_sale and serial.purchase_line.invoice.entity_id != invoice.entity_id:
-                raise InvoiceConfirmationError("El serial no fue comprado por esta entidad")
+                return _wrong_status_message(serial, required)
+    return None
+
+
+def _ensure_serials_have_status(invoice: Invoice, required: SerialStatus) -> None:
+    error = _serials_status_error(invoice, required)
+    if error:
+        raise InvoiceFulfillmentError(error)
 
 
 def validate_payment(invoice: Invoice):
@@ -453,16 +571,6 @@ def validate_delete(invoice: Invoice):
         raise InvoiceDeleteError("El comprobante esta confirmado")
 
 
-def ensure_serials_have_status(invoice: Invoice, required_status: SerialStatus) -> None:
-    is_purchase = invoice.invoice_type == InvoiceType.purchase
-    for invoice_line in invoice.invoice_lines:
-        if not invoice_line.product or not invoice_line.product.track_serial:
-            continue
-        for serial in invoice_line.purchased_serials if is_purchase else invoice_line.sold_serials:
-            if serial.status != required_status:
-                raise _wrong_status_error(serial, required_status)
-
-
 def validate_unconfirmation(invoice: Invoice):
     if not invoice.confirmed:
         raise InvoiceConfirmationError("El comprobante no esta confirmado")
@@ -470,21 +578,43 @@ def validate_unconfirmation(invoice: Invoice):
         raise InvoiceConfirmationError("El comprobante tiene pago asociado")
     if invoice.authorized:
         raise InvoiceConfirmationError("El comprobante esta autorizado CAE")
-    if invoice.is_nc:
-        if invoice.related_invoice is not None:
-            if invoice.invoice_type == InvoiceType.purchase:
-                ensure_serials_have_status(invoice.related_invoice, SerialStatus.returned)
-            else:
-                for invoice_line in invoice.related_invoice.invoice_lines:
-                    if invoice_line.product and invoice_line.product.track_serial:
-                        raise InvoiceConfirmationError(
-                            "No se puede desconfirmar una NC de una venta"
-                        )
-    else:
-        if invoice.invoice_type == InvoiceType.purchase:
-            ensure_serials_have_status(invoice, SerialStatus.available)
-        else:
-            ensure_serials_have_status(invoice, SerialStatus.sold)
+    if invoice.fulfilled:
+        # Los seriales y el stock ya se movieron, y deshacer eso es la otra operacion,
+        # con sus propias reglas. Des-confirmar por arriba dejaria el movimiento hecho y
+        # el comprobante en borrador: stock que existe sin nada que lo respalde.
+        raise InvoiceConfirmationError("Primero hay que revertir la entrega o recepcion registrada")
+
+
+def validate_unfulfillment(invoice: Invoice) -> None:
+    if not invoice.fulfilled:
+        raise InvoiceFulfillmentError("El comprobante no tiene movimiento registrado")
+
+    if not invoice.is_nc:
+        _ensure_serials_have_status(
+            invoice,
+            SerialStatus.available
+            if invoice.invoice_type == InvoiceType.purchase
+            else SerialStatus.sold,
+        )
+        return
+
+    original = invoice.related_invoice
+    if original is None:
+        return
+
+    if invoice.invoice_type == InvoiceType.sale:
+        # Confirmar la NC de una venta le saca el `sale_line_id` a cada serial, y esa
+        # columna *es* la definicion de `sold_serials`: despues de eso no queda por
+        # donde volver. Vale igual para la NC que anulo una venta sin entregar, que
+        # suelta las reservas de la misma manera. El arreglo real esta en PENDING.md.
+        if _serial_lines(original):
+            raise InvoiceFulfillmentError(
+                "No se puede revertir el movimiento de una NC de una venta con seriales"
+            )
+        return
+
+    if original.fulfilled:
+        _ensure_serials_have_status(original, SerialStatus.returned)
 
 
 def create_credit_note(db: Session, original: Invoice):

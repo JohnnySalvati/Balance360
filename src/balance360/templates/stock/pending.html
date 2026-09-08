@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{# Comprobantes confirmados cuya mercadería todavía no se movió.
+
+   Es la contrapartida de haber separado el hecho fiscal del físico: se puede facturar
+   antes de entregar, y esta pantalla es lo que impide que eso se olvide. La columna
+   "Falta" sale de `fulfillment_error`, la misma función que decide si el botón de
+   entregar va a funcionar, así que no puede decir una cosa distinta que el comprobante. #}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold">Movimientos pendientes</h1>
+    <a href="/stock/" class="text-sm text-blue-600 hover:underline">← Stock</a>
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Fecha</th>
+                <th class="px-4 py-3">Comprobante</th>
+                <th class="px-4 py-3">Entidad</th>
+                <th class="px-4 py-3">Contacto</th>
+                <th class="px-4 py-3">Estado</th>
+                <th class="px-4 py-3">Falta</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+            {% for invoice, blocker in rows %}
+            {% set is_sale = invoice.invoice_type.value == "sale" %}
+            <tr class="hover:bg-gray-200 cursor-pointer"
+                onclick="location.href='/invoices/{{ invoice.id }}'">
+                <td class="px-4 py-3 text-gray-600">{{ invoice.date.strftime("%d/%m/%Y") }}</td>
+                <td class="px-4 py-3 text-gray-800">
+                    {{ "Venta" if is_sale else "Compra" }}
+                    {% if invoice.formal and invoice.pos %}
+                        {{ invoice.voucher_type.value if invoice.voucher_type else "" }}
+                        {{ "%04d" % invoice.pos }}-{{ "%08d" % invoice.number if invoice.number else "—" }}
+                    {% else %}
+                        informal
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-gray-700">{{ invoice.entity.name }}</td>
+                <td class="px-4 py-3 text-gray-800">{{ invoice.contact.name }}</td>
+                <td class="px-4 py-3">
+                    <span class="text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded">
+                        {{ "Entrega pendiente" if is_sale else "Recepción pendiente" }}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-500">
+                    {% if blocker %}
+                        {{ blocker }}
+                    {% else %}
+                        <span class="text-green-600">Listo para registrar</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="px-4 py-6 text-center text-gray-400">
+                    No hay entregas ni recepciones pendientes.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

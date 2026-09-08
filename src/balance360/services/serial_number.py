@@ -8,7 +8,23 @@ from balance360.models.serial_number import SerialNumber
 from balance360.schemas.serial_number import SerialNumberCreate, SerialNumberUpdate
 
 
+def _ensure_open(invoice_line: InvoiceLine) -> None:
+    """Los seriales se cargan hasta que el movimiento fisico queda registrado.
+
+    La puerta era `confirmed` y estaba solo en el template. Ahora es el estado que
+    corresponde —despues de entregar o recibir, tocar los seriales cambiaria un hecho
+    ya asentado— y esta del lado del servidor, que es donde tiene que estar: la ruta de
+    alta y la de baja se pueden llamar sin pasar por la pantalla.
+    """
+    if invoice_line.invoice.fulfilled:
+        raise SerialValidationError(
+            "El comprobante ya registro su movimiento de stock: revertilo para cambiar seriales"
+        )
+
+
 def add_serial_to_line(db: Session, serial_str: str, invoice_line: InvoiceLine) -> SerialNumber:
+    _ensure_open(invoice_line)
+
     if not invoice_line.product_id:
         raise SerialValidationError("La línea no tiene producto asignado")
 
@@ -40,6 +56,8 @@ def add_serial_to_line(db: Session, serial_str: str, invoice_line: InvoiceLine) 
 def remove_serial_from_line(
     db: Session, serial_number: SerialNumber, invoice_line: InvoiceLine
 ) -> None:
+    _ensure_open(invoice_line)
+
     if invoice_line.invoice.invoice_type == InvoiceType.purchase:
         serial_number_crud.delete(db, serial_number)
     else:

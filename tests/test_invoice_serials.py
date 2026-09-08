@@ -1,7 +1,12 @@
-"""Ciclo de vida de los seriales al confirmar y des-confirmar.
+"""Ciclo de vida de los seriales al registrar y revertir el movimiento fisico.
 
-Cubre el arreglo de unconfirm_invoice: una NC de compra confirmada deja los
-seriales en Devuelto, y des-confirmarla los tiene que devolver a Disponible.
+Quien mueve los seriales es `fulfill_invoice`, no `confirm_invoice`: confirmar solo
+dispara el movimiento cuando ya se puede hacer entero. Por eso los casos de ida
+siguen entrando por `confirm_invoice` —es lo que pasa en la pantalla— y los de vuelta
+tienen que revertir primero el movimiento y despues des-confirmar.
+
+Cubre el arreglo de la vuelta: una NC de compra confirmada deja los seriales en
+Devuelto, y revertirla los tiene que devolver a Disponible.
 """
 
 from decimal import Decimal
@@ -13,6 +18,7 @@ from balance360.services.invoice import (
     create_credit_note,
     delete_invoice_line,
     unconfirm_invoice,
+    unfulfill_invoice,
 )
 from balance360.web import invoices as invoice_routes
 from tests import factories
@@ -80,8 +86,10 @@ def test_purchase_nc_cycle_returns_and_restores_serials(db):
     confirm_invoice(db, nc)
 
     assert nc.confirmed
+    assert nc.fulfilled
     assert _statuses(db, serials) == [SerialStatus.returned] * 2
 
+    unfulfill_invoice(db, nc)
     unconfirm_invoice(db, nc)
 
     assert not nc.confirmed
@@ -112,6 +120,7 @@ def test_nc_without_related_invoice_confirms_without_touching_serials(db):
     assert loose_nc.confirmed
     assert _statuses(db, serials) == [SerialStatus.available] * 2
 
+    unfulfill_invoice(db, loose_nc)
     unconfirm_invoice(db, loose_nc)
 
     assert not loose_nc.confirmed

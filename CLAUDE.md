@@ -107,6 +107,54 @@ Entidades reales: InSoft (empresa), Familia, Escuela. Los clientes son `contact`
   `__new__` para que `.value` siga siendo el string que persiste SQLAlchemy.
 - Punto de venta 2 = portal de ARCA (manual); punto de venta 5 = esta app vía web services.
 
+### Entregar y recibir es otro hecho que confirmar (2026-09-08)
+
+`fulfilled_at` en `invoices`: cuándo se movieron las unidades. `None` = todavía no.
+
+Nació de un bloqueo real: facturar para anticipar el cobro de algo que todavía no llegó
+era imposible. La factura del proveedor no se podía confirmar sin un serial por unidad, y
+sin esa compra confirmada el serial nunca llegaba a `available`, así que la venta tampoco
+se podía confirmar ni autorizar. `confirmed` estaba diciendo dos cosas al mismo tiempo —el
+comprobante vale y la mercadería se movió— y solo se notaba cuando dejaban de ocurrir el
+mismo día. Es el mismo criterio que ya tenía `paid`: cobrar es otro hecho, con otra fecha.
+
+- **`validate_confirmation` ya no mira nada físico.** Seriales y stock pasaron a
+  `fulfillment_error`, que **devuelve el motivo en vez de lanzar**: `fulfill_invoice` lo
+  convierte en excepción, `confirm_invoice` lo usa para decidir si puede mover el stock en
+  el mismo acto, y la pantalla de pendientes lo muestra en la columna "Falta". Una sola
+  fuente de verdad para las tres preguntas.
+- **Confirmar sigue moviendo el stock cuando puede.** Si los seriales están y el stock
+  alcanza, confirmar entrega/recibe en el mismo click; si falta algo, el comprobante queda
+  confirmado con el movimiento pendiente en vez de rechazado. El trámite de todos los días
+  no cambió: cambió lo que pasa cuando falta algo.
+- **El stock cuenta `fulfilled_at`, no `confirmed`** (`services/stock.py`), y por eso la
+  migración hace `UPDATE invoices SET fulfilled_at = date WHERE confirmed`: sin ese
+  backfill todo el stock histórico se iba a cero. Verificado contra la fórmula vieja en la
+  base de desarrollo: cero diferencias.
+- **El último precio de compra sigue saliendo de lo confirmado.** Es una pregunta de
+  precio, no de depósito: una compra confirmada y no recibida ya dice cuánto salió.
+- **Tres columnas nuevas en Stock**: físico (movido), comprometido (vendido sin entregar),
+  en camino (comprado sin recibir), y disponible = físico − comprometido. Salen de la
+  misma consulta con `case`, no de un `WHERE`, porque un producto que solo tiene
+  movimientos pendientes —lo típico de una venta anticipada— si no no aparecía.
+- **Una NC que anula un comprobante que nunca se movió no mueve nada**, pero sí suelta lo
+  que había quedado comprometido: los seriales reservados de una venta que se cae vuelven
+  a `available`. Y `stock.py` la excluye explícitamente del conteo (`_reverses_nothing`):
+  una NC de venta suma al depósito, y sumar la reversión de un movimiento que no ocurrió
+  daba stock que jamás existió. Salió de un test, no de una revisión.
+- **Des-confirmar exige revertir el movimiento primero.** Al revés quedaría el stock
+  movido y el comprobante en borrador. `validate_unconfirmation` se quedó con lo fiscal.
+- **Los seriales se editan hasta que el movimiento se registra**, no hasta confirmar, y la
+  puerta ahora está en `services/serial_number.py` y no solo en el template — las rutas de
+  alta y baja se pueden llamar sin pasar por la pantalla.
+- **`/stock/pending` es lo que sostiene todo esto.** Separar los dos hechos solo es seguro
+  si hay dónde ver lo que quedó colgado; sin esa pantalla, una venta facturada y no
+  entregada no se distingue de una entregada hasta que el stock no cierra meses después.
+  Excluye lo anulado por una NC confirmada: eso ya no se va a entregar nunca.
+- **Los comprobantes de FactuMov nacen con `fulfilled_at = date`**: sus líneas no se
+  vinculan a productos, así que no tienen nada físico pendiente, y sin eso aterrizaban en
+  la lista de pendientes para no salir nunca.
+
 ### Registro de comprobantes de FactuMov (2026-08-29)
 
 FactuMov emite y `POST /api/invoices/issued` lo registra acá. Lo que llega ya tiene CAE: no se

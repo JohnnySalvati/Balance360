@@ -52,6 +52,18 @@ class Invoice(Base, TimestampMixin):
     confirmed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     paid: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     authorized: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Cuándo se movieron las unidades: entregadas al cliente, recibidas del proveedor.
+    # `None` = todavía no.
+    #
+    # Es el cuarto estado, y existe porque `confirmed` estaba diciendo dos cosas a la vez:
+    # que el comprobante vale (se declara, se paga, se autoriza) y que la mercadería se
+    # movió. Mientras las dos ocurrieran juntas daba igual; no ocurren juntas cuando se
+    # factura para anticipar el cobro de algo que todavía no llegó, y ahí el serial —que
+    # es un hecho de la unidad física, no del comprobante— bloqueaba el hecho fiscal.
+    #
+    # Fecha y no booleano: el movimiento pasa un día concreto, que no tiene por qué ser el
+    # del comprobante, y es el dato que hace falta para valuar stock a una fecha.
+    fulfilled_at: Mapped[datetime.date | None] = mapped_column(Date)
     cae: Mapped[str | None] = mapped_column(String(14))
     cae_expiry: Mapped[datetime.date | None] = mapped_column(Date)
     concepto: Mapped[Concepto] = mapped_column(
@@ -155,6 +167,16 @@ class Invoice(Base, TimestampMixin):
     @classmethod
     def _applies_iva_expression(cls) -> ColumnElement[bool]:
         return cls.voucher_type.notin_([VoucherType.C, VoucherType.NCC])
+
+    @hybrid_property
+    def fulfilled(self) -> bool:
+        """El movimiento físico ya se registró."""
+        return self.fulfilled_at is not None
+
+    @fulfilled.inplace.expression
+    @classmethod
+    def _fulfilled_expression(cls) -> ColumnElement[bool]:
+        return cls.fulfilled_at.is_not(None)
 
     @property
     def is_fiscal_document(self) -> bool:

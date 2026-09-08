@@ -4,6 +4,11 @@
    el comprobante no discrimina IVA. Mismo cálculo que allá. #}
 {% set cols = (5 if (invoice.applies_iva and invoice.formal) else 4)
               + (0 if invoice.confirmed else 1) %}
+{# Los seriales se cargan hasta que el movimiento fisico queda registrado, no hasta
+   confirmar: una venta se factura para anticipar el cobro y recien se le asignan las
+   unidades cuando se entrega. El colspan de arriba si sigue atado a `confirmed`, que
+   es lo que decide las columnas de items_table.html. #}
+{% set serials_editable = not invoice.fulfilled %}
 <td colspan="{{ cols }}" class="px-4 py-2 bg-gray-100">
 <div id="serial-panel-{{ invoice_line.id }}" class="mt-2">
 
@@ -12,7 +17,7 @@
         {% for s in serials %}
         <li class="flex items-center justify-between text-xs text-gray-700 bg-gray-100 rounded px-2 py-1">
             <span class="font-mono">{{ s.serial }}</span>
-            {% if not invoice.confirmed %}
+            {% if serials_editable %}
             <button hx-delete="/invoices/{{ invoice.id }}/lines/{{ invoice_line.id }}/serials/{{ s.id }}"
                     hx-target="{{ panel_target }}"
                     hx-swap="innerHTML"
@@ -25,7 +30,7 @@
     </ul>
     {% endif %}
 
-    {% if not invoice.confirmed %}
+    {% if serials_editable %}
     <form id="serial-form-{{ invoice_line.id }}"
           hx-post="/invoices/{{ invoice.id }}/lines/{{ invoice_line.id }}/serials"
           hx-target="{{ panel_target }}"

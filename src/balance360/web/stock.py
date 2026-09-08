@@ -5,11 +5,13 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from balance360.crud import entity as entity_crud
+from balance360.crud import invoice as invoice_crud
 from balance360.crud import product as product_crud
 from balance360.crud import serial_number as serial_number_crud
 from balance360.dependencies import get_db
 from balance360.enums import SerialStatus
 from balance360.models.serial_number import SerialNumber
+from balance360.services.invoice import fulfillment_error
 from balance360.services.stock import get_stock_summary
 from balance360.web.templating import templates
 
@@ -70,6 +72,22 @@ def serial_history(
             if serial_number.sale_line
             else None,
             "sale_price": serial_number.sale_line.unit_price if serial_number.sale_line else None,
+        },
+    )
+
+
+@router.get("/pending", response_class=HTMLResponse)
+def pending_fulfillment(request: Request, db: Session = Depends(get_db)):
+    """Lo confirmado que todavia no se movio: ventas por entregar, compras por recibir."""
+    invoices = invoice_crud.get_pending_fulfillment(db)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="stock/pending.html",
+        context={
+            # El motivo se calcula con la misma funcion que decide si se puede entregar,
+            # asi que la columna "Falta" no puede desincronizarse del boton.
+            "rows": [(invoice, fulfillment_error(db, invoice)) for invoice in invoices],
         },
     )
 

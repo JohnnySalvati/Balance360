@@ -98,6 +98,12 @@
                     {% if inv.authorized %}
                         <span title="Autorizado por ARCA (con CAE)" class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">Autorizado ARCA</span>
                     {% endif %}
+                    {% if inv.confirmed and not inv.fulfilled %}
+                        <span title="Confirmado, falta registrar el movimiento de la mercadería"
+                              class="text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded">
+                            {{ "Entrega pendiente" if inv.invoice_type.value == "sale" else "Recepción pendiente" }}
+                        </span>
+                    {% endif %}
                     {% if inv.paid %}
                         <span title="El pago ya fue registrado" class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">Pagado</span>
                     {% elif inv.confirmed %}

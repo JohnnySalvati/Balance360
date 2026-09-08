@@ -13,6 +13,11 @@
         {% if invoice.authorized %}
             <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">Autorizado ARCA</span>
         {% endif %}
+        {% if invoice.confirmed and not invoice.fulfilled %}
+            <span class="text-xs bg-purple-200 text-purple-800 px-2 py-1 rounded">
+                {{ "Entrega pendiente" if invoice.invoice_type.value == "sale" else "Recepción pendiente" }}
+            </span>
+        {% endif %}
         {% if invoice.paid %}
             <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded">Pagado</span>
         {% elif invoice.confirmed %}
@@ -119,6 +124,41 @@
                 Autorizar con ARCA
             </button>
         </form>
+    </div>
+    {% endif %}
+
+    {# Movimiento de stock — el hecho fisico, separado del fiscal.
+
+       Aparece siempre que el comprobante este confirmado, incluso autorizado o pagado:
+       el CAE y el cobro no dicen nada sobre si la mercaderia se movio, que es justo lo
+       que este bloque existe para registrar. #}
+    {% if invoice.confirmed %}
+    <div class="bg-white rounded shadow p-6 flex justify-between items-center gap-4">
+        {% if invoice.fulfilled %}
+        <p class="text-sm text-gray-500">
+            {{ "Entregado" if is_sale else "Recibido" }} el
+            <span class="text-gray-700 font-medium">{{ invoice.fulfilled_at.strftime("%d/%m/%Y") }}</span>
+        </p>
+        <button hx-post="/invoices/{{ invoice.id }}/unfulfill"
+                hx-trigger="confirmedDelete"
+                data-confirm-delete
+                class="shrink-0 text-sm text-orange-600 border border-orange-300 px-4 py-2 rounded hover:bg-orange-100">
+            Revertir {{ "entrega" if is_sale else "recepción" }}
+        </button>
+        {% else %}
+        <p class="text-sm text-gray-500">
+            {{ "La mercadería todavía no se entregó." if is_sale else "La mercadería todavía no se recibió." }}
+            Los números de serie se cargan hasta ese momento.
+        </p>
+        <form hx-post="/invoices/{{ invoice.id }}/fulfill" class="shrink-0 flex items-center gap-3">
+            <input type="date" name="fulfilled_at" value="{{ today() }}" required
+                   class="border rounded px-3 py-2 text-sm">
+            <button type="submit"
+                    class="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-800">
+                Marcar como {{ "entregado" if is_sale else "recibido" }}
+            </button>
+        </form>
+        {% endif %}
     </div>
     {% endif %}
 
