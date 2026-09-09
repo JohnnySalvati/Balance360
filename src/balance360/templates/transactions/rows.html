@@ -1,5 +1,12 @@
+{# La grilla viene mezclada: transacciones reales y ocurrencias previstas, ordenadas por
+   fecha. `is_projected` es una propiedad en las dos clases —`Transaction` la tiene fija en
+   False— justamente para no preguntar por el tipo del objeto desde el template. #}
 {% for t in transactions %}
+{% if t.is_projected %}
+{% include "transactions/_ghost_row.html" %}
+{% else %}
 {% include "transactions/_row.html" %}
+{% endif %}
 {% endfor %}
 
 <div id="tx-counter" hx-swap-oob="innerHTML">{{ filtered_count }} / {{ total_count }} transacciones</div>

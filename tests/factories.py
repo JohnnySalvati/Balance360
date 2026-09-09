@@ -11,6 +11,7 @@ from balance360.enums import (
     CondicionIva,
     ContactType,
     DocType,
+    IntervalUnit,
     InvoiceType,
     IvaAliquot,
     SerialStatus,
@@ -22,14 +23,16 @@ from balance360.models.category import Category
 from balance360.models.contact import Contact
 from balance360.models.currency import Currency
 from balance360.models.entity import Entity
+from balance360.models.entity_membership import EntityMembership
 from balance360.models.exchange_rate import ExchangeRate
 from balance360.models.fiscal_identity import FiscalIdentity
 from balance360.models.import_rule import ImportRule
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
 from balance360.models.product import Product
-from balance360.models.entity_membership import EntityMembership
+from balance360.models.recurrence import Recurrence
 from balance360.models.serial_number import SerialNumber
+from balance360.models.transaction import Transaction
 from balance360.models.user import User
 from balance360.services.import_rule import Classification
 
@@ -273,3 +276,71 @@ def make_exchange_rate(
     db.commit()
     db.refresh(exchange_rate)
     return exchange_rate
+
+
+def make_recurrence(
+    db: Session,
+    account_id: uuid.UUID | None = None,
+    description: str = "Alquiler",
+    amount: Decimal = Decimal("100000"),
+    type: TransactionType = TransactionType.expense,
+    interval_unit: IntervalUnit = IntervalUnit.month,
+    interval_count: int = 1,
+    starts_on: datetime.date | None = None,
+    ends_on: datetime.date | None = None,
+    is_active: bool = True,
+    entity_id: uuid.UUID | None = None,
+    category_id: uuid.UUID | None = None,
+    is_transfer: bool = False,
+):
+    recurrence = Recurrence(
+        id=uuid.uuid4(),
+        description=description,
+        amount=amount,
+        type=type,
+        account_id=account_id or make_account(db).id,
+        entity_id=entity_id,
+        category_id=category_id,
+        is_transfer=is_transfer,
+        interval_unit=interval_unit,
+        interval_count=interval_count,
+        starts_on=starts_on or datetime.date.today(),
+        ends_on=ends_on,
+        is_active=is_active,
+    )
+    db.add(recurrence)
+    db.commit()
+    db.refresh(recurrence)
+    return recurrence
+
+
+def make_transaction(
+    db: Session,
+    account_id: uuid.UUID | None = None,
+    date: datetime.date | None = None,
+    description: str = "Movimiento",
+    amount: Decimal = Decimal("1000"),
+    type: TransactionType = TransactionType.expense,
+    entity_id: uuid.UUID | None = None,
+    category_id: uuid.UUID | None = None,
+    recurrence_id: uuid.UUID | None = None,
+    is_manual: bool = True,
+    is_transfer: bool = False,
+):
+    transaction = Transaction(
+        id=uuid.uuid4(),
+        date=date or datetime.date.today(),
+        description=description,
+        amount=amount,
+        type=type,
+        account_id=account_id or make_account(db).id,
+        entity_id=entity_id,
+        category_id=category_id,
+        recurrence_id=recurrence_id,
+        is_manual=is_manual,
+        is_transfer=is_transfer,
+    )
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+    return transaction

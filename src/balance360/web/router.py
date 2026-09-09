@@ -6,6 +6,7 @@ from balance360.web import (
     import_rules,
     imports,
     invoices,
+    recurrences,
     reports,
     stock,
     transactions,
@@ -24,6 +25,7 @@ router.include_router(transactions.router)
 router.include_router(reports.router)
 router.include_router(config_router.router)
 router.include_router(import_rules.router)
+router.include_router(recurrences.router)
 router.include_router(invoices.router)
 router.include_router(stock.router)
 router.include_router(dashboard.router)

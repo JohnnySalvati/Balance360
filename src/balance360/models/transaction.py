@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from balance360.models.import_row import ImportRow
     from balance360.models.import_rule import ImportRule
     from balance360.models.invoice import Invoice
+    from balance360.models.recurrence import Recurrence
 import datetime
 import decimal
 import uuid
@@ -62,6 +63,11 @@ class Transaction(Base, TimestampMixin):
     import_row_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("import_rows.id", ondelete="CASCADE"), nullable=True
     )
+    # A que serie pertenece este hecho. `SET NULL` igual que `applied_rule_id`: borrar el plan
+    # no puede borrar la transaccion que ya paso.
+    recurrence_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("recurrences.id", ondelete="SET NULL")
+    )
     applied_rule: Mapped["ImportRule|None"] = relationship(back_populates="transactions")
     invoice: Mapped["Invoice|None"] = relationship(back_populates="transaction")
     category: Mapped["Category | None"] = relationship(back_populates="transactions")
@@ -70,6 +76,17 @@ class Transaction(Base, TimestampMixin):
     account: Mapped["Account"] = relationship(back_populates="transactions")
     import_row: Mapped["ImportRow|None"] = relationship(back_populates="transactions")
     import_batch: Mapped["ImportBatch|None"] = relationship(back_populates="transactions")
+    recurrence: Mapped["Recurrence|None"] = relationship(back_populates="transactions")
+
+    @property
+    def is_projected(self) -> bool:
+        """Siempre False.
+
+        Existe para que la grilla mezclada le pueda preguntar lo mismo a las dos clases de
+        fila. La alternativa era que el template mirara el tipo del objeto, que es la clase de
+        cosa que en Jinja no falla: renderiza cualquier cosa en silencio.
+        """
+        return False
 
     @property
     def classification_status(self) -> ClassificationStatus:

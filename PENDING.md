@@ -154,3 +154,56 @@ session opened by someone else survives the reset for up to eight hours.
 **Trigger:** the day an account is actually compromised, or the first time someone asks to see
 their open sessions. Until then the 8-hour window plus the `is_active` switch — which *does*
 take effect on the next request — is enough.
+
+### Expense forecast: phase 2 (projected balance and the negative-window tint)
+**Added:** 2026-09-09 — phase 1 shipped (ghost rows in the grid + the Previsiones screen).
+
+**Why:** seeing the future rows is half of what was asked for. The other half is the alarm:
+tint the transactions window when the projected balance goes negative. The decisions are
+already made and written down in `docs/prevision-de-gastos.md` §6 — this is the implementation,
+not the design.
+
+**Scope:**
+- A base-balance query of its own: **liquid accounts only** (`bank`, `cash`, `wallet` — credit
+  cards are excluded because their balance is debt and would tint the screen every day),
+  `date <= today`, and **including** `is_transfer` rows. `get_account_balances` does none of
+  those three things and must not be changed: it feeds the Balance report.
+- Walk today's balance forward over the future real transactions plus the ghosts, converting
+  with each currency's latest known rate (`ars_rate_subquery` already falls back to it for a
+  future date — but the UI has to say so, or the number reads as an FX prediction).
+- `HX-Trigger: {"forecastResult": {...}}` from `/transactions/rows` plus a listener that paints
+  the banner and the container class — the tinted element lives outside `#tbody`, which is the
+  only thing that gets swapped. Same mechanism as `showRuleConflict`.
+- Red wash on the ghost rows after the first negative date: that is what shows *where* it breaks.
+
+### Expense forecast: double counting when the real payment is off by a few days
+**Added:** 2026-09-09
+
+**Why:** phase 1 suppresses an occurrence only when a real transaction of that series lands on
+the **exact same date**. Rent planned for the 5th and paid on the 3rd still shows its ghost on
+the 5th, so the forecast counts it twice. The damage is bounded — ghosts are future-only, so the
+window is at most one interval — but it inflates the projected balance, which is exactly the
+number phase 2 puts on screen.
+
+**Scope:**
+- Suppress by **interval bucket** instead of by date: one occurrence per bucket (the month, for
+  a monthly plan), consumed by the first real transaction of that series in it.
+- Which needs the import to attach `recurrence_id`. `import_rules` already matches by
+  description, so a recurrence could hang off a rule, or reuse the same matcher.
+- Optional and separate: "confirm this occurrence" (materialise it) and "skip this one" (needs a
+  `recurrence_exceptions` table — deliberately left out of phase 1).
+
+### `get_account_balances` ignores transfers, so per-account balances are wrong
+**Added:** 2026-09-09 — found while designing the forecast, **not** touched by it.
+
+**Why:** it excludes `is_transfer` from both the income and the expense side. Money moved from
+account A to account B is therefore reflected in neither: the Balance report's per-account
+figure is off by every transfer ever recorded. Excluding transfers is right for a *total*
+(the two legs net out) but wrong per account, which is what that report shows.
+
+Note there is no transfer pairing in the model — `is_transfer` is a loose flag on a single row,
+set by hand or by an import rule — so nothing guarantees a counterpart row exists. That is the
+first question to settle before changing anything.
+
+**Trigger:** whenever the Balance-per-account numbers are actually reconciled against a bank
+statement. Deliberately left alone for now: changing it moves a report Johnny reads.

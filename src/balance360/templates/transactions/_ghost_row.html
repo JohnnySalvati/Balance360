@@ -1,0 +1,46 @@
+{# Fila fantasma: una ocurrencia futura de una previsión.
+
+   Template propio y no una rama dentro de `_row.html` a propósito. La fila real trae
+   `hx-patch`, tres `<select>` que clasifican y un `<script>` que habilita el botón de regla;
+   nada de eso tiene sentido acá, porque no hay nada que clasificar en algo que todavía no
+   pasó. Un solo template con `{% if %}` alrededor de cada uno de esos pedazos sería más largo
+   y dejaría el riesgo de que un swap de HTMX apunte a una fila que no existe en la base.
+
+   Un solo botón: editar la serie. La ocurrencia suelta no se toca — eso es fase 3. #}
+{% set type_labels = {"income": "Ingreso", "expense": "Egreso"} %}
+<tr class="bg-white/40 text-gray-400 italic border-l-2 border-dashed border-gray-300 hover:bg-gray-50">
+    <td class="px-4 py-3 whitespace-nowrap">{{ t.date }}</td>
+    <td class="px-4 py-3">{{ t.description }}</td>
+    <td class="px-4 py-3">
+        <span class="px-2 py-1 rounded text-xs font-semibold border border-dashed
+            {% if t.type.value == 'income' %}border-green-300 text-green-600
+            {% else %}border-red-300 text-red-600{% endif %}">
+            {{ type_labels[t.type.value] }}
+        </span>
+        {% if t.is_transfer %}
+        <span class="px-2 py-1 rounded text-xs font-semibold border border-dashed border-blue-300 text-blue-600 ml-1">Transf.</span>
+        {% endif %}
+    </td>
+    <td class="px-4 py-3 text-right">{{ t.amount | currency }}</td>
+    <td class="px-4 py-3">{{ t.account.name }}</td>
+    <td class="px-4 py-3">{{ t.entity.name if t.entity else '—' }}</td>
+    <td class="px-4 py-3">{{ t.contact.name if t.contact else '—' }}</td>
+    <td class="px-4 py-3">{{ t.category.name if t.category else '—' }}</td>
+    <td class="px-4 py-3">
+        <span class="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-dashed border-gray-300"
+              title="{{ t.rhythm_label }} — todavía no pasó">
+            Previsto
+        </span>
+    </td>
+    <td class="px-4 py-3 text-center">{{ '✓' if t.is_transfer else '' }}</td>
+    <td class="px-4 py-3">
+        <div class="flex items-center gap-2 justify-end">
+            <button type="button"
+                    hx-get="/recurrences/{{ t.recurrence_id }}/edit-form"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-blue-400 hover:text-blue-700 text-xs"
+                    title="Editar la previsión ({{ t.rhythm_label }})">✎ serie</button>
+        </div>
+    </td>
+</tr>

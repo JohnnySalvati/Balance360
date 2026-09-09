@@ -30,6 +30,7 @@ class TransactionCreate(BaseModel):
     source_row: int | None = None
     import_batch_id: uuid.UUID | None = None
     import_row_id: uuid.UUID | None = None
+    recurrence_id: uuid.UUID | None = None
 
 
 class TransactionRead(BaseModel):
@@ -52,6 +53,7 @@ class TransactionRead(BaseModel):
     source_row: int | None = None
     import_batch_id: uuid.UUID | None = None
     import_row_id: uuid.UUID | None = None
+    recurrence_id: uuid.UUID | None = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -74,3 +76,4 @@ class TransactionUpdate(BaseModel):
     source_row: int | None = None
     import_batch_id: uuid.UUID | None = None
     import_row_id: uuid.UUID | None = None
+    recurrence_id: uuid.UUID | None = None

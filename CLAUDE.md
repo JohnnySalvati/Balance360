@@ -319,6 +319,37 @@ comprobantes repartidos entre las dos fichas.
   Con un CUIT distinto sería otra cosa y no se arreglaría con un UPDATE.
   Herramienta: `scripts/merge_duplicate_contacts.sql`.
 
+### Previsión de gastos (2026-09-09)
+
+Las transacciones futuras que se saben de antemano se ven en la grilla como filas fantasma, en
+sus fechas. Diseño completo en `docs/prevision-de-gastos.md`; lo que hay que tener presente al
+tocar esto:
+
+- **Nada de la previsión se guarda.** `services/forecast.py` arma `ProjectedTransaction` —un
+  dataclass sin id— y la grilla lo mezcla solo para mostrar. Materializarlo en `transactions`
+  obligaría a agregar `is_projected == False` a las diez y pico de consultas de `reports.py`, y
+  un filtro olvidado ahí no da error: da un número mentiroso.
+- **`recurrences` es el plan; `transactions` es el hecho.** Mismo reparto que `import_rules`. La
+  transacción lleva `recurrence_id` con `SET NULL`, y los campos del plan son **copia** de la
+  semilla, no referencia: la semilla se puede borrar y el monto previsto casi nunca es el último
+  real. Contracara: reclasificar la semilla no actualiza el plan.
+- **El modal de la transacción fija solo el ritmo** (cada cuánto, hasta cuándo). El monto y la
+  clasificación del plan se cambian en Previsiones. "No repetir" **pausa** (`is_active=False`),
+  no borra: borrar dispara el `SET NULL` sobre toda la serie.
+- **Las ocurrencias se calculan siempre desde el ancla**, nunca incrementando la anterior. Con
+  ancla el 31, febrero clampea al 28 y **marzo vuelve al 31**; incrementando quedaría pegada al
+  28 para siempre.
+- **`occurrences` salta al primer paso de la ventana con división entera**, no itera desde el
+  ancla. Una recurrencia diaria vieja se comería `MAX_OCCURRENCES` y la previsión saldría vacía
+  **sin dar error**.
+- **La grilla tiene dos caminos y los separa una sola condición**: si el período termina en el
+  pasado no hay fantasmas y SQL pagina como siempre; si llega al futuro se trae la ventana sin
+  `limit` y se pagina en Python, porque `LIMIT/OFFSET` solo pagina la mitad real de la lista.
+- **Filtrar por `classification_status` esconde todos los fantasmas.** No están pendientes de
+  clasificar: no existen.
+- Falta la fase 2 —saldo previsto y tinte de la ventana— y la supresión por bucket del
+  intervalo. Las dos en `PENDING.md`, con las decisiones ya tomadas.
+
 ## Gotchas aprendidos (no repetirlos)
 
 - **HTMX solo hace swap con respuestas 2xx.** Un error 4xx no reemplaza nada en el DOM. Por eso
@@ -340,6 +371,10 @@ comprobantes repartidos entre las dos fichas.
   terminaba restando stock en vez de sumarlo. Fix: `func.coalesce(<in_(...)>, False)` para forzar
   un booleano real antes de combinarlo con `and_`/`or_`/`not_`.
 - **PostgreSQL: agregar un valor a un enum** requiere `ALTER TYPE ... ADD VALUE`.
+- **`create_type=False` solo existe en `postgresql.ENUM`, no en `sa.Enum`.** Al reusar en una
+  tabla nueva un enum que ya existe en la base, `sa.Enum(..., create_type=False)` acepta el
+  argumento sin quejarse y **no hace nada**: la migración igual emite el `CREATE TYPE` y corta
+  con "type ... already exists". Hay que importar `from sqlalchemy.dialects import postgresql`.
 - **`str(None)` es truthy** en un contexto de template.
 - Los `except` que solo devuelven un mensaje ya no existen: van al handler global.
 

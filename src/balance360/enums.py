@@ -97,6 +97,21 @@ class Role(enum.Enum):
     operator = "operator"
 
 
+class IntervalUnit(enum.Enum):
+    """El ritmo de una recurrencia, junto con `interval_count`: cada N dias/semanas/meses/anios.
+
+    Es unidad + cantidad y no un enum de frecuencias cerrado (mensual, quincenal, ...) porque
+    con dos columnas entran los sueldos cada dos semanas y los anticipos cada tres meses sin
+    agregar miembros. RRULE de RFC 5545 haria lo mismo y mucho mas, pero trae dependencia y
+    una gramatica entera para un caso que no la necesita.
+    """
+
+    day = "day"
+    week = "week"
+    month = "month"
+    year = "year"
+
+
 class ClassificationStatus(enum.Enum):
     unclassified = "unclassified"
     auto_classified = "auto_classified"

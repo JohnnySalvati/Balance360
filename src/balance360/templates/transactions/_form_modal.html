@@ -95,6 +95,53 @@
                 <label for="is_transfer" class="text-sm text-gray-600">Es transferencia</label>
             </div>
 
+            {# Previsión.
+
+               Acá se fija **solo el ritmo**. El monto, la descripción, la cuenta y la
+               categoría de la previsión se copian de esta transacción cuando la serie se crea,
+               y a partir de ahí se cambian en Previsiones: si este modal los reescribiera en
+               cada guardado, corregirle la fecha a una transacción vieja pisaría el monto
+               previsto que se ajustó a mano.
+
+               "No repetir" sobre una serie existente la **pausa**, no la borra: borrarla
+               desengancharía todas las transacciones reales de la serie. #}
+            {% set rec = transaction.recurrence if is_edit else None %}
+            {% set unit_labels = {"day": "días", "week": "semanas", "month": "meses", "year": "años"} %}
+            <div class="border-t pt-3 mt-1 flex flex-col gap-2">
+                <label class="text-xs text-gray-500">Se repite</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <select name="repeat_unit" id="repeat_unit" class="border rounded px-3 py-2 text-sm col-span-2">
+                        <option value="">No repetir</option>
+                        {% for u in interval_units %}
+                        <option value="{{ u.value }}"
+                                {% if rec and rec.is_active and rec.interval_unit == u %}selected{% endif %}>
+                            Cada N {{ unit_labels[u.value] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="repeat_count" min="1" step="1"
+                           value="{{ rec.interval_count if rec and rec.is_active else 1 }}"
+                           title="Cada cuántos"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Hasta (opcional)</label>
+                    <input type="date" name="repeat_until"
+                           value="{{ rec.ends_on if rec and rec.is_active and rec.ends_on else '' }}"
+                           class="border rounded px-3 py-2 text-sm">
+                </div>
+                {% if rec %}
+                <span class="text-xs text-gray-400">
+                    {% if rec.is_active %}
+                    Serie activa ({{ rec.rhythm_label }}). El monto previsto se edita en
+                    <a href="/recurrences/" class="text-blue-500 hover:underline">Previsiones</a>.
+                    {% else %}
+                    Serie pausada. Elegí una frecuencia para reanudarla.
+                    {% endif %}
+                </span>
+                {% endif %}
+            </div>
+
             <div class="flex justify-end gap-2 mt-2">
                 <button type="button"
                         hx-get="/transactions/close-modal"

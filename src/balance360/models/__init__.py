@@ -20,6 +20,7 @@ from balance360.models.invoice_line import InvoiceLine
 from balance360.models.invoice_tribute import InvoiceTribute
 from balance360.models.password_reset import PasswordReset
 from balance360.models.product import Product
+from balance360.models.recurrence import Recurrence
 from balance360.models.serial_number import SerialNumber
 from balance360.models.transaction import Transaction
 from balance360.models.user import User

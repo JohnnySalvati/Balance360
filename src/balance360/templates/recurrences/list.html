@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="shrink-0 flex justify-between items-center mb-4">
+    <div>
+        <h1 class="text-2xl font-bold">Previsiones</h1>
+        <p class="text-xs text-gray-400 mt-1">
+            Lo que se repite. Aparece en Transacciones como fila fantasma, en sus fechas futuras.
+        </p>
+    </div>
+    <div class="flex gap-2">
+        <button hx-get="/recurrences/new-form"
+                hx-target="#modal"
+                hx-swap="outerHTML"
+                class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-800">
+            + Nueva
+        </button>
+        <a href="/transactions"
+           class="px-4 py-2 rounded text-sm border border-gray-300 text-gray-600 hover:bg-gray-200">
+            ← Transacciones
+        </a>
+    </div>
+</div>
+
+<div class="shrink-0 mb-3">
+    <input type="text"
+           name="description"
+           placeholder="Filtrar por descripción..."
+           class="border rounded px-3 py-2 text-sm w-72"
+           hx-get="/recurrences/rows"
+           hx-target="#tbody"
+           hx-trigger="keyup changed delay:300ms"
+           hx-include="this">
+</div>
+
+<div class="flex-1 overflow-y-auto bg-white rounded shadow">
+    <table class="w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
+            <tr>
+                <th class="px-4 py-3">Descripción</th>
+                <th class="px-4 py-3">Tipo</th>
+                <th class="px-4 py-3 text-right">Monto</th>
+                <th class="px-4 py-3">Cuenta</th>
+                <th class="px-4 py-3">Frecuencia</th>
+                <th class="px-4 py-3">Desde</th>
+                <th class="px-4 py-3">Hasta</th>
+                <th class="px-4 py-3">Entidad</th>
+                <th class="px-4 py-3">Categoría</th>
+                <th class="px-4 py-3 text-center">Estado</th>
+                <th class="px-4 py-3"></th>
+            </tr>
+        </thead>
+        <tbody id="tbody" class="divide-y divide-gray-200"
+               hx-trigger="refreshRows from:body"
+               hx-get="/recurrences/rows"
+               hx-target="#tbody"
+               hx-swap="innerHTML">
+            {% for r in recurrences %}
+            {% include "recurrences/_row.html" %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="modal"></div>
+{% endblock %}
