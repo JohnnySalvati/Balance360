@@ -1,10 +1,19 @@
 {% set type_labels = {"income": "Ingreso", "expense": "Egreso"} %}
 {% set status = t.classification_status.value %}
+{# Dos paletas del mismo color: la fila que nació de una serie de repeticiones va un tono
+   más claro, para que se distinga de un vistazo de la que se cargó suelta sin cambiarle el
+   significado — el color sigue diciendo el estado de clasificación. #}
 {% set row_colors = {
     "unclassified":     "bg-yellow-100 hover:bg-yellow-200",
     "auto_classified":  "bg-blue-200 hover:bg-blue-300",
     "manual_no_rule":   "bg-violet-300 hover:bg-violet-400",
     "manual_with_rule": "bg-green-100 hover:bg-green-200"
+} %}
+{% set recurring_row_colors = {
+    "unclassified":     "bg-yellow-50 hover:bg-yellow-100",
+    "auto_classified":  "bg-blue-100 hover:bg-blue-200",
+    "manual_no_rule":   "bg-violet-200 hover:bg-violet-300",
+    "manual_with_rule": "bg-green-50 hover:bg-green-100"
 } %}
 {% set status_badges = {
     "unclassified":     ("Pendiente",  "bg-yellow-200 text-yellow-800"),
@@ -12,7 +21,7 @@
     "manual_no_rule":   ("Manual",     "bg-purple-200 text-purple-800"),
     "manual_with_rule": ("Completa",   "bg-green-200 text-green-800")
 } %}
-<tr class="{{ row_colors[status] }}"
+<tr class="{{ (recurring_row_colors if t.recurrence_id else row_colors)[status] }}"
     id="row-{{ t.id }}"
     hx-patch="/transactions/{{ t.id }}/classify"
     hx-target="#row-{{ t.id }}"
