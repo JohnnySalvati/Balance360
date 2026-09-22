@@ -371,6 +371,33 @@ comprobantes repartidos entre las dos fichas.
 - Verificado contra la base de desarrollo: la pantalla pasa de 13 productos a 2, y la
   valorización total no se mueve (lo oculto vale cero por definición).
 
+### La valorización es lo disponible a precio con IVA (2026-09-22)
+
+`Stock.valuation` = `available_qty × gross_unit_price`. Antes era `stock_qty × unit_price`.
+
+- **Se valúa lo disponible, no lo físico.** La unidad vendida y no entregada está en el
+  estante pero ya tiene dueño: sumarla al valor del depósito cuenta dos veces la misma
+  plata, una acá y otra en lo que falta cobrar.
+- **El precio lleva el IVA adentro, y no se puede multiplicar a ciegas.** `applies_iva` es
+  False para C y NCC, pero **nada impide que una línea de una compra C guarde una
+  alícuota**: `iva_breakdown` la ignora al mostrar el comprobante y la columna queda
+  escrita igual. Por eso `_gross_unit_price` es un `case` sobre `_applies_iva` y no un
+  producto. Hoy no hay ninguna fila así en la base — la guarda es preventiva.
+- **`_applies_iva` lleva `coalesce`**, por el gotcha de siempre: `notin_` sobre un
+  `voucher_type` NULL —todo comprobante informal, y hay tres compras así en dev— devuelve
+  NULL y no True, y el `case` caería al `else_`. El número no cambia porque un informal no
+  puede llevar IVA, pero la condición estaría diciendo lo contrario de lo que se quiere.
+- **El redondeo se hace en Python sobre el unitario**, con `money()`, y recién después se
+  multiplica por la cantidad — igual que `InvoiceLine.gross_amount`. En SQL sería otro
+  redondeo, fuera del ROUND_HALF_UP unificado.
+- **`valuation` pasó a ser propiedad y no campo**: se calculaba en el constructor y podía
+  quedar desincronizada de las dos cosas de las que depende.
+- **Con más comprometido que físico da negativo, y se muestra en rojo.** Significa que hay
+  prometido lo que no existe; un piso en cero borraría justo el número que hay que mirar.
+- La columna de la pantalla muestra el precio **con IVA** ("Últ. precio compra c/IVA")
+  porque es el que usa la cuenta: con un neto en pantalla la multiplicación no cerraría a
+  la vista.
+
 ### Previsión de gastos (2026-09-09)
 
 Las transacciones futuras que se saben de antemano se ven en la grilla como filas fantasma, en

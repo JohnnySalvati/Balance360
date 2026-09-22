@@ -14,7 +14,7 @@ from decimal import Decimal
 import pytest
 
 from balance360.crud import invoice as invoice_crud
-from balance360.enums import InvoiceType, IvaAliquot, SerialStatus, VoucherType
+from balance360.enums import CondicionIva, InvoiceType, IvaAliquot, SerialStatus, VoucherType
 from balance360.exceptions import (
     InvoiceConfirmationError,
     InvoiceFulfillmentError,
@@ -253,6 +253,91 @@ def test_stock_summary_keeps_a_product_that_only_has_a_commitment(db):
     assert item.stock_qty == 0
     assert item.pending_out == 1
     assert item.available_qty == -1
+
+
+def test_valuation_uses_the_gross_price_over_available_units(db):
+    """Valorizar es disponible x precio con IVA, no fisico x neto.
+
+    La compra entra a 800.000 netos al 10,5%, o sea 884.000 con IVA. Se reciben dos
+    unidades y se vende una sin entregar: en el estante hay dos, pero una ya tiene
+    dueño, asi que lo que vale el deposito es una sola.
+    """
+    entity, identity, product, purchase, purchase_line = _serial_product_purchase(db, quantity=2)
+    confirm_invoice(db, purchase)
+    add_serial_to_line(db, "LNV-0200", purchase_line)
+    add_serial_to_line(db, "LNV-0201", purchase_line)
+    _fulfill(db, purchase)
+
+    sale, _ = _sale_of(db, entity, identity, product)
+    confirm_invoice(db, sale)  # sin seriales: vendida y no entregada
+
+    (item,) = [row for row in get_stock_summary(db, entity.id) if row.id == product.id]
+
+    assert item.stock_qty == 2
+    assert item.pending_out == 1
+    assert item.available_qty == 1
+    assert item.gross_unit_price == Decimal("884000.00")
+    assert item.valuation == Decimal("884000.00")
+
+
+def test_valuation_does_not_add_iva_to_a_letter_c_purchase(db):
+    """En una C el precio ya es final: nada impide que la linea guarde una alicuota.
+
+    `applies_iva` es False para C, asi que `iva_breakdown` ignora esa columna al mostrar
+    el comprobante — pero el numero queda escrito, y multiplicar a ciegas inflaba el
+    costo un 21% que nadie pago.
+    """
+    entity, identity, product = _scene(db)
+    # El proveedor tiene que ser monotributista: una C la emite quien no discrimina IVA,
+    # y `allowed_for` no deja confirmar la combinacion al reves. Es el caso real.
+    supplier = factories.make_contact(
+        db, name="Proveedor monotributo", condicion_iva=CondicionIva.MONOTRIBUTO
+    )
+    purchase = factories.make_invoice(
+        db,
+        invoice_type=InvoiceType.purchase,
+        entity_id=entity.id,
+        fiscal_identity_id=identity.id,
+        contact_id=supplier.id,
+        voucher_type=VoucherType.C,
+        pos=1,
+        number=2001,
+    )
+    factories.make_invoice_line(
+        db,
+        purchase.id,
+        product_id=product.id,
+        quantity=1,
+        unit_price=Decimal("100000"),
+        iva_aliquot=IvaAliquot.standard,
+    )
+    confirm_invoice(db, purchase)
+    add_serial_to_line(db, "LNV-0300", purchase.invoice_lines[0])
+    _fulfill(db, purchase)
+
+    (item,) = [row for row in get_stock_summary(db, entity.id) if row.id == product.id]
+
+    assert item.gross_unit_price == Decimal("100000.00")
+    assert item.valuation == Decimal("100000.00")
+
+
+def test_valuation_is_negative_when_more_is_promised_than_exists(db):
+    """Prometer lo que no hay da una valorizacion negativa, y se muestra asi.
+
+    Taparlo con un piso en cero borraria justo el numero que avisa del problema.
+    """
+    entity, identity, product, purchase, purchase_line = _serial_product_purchase(db)
+    confirm_invoice(db, purchase)
+    add_serial_to_line(db, "LNV-0400", purchase_line)
+    _fulfill(db, purchase)
+
+    sale, _ = _sale_of(db, entity, identity, product, quantity=3)
+    confirm_invoice(db, sale)
+
+    (item,) = [row for row in get_stock_summary(db, entity.id) if row.id == product.id]
+
+    assert item.available_qty == -2
+    assert item.valuation == Decimal("-1768000.00")
 
 
 def test_pending_list_drops_what_a_credit_note_annuls(db):

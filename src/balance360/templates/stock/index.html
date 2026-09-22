@@ -75,8 +75,11 @@ function scanSerialFromPhoto(input) {
                 <th class="px-4 py-3 text-right">Comprometido</th>
                 <th class="px-4 py-3 text-right">Disponible</th>
                 <th class="px-4 py-3 text-right">En camino</th>
-                <th class="px-4 py-3 text-right">Último precio compra</th>
-                <th class="px-4 py-3 text-right">Valorización</th>
+                {# El precio se muestra con IVA porque es el que usa la valorización:
+                   con uno neto en pantalla la cuenta no cerraría a la vista. Y se valúa
+                   lo disponible, no lo físico — lo vendido sin entregar ya tiene dueño. #}
+                <th class="px-4 py-3 text-right">Últ. precio compra c/IVA</th>
+                <th class="px-4 py-3 text-right">Valorización disponible</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -99,11 +102,12 @@ function scanSerialFromPhoto(input) {
                     {{ item.pending_in or "—" }}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-600">
-                    {% if item.unit_price %}
-                        {{ item.unit_price | currency }}
+                    {% if item.gross_unit_price %}
+                        {{ item.gross_unit_price | currency }}
                     {% else %}—{% endif %}
                 </td>
-                <td class="px-4 py-3 text-right text-gray-600">
+                <td class="px-4 py-3 text-right
+                    {% if item.valuation < 0 %}text-red-500{% else %}text-gray-600{% endif %}">
                     {% if item.valuation %}
                         {{ item.valuation | currency }}
                     {% else %}—{% endif %}

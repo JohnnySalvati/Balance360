@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, aliased
 from balance360.enums import InvoiceType, VoucherType
 from balance360.models.invoice import Invoice
 from balance360.models.invoice_line import InvoiceLine
+from balance360.models.money import money
 from balance360.models.product import Product
 
 
@@ -18,13 +19,33 @@ class Stock:
     stock_qty: int
     pending_in: int
     pending_out: int
-    unit_price: Decimal
-    valuation: Decimal
+    # El ultimo costo de reposicion, con el IVA adentro. `None` = nunca se compro.
+    gross_unit_price: Decimal | None
 
     @property
     def available_qty(self) -> int:
         """Lo que queda por vender: lo que hay menos lo que ya esta vendido sin entregar."""
         return self.stock_qty - self.pending_out
+
+    @property
+    def valuation(self) -> Decimal:
+        """Lo que vale lo que todavia se puede vender.
+
+        Sobre `available_qty` y no sobre el fisico: la unidad vendida y no entregada
+        esta en el estante pero ya tiene dueño, asi que sumarla al valor del deposito
+        cuenta dos veces la misma plata —una acá y otra en lo que falta cobrar—.
+
+        Es una propiedad y no un campo para que no pueda quedar desincronizada de las
+        dos cosas de las que depende, que es lo que pasaba cuando se calculaba en el
+        constructor.
+
+        Con mas comprometido que fisico da negativo, y se deja asi: significa que hay
+        prometido lo que no existe, y esconderlo con un max(0) borraria justo el numero
+        que hay que mirar.
+        """
+        if self.gross_unit_price is None:
+            return Decimal(0)
+        return self.available_qty * self.gross_unit_price
 
 
 is_nc = func.coalesce(
@@ -85,11 +106,29 @@ _pending_out = func.sum(case((and_(_committed, not_(is_positive)), InvoiceLine.q
 # igual, y este es el `select` que crece con cada producto que entra al catalogo.
 _has_quantity = or_(_stock_qty != 0, _pending_in != 0, _pending_out != 0)
 
+# El IVA se suma solo cuando la letra lo aplica, que es la misma regla que
+# `Invoice.applies_iva`. Hace falta porque nada impide que una compra C guarde una
+# alicuota en la linea: `iva_breakdown` la ignora al mostrar, pero la columna queda
+# escrita igual, y multiplicar a ciegas inflaria un 21% un costo que ya era final.
+#
+# El `coalesce` es el gotcha de siempre: `notin_` sobre un `voucher_type` NULL —todo
+# comprobante informal— devuelve NULL y no True, y el `case` caeria al `else_`. Da lo
+# mismo en el numero, porque un informal no puede llevar IVA, pero la condicion estaria
+# diciendo lo contrario de lo que se quiere.
+_applies_iva = func.coalesce(Invoice.voucher_type.notin_((VoucherType.C, VoucherType.NCC)), True)
+
+# El unitario se guarda siempre neto (ver el comentario de `InvoiceLine.unit_price`),
+# asi que el bruto se deriva acá y no sale de ninguna columna.
+_gross_unit_price = case(
+    (_applies_iva, InvoiceLine.unit_price * (1 + InvoiceLine.iva_rate / 100)),
+    else_=InvoiceLine.unit_price,
+)
+
 
 def get_stock_summary(db: Session, entity_id: uuid.UUID | None = None) -> list[Stock]:
 
     last_price_sq = (
-        select(InvoiceLine.unit_price)
+        select(_gross_unit_price)
         .join(Invoice)
         .where(Invoice.confirmed)
         .where(Invoice.invoice_type == InvoiceType.purchase)
@@ -109,7 +148,7 @@ def get_stock_summary(db: Session, entity_id: uuid.UUID | None = None) -> list[S
             _stock_qty.label("stock_qty"),
             _pending_in.label("pending_in"),
             _pending_out.label("pending_out"),
-            last_price_sq.label("unit_price"),
+            last_price_sq.label("gross_unit_price"),
             Product.id.label("id"),
         )
         .join(InvoiceLine, InvoiceLine.product_id == Product.id)
@@ -130,8 +169,12 @@ def get_stock_summary(db: Session, entity_id: uuid.UUID | None = None) -> list[S
             stock_qty=row.stock_qty,
             pending_in=row.pending_in,
             pending_out=row.pending_out,
-            unit_price=row.unit_price,
-            valuation=row.stock_qty * row.unit_price if row.unit_price else Decimal(0),
+            # El redondeo se hace acá, sobre el unitario, y no en SQL: `money()` es el
+            # ROUND_HALF_UP unificado de la app, y redondear el unitario antes de
+            # multiplicarlo por la cantidad es lo mismo que hace `InvoiceLine.gross_amount`.
+            gross_unit_price=money(row.gross_unit_price)
+            if row.gross_unit_price is not None
+            else None,
         )
         for row in rows
     ]
