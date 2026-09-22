@@ -34,6 +34,14 @@
             Enviar por email
         </button>
         {% endif %}
+        {# El remito va aparte de is_printable: sale con la venta confirmada, sin
+           esperar el CAE, porque la mercadería se despacha antes. #}
+        {% if invoice.has_remito %}
+        <a href="/invoices/{{ invoice.id }}/remito" target="_blank"
+           class="bg-slate-600 text-white px-3 py-1 rounded text-sm hover:bg-slate-800">
+            Remito
+        </a>
+        {% endif %}
         <a href="/invoices/?invoice_type={{ invoice.invoice_type.value }}"
            onclick="event.preventDefault(); location.href = sessionStorage.getItem('invoicesReturn') || this.getAttribute('href')"
            class="text-sm text-blue-600 hover:underline">← Volver</a>

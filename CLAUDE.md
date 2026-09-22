@@ -319,6 +319,34 @@ comprobantes repartidos entre las dos fichas.
   Con un CUIT distinto sería otra cosa y no se arreglaría con un UPDATE.
   Herramienta: `scripts/merge_duplicate_contacts.sql`.
 
+### Remito de entrega (2026-09-22)
+
+`GET /invoices/{id}/remito` imprime el remito de una venta, con el logo de InSoft.
+
+- **Un remito no lleva importes, y eso es el documento entero.** Lo firma quien recibe la
+  mercadería —muchas veces alguien de depósito— y no tiene por qué ver lo que se cobró.
+  `templates/invoices/remito.html` no tiene unitario, ni subtotal, ni IVA, ni total en
+  pesos: cantidad, detalle, seriales y total de unidades. Hay un test que busca el signo
+  `$` en el HTML, porque esto se rompe agregando una columna "por comodidad".
+- **La puerta es `has_remito` y no `is_printable`, a propósito.** `is_printable` pide el CAE
+  porque imprime un comprobante fiscal; el remito no es fiscal y sale **antes**: la mercadería
+  se despacha con la venta confirmada aunque el CAE todavía no haya vuelto. Lo que sí hace
+  falta es que las líneas estén congeladas, y eso lo da `confirmed`. Es la misma familia de
+  distinción que `fulfilled_at` vs `confirmed`: cada papel responde a un hecho distinto.
+- **Solo ventas, y ninguna NC.** El remito lo emite el que entrega; el de una compra lo trae
+  el proveedor, y lo que vuelve por una NC lo manda el cliente con su propio papel.
+- **Letra X, sin numeración propia.** Un remito R tiene numeración autorizada por ARCA y esto
+  no la pide: se identifica por el comprobante que lo origina (que sí está numerado) y lleva
+  la leyenda "documento no válido como factura". Inventarle una numeración propia sería
+  simular una serie que ARCA no conoce.
+- **El logo va embebido como data URI** (`insoft_logo_data_uri`), no como `/static/...`:
+  `render_pdf_bytes` llama a `HTML(string=html)` **sin `base_url`**, así que weasyprint no
+  tiene contra qué resolver una URL relativa y el logo sale vacío **sin dar error**. El logo
+  es el de InSoft para cualquier entidad — ver la entrada de `PENDING.md`.
+- **La fecha de emisión se calcula en la ruta**, no en el template ni desde la factura: el
+  remito se imprime el día que sale la mercadería, que no es la fecha del comprobante ni
+  tiene por qué ser `fulfilled_at` (se imprime antes de registrar la entrega).
+
 ### Previsión de gastos (2026-09-09)
 
 Las transacciones futuras que se saben de antemano se ven en la grilla como filas fantasma, en

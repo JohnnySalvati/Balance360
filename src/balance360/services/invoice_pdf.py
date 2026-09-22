@@ -1,5 +1,7 @@
 import base64
 import json
+from functools import cache
+from pathlib import Path
 
 import segno
 
@@ -68,3 +70,32 @@ def pdf_filename(invoice: Invoice) -> str:
 
     kind = "venta" if invoice.invoice_type == InvoiceType.sale else "compra"
     return f"comprobante-{kind}-{invoice.date:%Y%m%d}-{str(invoice.id)[:8]}.pdf"
+
+
+@cache
+def insoft_logo_data_uri() -> str:
+    """El logo de InSoft embebido como data URI, para que entre en el PDF.
+
+    Va embebido y no como `<img src="/static/insoft-logo.svg">` porque
+    `render_pdf_bytes` llama a `HTML(string=html)` sin `base_url`: weasyprint no
+    tiene contra que resolver una URL relativa y el logo sale vacio, sin error.
+    El data URI hace que el HTML sea autosuficiente -- el mismo documento
+    imprime igual desde el disco, desde el navegador y adjunto a un mail.
+
+    Cacheado porque el archivo no cambia entre requests y son 4 KB que no hacen
+    falta releer en cada impresion.
+    """
+    svg = (Path(__file__).parent.parent / "static" / "insoft-logo.svg").read_bytes()
+    return "data:image/svg+xml;base64," + base64.b64encode(svg).decode()
+
+
+def remito_filename(invoice: Invoice) -> str:
+    """Nombre del remito, derivado del comprobante que lo origina.
+
+    El remito no tiene numeracion propia -- no es un remito R autorizado por
+    ARCA, es la constancia de entrega de esta factura -- asi que se nombra con
+    la del comprobante, o con la fecha y el id cuando no hay numeracion.
+    """
+    if invoice.pos and invoice.number:
+        return f"remito-{invoice.pos:05d}-{invoice.number:08d}.pdf"
+    return f"remito-{invoice.date:%Y%m%d}-{str(invoice.id)[:8]}.pdf"

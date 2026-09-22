@@ -184,6 +184,24 @@ class Invoice(Base, TimestampMixin):
         return bool(self.authorized and self.cae and self.fiscal_identity)
 
     @property
+    def has_remito(self) -> bool:
+        """Se puede imprimir el remito de entrega de este comprobante.
+
+        Solo una venta: el remito lo emite el que entrega. Lo que llega con una
+        compra es el remito del proveedor, que no se genera aca.
+
+        La puerta es `confirmed` y no `is_printable`, y son cosas distintas a
+        proposito. `is_printable` pide el CAE porque imprime un comprobante
+        fiscal; el remito no es fiscal y sale antes: la mercaderia se despacha
+        con la factura confirmada aunque el CAE todavia no haya vuelto. Lo que
+        si hace falta es que las lineas esten congeladas, y eso lo da confirmar.
+
+        Una NC queda afuera: lo que vuelve lo manda el cliente, y el papel que
+        acompania esa devolucion es suyo, no nuestro.
+        """
+        return self.invoice_type == InvoiceType.sale and self.confirmed and not self.is_nc
+
+    @property
     def is_printable(self) -> bool:
         """Hay un PDF para generar.
 

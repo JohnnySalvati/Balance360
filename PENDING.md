@@ -207,3 +207,25 @@ first question to settle before changing anything.
 
 **Trigger:** whenever the Balance-per-account numbers are actually reconciled against a bank
 statement. Deliberately left alone for now: changing it moves a report Johnny reads.
+
+### The printed logo is InSoft's, hardcoded — it should belong to the entity
+**Added:** 2026-09-22 — decided while adding the remito (delivery note).
+
+**Why:** `insoft_logo_data_uri()` reads `static/insoft-logo.svg` and the remito prints it for
+whatever entity issued the sale. Johnny asked for InSoft's logo and InSoft is the entity that
+actually ships goods, so today it is right — but Familia and Escuela would print it too, and a
+document that shows one company's brand over another company's CUIT is wrong in a way nobody
+notices until a client asks.
+
+Also relevant: `templates/invoices/pdf.html` already has an `{% if logo %}` slot in the issuer
+box that **nothing ever fills** — `_invoice_pdf_html` never passes `logo`. So the fiscal invoice
+silently prints without a logo. Deliberately left alone for now: adding it changes the look of
+a document that is already being issued to ARCA and sent to clients, which is Johnny's call,
+not a side effect of the remito.
+
+**Scope:**
+- A logo per `Entity` (an uploaded file or a path), falling back to no logo rather than to
+  InSoft's.
+- One helper that resolves entity → data URI, used by the remito and by `pdf.html`'s existing
+  slot.
+- Decide separately whether the fiscal invoice starts carrying a logo at all.

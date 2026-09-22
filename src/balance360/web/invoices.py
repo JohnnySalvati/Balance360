@@ -59,7 +59,13 @@ from balance360.services import product_match
 from balance360.services import product_match as product_match_service
 from balance360.services import serial_number as serial_number_service
 from balance360.services.email import send_email
-from balance360.services.invoice_pdf import build_qr, pdf_filename, render_pdf_bytes
+from balance360.services.invoice_pdf import (
+    build_qr,
+    insoft_logo_data_uri,
+    pdf_filename,
+    remito_filename,
+    render_pdf_bytes,
+)
 from balance360.web.responses import format_validation_error, toast_error, toast_success
 from balance360.web.templating import templates
 
@@ -1019,6 +1025,49 @@ def download_pdf(
         content=content,
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="{pdf_filename(invoice)}"'},
+    )
+
+
+def _remito_html(invoice: Invoice) -> str:
+    """El HTML del remito de entrega del comprobante.
+
+    La fecha de emision se calcula aca y no en el template: el remito se imprime
+    el dia que sale la mercaderia, que no es la fecha de la factura ni tiene por
+    que ser `fulfilled_at` (se imprime antes de registrar la entrega).
+    """
+    return templates.get_template("invoices/remito.html").render(
+        {
+            "invoice": invoice,
+            "logo": insoft_logo_data_uri(),
+            "today_display": datetime.date.today().strftime("%d/%m/%Y"),
+        }
+    )
+
+
+@router.get("/{invoice_id}/remito")
+def download_remito(
+    invoice: Invoice = Depends(get_invoice_or_404),
+):
+    """Remito de entrega en PDF.
+
+    Se revalida `has_remito` aunque el boton solo aparezca donde corresponde: el
+    template esconde el boton, no cierra el endpoint. Misma caida que la del
+    comprobante cuando no hay GTK -- se devuelve el HTML para poder mirar el
+    diseno en una maquina de desarrollo sin weasyprint.
+    """
+    if not invoice.has_remito:
+        raise InvoicePrintError("Solo se imprime el remito de una venta confirmada")
+
+    html = _remito_html(invoice)
+    try:
+        content = render_pdf_bytes(html)
+    except InvoicePrintError:
+        return HTMLResponse(html)
+
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{remito_filename(invoice)}"'},
     )
 
 
