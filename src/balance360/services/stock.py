@@ -72,6 +72,19 @@ _stock_qty = func.sum(case((_moved, _signed_qty), else_=0))
 _pending_in = func.sum(case((and_(_committed, is_positive), InvoiceLine.quantity), else_=0))
 _pending_out = func.sum(case((and_(_committed, not_(is_positive)), InvoiceLine.quantity), else_=0))
 
+# Un producto con las cuatro columnas en cero no tiene nada que mirar: ni en el estante,
+# ni prometido, ni en camino. Lo tipico es el producto agotado —se compraron cinco y se
+# vendieron las cinco—, que se queda en la pantalla para siempre porque tuvo movimientos
+# alguna vez, y con el catalogo entero adentro la pantalla deja de mostrar lo que hay.
+#
+# Van tres condiciones y no cuatro porque `disponible` es `fisico - comprometido`: si los
+# dos son cero, disponible tambien, y si disponible no es cero entonces esos dos son
+# distintos entre si y no pueden ser los dos cero. La cuarta columna ya esta cubierta.
+#
+# Es HAVING y no un filtro en Python: descartar despues significa traer todas las filas
+# igual, y este es el `select` que crece con cada producto que entra al catalogo.
+_has_quantity = or_(_stock_qty != 0, _pending_in != 0, _pending_out != 0)
+
 
 def get_stock_summary(db: Session, entity_id: uuid.UUID | None = None) -> list[Stock]:
 
@@ -103,6 +116,7 @@ def get_stock_summary(db: Session, entity_id: uuid.UUID | None = None) -> list[S
         .join(Invoice)
         .where(Invoice.confirmed)
         .group_by(Product.id)
+        .having(_has_quantity)
     )
 
     if entity_id:

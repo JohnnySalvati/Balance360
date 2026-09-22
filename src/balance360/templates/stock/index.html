@@ -111,7 +111,12 @@ function scanSerialFromPhoto(input) {
             </tr>
             {% else %}
             <tr>
-                <td colspan="7" class="px-4 py-6 text-center text-gray-400">No hay productos con movimientos.</td>
+                {# "con existencias" y no "con movimientos": desde que la consulta filtra
+                   las cuatro columnas en cero, un producto agotado tuvo movimientos y
+                   igual no está en la lista. #}
+                <td colspan="7" class="px-4 py-6 text-center text-gray-400">
+                    No hay productos con existencias ni movimientos pendientes.
+                </td>
             </tr>
             {% endfor %}
         </tbody>

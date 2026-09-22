@@ -346,6 +346,30 @@ comprobantes repartidos entre las dos fichas.
 - **La fecha de emisión se calcula en la ruta**, no en el template ni desde la factura: el
   remito se imprime el día que sale la mercadería, que no es la fecha del comprobante ni
   tiene por qué ser `fulfilled_at` (se imprime antes de registrar la entrega).
+- **El botón está en el detalle del comprobante y en `/stock/pending`.** El segundo es el
+  lugar natural: ahí se mira justo lo que falta entregar, y el papel sale con la mercadería.
+  La fila entera navega al comprobante, así que el enlace lleva `event.stopPropagation()`
+  o el click abre el detalle en vez del PDF.
+
+### Stock esconde lo que está todo en cero (2026-09-22)
+
+`get_stock_summary` filtra con `HAVING` los productos cuyas cuatro columnas dan cero.
+
+- **El que se queda para siempre es el agotado**, no el que nunca existió: la consulta ya
+  parte de comprobantes confirmados, así que un producto entra a la lista el día que tiene
+  su primer movimiento y no salía nunca más. Con el catálogo entero adentro, la pantalla
+  deja de mostrar lo que hay.
+- **Tres condiciones cubren las cuatro columnas.** `disponible` es `físico − comprometido`:
+  si esos dos son cero, disponible también; y si disponible no es cero, esos dos son
+  distintos entre sí y no pueden ser los dos cero.
+- **`HAVING` y no un filtro en Python**: descartar después significa traer las filas igual,
+  y este es el `select` que crece con cada producto del catálogo. El filtro por entidad
+  sigue siendo un `where` y se combina sin problema.
+- **Lo que el filtro NO puede mirar es solo el físico.** Una venta anticipada no mueve nada
+  del estante: con físico cero y una unidad comprometida, la fila tiene que seguir estando
+  —es justo cuando hay algo que resolver—. Hay un test para eso.
+- Verificado contra la base de desarrollo: la pantalla pasa de 13 productos a 2, y la
+  valorización total no se mueve (lo oculto vale cero por definición).
 
 ### Previsión de gastos (2026-09-09)
 

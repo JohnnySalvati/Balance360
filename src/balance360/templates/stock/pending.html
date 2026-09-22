@@ -23,6 +23,7 @@
                 <th class="px-4 py-3">Contacto</th>
                 <th class="px-4 py-3">Estado</th>
                 <th class="px-4 py-3">Falta</th>
+                <th class="px-4 py-3"></th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -54,10 +55,23 @@
                         <span class="text-green-600">Listo para registrar</span>
                     {% endif %}
                 </td>
+                {# El remito se imprime desde acá porque acá es donde se mira lo que
+                   falta entregar — el papel sale junto con la mercadería. El
+                   `stopPropagation` es obligatorio: la fila entera navega al
+                   comprobante, y sin eso el click abriría el detalle en vez del PDF. #}
+                <td class="px-4 py-3 text-right">
+                    {% if invoice.has_remito %}
+                    <a href="/invoices/{{ invoice.id }}/remito" target="_blank"
+                       onclick="event.stopPropagation()"
+                       class="text-xs bg-slate-600 text-white px-2 py-1 rounded hover:bg-slate-800">
+                        Remito
+                    </a>
+                    {% endif %}
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" class="px-4 py-6 text-center text-gray-400">
+                <td colspan="7" class="px-4 py-6 text-center text-gray-400">
                     No hay entregas ni recepciones pendientes.
                 </td>
             </tr>

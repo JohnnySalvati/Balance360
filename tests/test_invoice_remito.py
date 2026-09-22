@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from balance360.enums import InvoiceType, SerialStatus, VoucherType
 from balance360.services.invoice_pdf import insoft_logo_data_uri, remito_filename
 from balance360.web.invoices import _remito_html
+from balance360.web.templating import templates
 from tests import factories
 
 
@@ -123,6 +124,31 @@ def test_el_remito_lista_los_seriales_entregados(db):
     db.refresh(invoice)
 
     assert "NB-0001" in _remito_html(invoice)
+
+
+def _pending_html(db, invoice):
+    """La pantalla de pendientes con un solo comprobante, sin bloqueos."""
+    return templates.get_template("stock/pending.html").render({"rows": [(invoice, None)]})
+
+
+def test_la_pantalla_de_pendientes_ofrece_el_remito_de_la_venta(db):
+    """Es donde se mira lo que falta entregar, así que es de donde sale el papel."""
+    invoice = _sale(db)
+
+    html = _pending_html(db, invoice)
+
+    assert f"/invoices/{invoice.id}/remito" in html
+    # Sin esto el click abriría el detalle: la fila entera es un enlace.
+    assert "event.stopPropagation()" in html
+
+
+def test_la_pantalla_de_pendientes_no_ofrece_remito_para_una_compra(db):
+    """Lo que falta recibir no se remite: el papel lo trae el proveedor."""
+    invoice = factories.make_invoice(db, invoice_type=InvoiceType.purchase)
+    invoice.confirmed = True
+    db.commit()
+
+    assert "/remito" not in _pending_html(db, invoice)
 
 
 def test_el_logo_es_un_data_uri_de_svg():

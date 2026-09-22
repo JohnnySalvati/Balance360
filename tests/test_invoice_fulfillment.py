@@ -214,6 +214,47 @@ def test_stock_summary_separates_physical_from_committed(db):
     assert item.available_qty == 1
 
 
+def test_stock_summary_hides_a_product_with_everything_at_zero(db):
+    """El producto agotado sale de la pantalla.
+
+    Tuvo movimientos —por eso estaba— pero hoy no tiene nada: ni en el estante, ni
+    prometido, ni en camino. Sin el filtro se quedaba para siempre, y con el catalogo
+    entero adentro la pantalla dejaba de mostrar lo que hay.
+    """
+    entity, identity, product, purchase, purchase_line = _serial_product_purchase(db)
+    confirm_invoice(db, purchase)
+    add_serial_to_line(db, "LNV-0100", purchase_line)
+    _fulfill(db, purchase)
+
+    # Con la unidad en el estante, el producto esta en la lista.
+    assert [row for row in get_stock_summary(db, entity.id) if row.id == product.id]
+
+    sale, sale_line = _sale_of(db, entity, identity, product)
+    confirm_invoice(db, sale)
+    add_serial_to_line(db, "LNV-0100", sale_line)
+    _fulfill(db, sale)
+
+    assert not [row for row in get_stock_summary(db, entity.id) if row.id == product.id]
+
+
+def test_stock_summary_keeps_a_product_that_only_has_a_commitment(db):
+    """Fisico cero pero vendido sin entregar: la fila tiene que seguir estando.
+
+    Es el caso que justifica el filtro y a la vez lo limita. La venta anticipada no
+    mueve nada del estante, asi que un filtro que mirara solo el fisico la haria
+    desaparecer justo cuando hay algo que resolver.
+    """
+    entity, identity, product = _scene(db)
+    sale, _ = _sale_of(db, entity, identity, product)
+    confirm_invoice(db, sale)
+
+    (item,) = [row for row in get_stock_summary(db, entity.id) if row.id == product.id]
+
+    assert item.stock_qty == 0
+    assert item.pending_out == 1
+    assert item.available_qty == -1
+
+
 def test_pending_list_drops_what_a_credit_note_annuls(db):
     """La venta anticipada que se cae deja de estar pendiente y suelta sus reservas."""
     entity, identity, product, purchase, purchase_line = _serial_product_purchase(db)
