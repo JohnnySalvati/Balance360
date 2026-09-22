@@ -67,8 +67,11 @@ function scanSerialFromPhoto(input) {
         <thead class="sticky top-0 z-10 bg-gray-100 text-left text-gray-600 uppercase text-xs">
             {# Físico es lo que hay en el estante: solo cuenta comprobantes cuyo
                movimiento ya se registró. Comprometido es lo vendido y no entregado,
-               en camino lo comprado y no recibido, y disponible la resta que importa
-               a la hora de prometer una unidad más. #}
+               en camino lo comprado y no recibido, y disponible es
+               `físico − comprometido + en camino`: cuánto va a quedar libre una vez
+               que llegue lo pedido. Por eso un negativo acá ya no es "vendí algo que
+               no tengo" —eso es normal y se cubre comprando— sino que no alcanza ni
+               contando lo que viene. #}
             <tr>
                 <th class="px-4 py-3">Producto</th>
                 <th class="px-4 py-3 text-right">Físico</th>

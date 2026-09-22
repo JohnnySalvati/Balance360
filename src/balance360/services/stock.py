@@ -24,8 +24,23 @@ class Stock:
 
     @property
     def available_qty(self) -> int:
-        """Lo que queda por vender: lo que hay menos lo que ya esta vendido sin entregar."""
-        return self.stock_qty - self.pending_out
+        """Lo que queda por vender una vez que llegue todo lo pedido.
+
+        Suma lo que esta en camino (decision de Johnny, 2026-09-22). La pregunta que
+        responde no es "que puedo entregar hoy" sino "voy a poder cumplir": vender algo
+        que todavia no se tiene y comprar la reposicion en el mismo dia es el flujo
+        normal de esta casa —es el que motivo separar `fulfilled_at` de `confirmed`—, y
+        con la resta sola esa situacion normal se veia como un faltante en rojo.
+
+        Lo que se pierde a cambio: un negativo ya no distingue entre "debo una entrega y
+        no tengo con que" y "la debo pero ya la compre". Ahora negativo significa que no
+        alcanza ni contando lo que viene, que es el unico caso que hay que ir a resolver.
+
+        Para saber que se puede sacar del estante hoy esta `stock_qty`, y la validacion
+        de la entrega usa `get_product_stock`, que solo cuenta unidades movidas: nada de
+        esto afloja el requisito de tener la unidad en la mano para entregarla.
+        """
+        return self.stock_qty - self.pending_out + self.pending_in
 
     @property
     def valuation(self) -> Decimal:
@@ -33,15 +48,17 @@ class Stock:
 
         Sobre `available_qty` y no sobre el fisico: la unidad vendida y no entregada
         esta en el estante pero ya tiene dueño, asi que sumarla al valor del deposito
-        cuenta dos veces la misma plata —una acá y otra en lo que falta cobrar—.
+        cuenta dos veces la misma plata —una acá y otra en lo que falta cobrar—. Desde
+        que `available_qty` suma lo que esta en camino, esto tambien valoriza mercaderia
+        que todavia no llego; es la contracara aceptada de la decision de arriba.
 
         Es una propiedad y no un campo para que no pueda quedar desincronizada de las
-        dos cosas de las que depende, que es lo que pasaba cuando se calculaba en el
+        cosas de las que depende, que es lo que pasaba cuando se calculaba en el
         constructor.
 
-        Con mas comprometido que fisico da negativo, y se deja asi: significa que hay
-        prometido lo que no existe, y esconderlo con un max(0) borraria justo el numero
-        que hay que mirar.
+        Sigue dando negativo cuando lo comprometido supera a lo fisico mas lo que viene,
+        y se deja asi: significa que hay prometido lo que no existe ni esta pedido, y
+        esconderlo con un max(0) borraria justo el numero que hay que mirar.
         """
         if self.gross_unit_price is None:
             return Decimal(0)
@@ -98,9 +115,9 @@ _pending_out = func.sum(case((and_(_committed, not_(is_positive)), InvoiceLine.q
 # vendieron las cinco—, que se queda en la pantalla para siempre porque tuvo movimientos
 # alguna vez, y con el catalogo entero adentro la pantalla deja de mostrar lo que hay.
 #
-# Van tres condiciones y no cuatro porque `disponible` es `fisico - comprometido`: si los
-# dos son cero, disponible tambien, y si disponible no es cero entonces esos dos son
-# distintos entre si y no pueden ser los dos cero. La cuarta columna ya esta cubierta.
+# Van tres condiciones y no cuatro porque `disponible` es `fisico - comprometido + en
+# camino`, o sea una combinacion de las otras tres: con las tres en cero da cero, y si
+# no da cero es porque alguna de las tres no lo era. La cuarta columna ya esta cubierta.
 #
 # Es HAVING y no un filtro en Python: descartar despues significa traer todas las filas
 # igual, y este es el `select` que crece con cada producto que entra al catalogo.

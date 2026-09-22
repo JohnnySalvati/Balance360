@@ -211,7 +211,8 @@ def test_stock_summary_separates_physical_from_committed(db):
     assert item.stock_qty == 2
     assert item.pending_in == 5
     assert item.pending_out == 1
-    assert item.available_qty == 1
+    # 2 en el estante, 1 prometido, 5 por llegar: cuando llegue todo quedan 6 libres.
+    assert item.available_qty == 6
 
 
 def test_stock_summary_hides_a_product_with_everything_at_zero(db):
@@ -253,6 +254,42 @@ def test_stock_summary_keeps_a_product_that_only_has_a_commitment(db):
     assert item.stock_qty == 0
     assert item.pending_out == 1
     assert item.available_qty == -1
+
+
+def test_available_counts_what_is_on_the_way(db):
+    """Vender lo que no se tiene y comprar la reposicion deja disponible en cero.
+
+    Es el flujo que motivo separar `fulfilled_at` de `confirmed`: se factura para
+    anticipar el cobro y se compra para cubrirlo. Con `fisico - comprometido` sola esa
+    situacion normal se veia como un faltante en rojo.
+    """
+    entity, identity, product = _scene(db)
+
+    sale, _ = _sale_of(db, entity, identity, product)
+    confirm_invoice(db, sale)  # vendido, sin entregar y sin stock
+
+    reposicion = factories.make_invoice(
+        db,
+        invoice_type=InvoiceType.purchase,
+        entity_id=entity.id,
+        fiscal_identity_id=identity.id,
+        voucher_type=VoucherType.A,
+        pos=1,
+        number=3001,
+    )
+    factories.make_invoice_line(
+        db, reposicion.id, product_id=product.id, quantity=1, unit_price=Decimal("800000")
+    )
+    confirm_invoice(db, reposicion)  # comprado, sin recibir
+
+    (item,) = [row for row in get_stock_summary(db, entity.id) if row.id == product.id]
+
+    assert item.stock_qty == 0
+    assert item.pending_out == 1
+    assert item.pending_in == 1
+    assert item.available_qty == 0
+    # Y por lo tanto no valoriza nada: no hay nada libre.
+    assert item.valuation == Decimal(0)
 
 
 def test_valuation_uses_the_gross_price_over_available_units(db):

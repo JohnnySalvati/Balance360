@@ -134,7 +134,8 @@ mismo día. Es el mismo criterio que ya tenía `paid`: cobrar es otro hecho, con
 - **El último precio de compra sigue saliendo de lo confirmado.** Es una pregunta de
   precio, no de depósito: una compra confirmada y no recibida ya dice cuánto salió.
 - **Tres columnas nuevas en Stock**: físico (movido), comprometido (vendido sin entregar),
-  en camino (comprado sin recibir), y disponible = físico − comprometido. Salen de la
+  en camino (comprado sin recibir), y disponible (ver la nota de 2026-09-22: desde
+  entonces es físico − comprometido **+ en camino**). Salen de la
   misma consulta con `case`, no de un `WHERE`, porque un producto que solo tiene
   movimientos pendientes —lo típico de una venta anticipada— si no no aparecía.
 - **Una NC que anula un comprobante que nunca se movió no mueve nada**, pero sí suelta lo
@@ -371,6 +372,25 @@ comprobantes repartidos entre las dos fichas.
 - Verificado contra la base de desarrollo: la pantalla pasa de 13 productos a 2, y la
   valorización total no se mueve (lo oculto vale cero por definición).
 
+### Disponible cuenta lo que está en camino (2026-09-22)
+
+`available_qty` = `físico − comprometido + en camino`. Decisión de Johnny, sobre un caso
+real: un cable vendido sin entregar, con la reposición ya comprada y sin recibir, se veía
+como −1 en rojo.
+
+- **La pregunta que responde es "voy a poder cumplir", no "qué entrego hoy".** Vender algo
+  que todavía no se tiene y comprar la reposición el mismo día es el flujo normal de esta
+  casa — es el que motivó separar `fulfilled_at` de `confirmed`—, y con la resta sola esa
+  situación normal se leía como un faltante.
+- **Lo que se pierde:** un negativo ya no distingue entre "debo una entrega y no tengo con
+  qué" y "la debo pero ya la compré". Ahora negativo significa que no alcanza ni contando
+  lo que viene, que es el único caso que hay que ir a resolver.
+- **No afloja nada de la entrega.** `fulfillment_error` usa `get_product_stock`, que cuenta
+  solo unidades movidas: para entregar sigue haciendo falta tener la unidad en la mano.
+- El comentario de `_has_quantity` depende de esta fórmula y se actualizó con ella: las tres
+  condiciones siguen cubriendo las cuatro columnas porque disponible es una combinación de
+  las otras tres.
+
 ### La valorización es lo disponible a precio con IVA (2026-09-22)
 
 `Stock.valuation` = `available_qty × gross_unit_price`. Antes era `stock_qty × unit_price`.
@@ -392,8 +412,12 @@ comprobantes repartidos entre las dos fichas.
   redondeo, fuera del ROUND_HALF_UP unificado.
 - **`valuation` pasó a ser propiedad y no campo**: se calculaba en el constructor y podía
   quedar desincronizada de las dos cosas de las que depende.
-- **Con más comprometido que físico da negativo, y se muestra en rojo.** Significa que hay
-  prometido lo que no existe; un piso en cero borraría justo el número que hay que mirar.
+- **Da negativo cuando lo comprometido supera a lo físico más lo que viene**, y se muestra
+  en rojo. Significa que hay prometido lo que no existe ni está pedido; un piso en cero
+  borraría justo el número que hay que mirar.
+- **Desde que `available_qty` suma lo que está en camino, esto valoriza mercadería que
+  todavía no llegó.** Es la contracara aceptada de esa decisión, tomada con la advertencia
+  a la vista.
 - La columna de la pantalla muestra el precio **con IVA** ("Últ. precio compra c/IVA")
   porque es el que usa la cuenta: con un neto en pantalla la multiplicación no cerraría a
   la vista.
