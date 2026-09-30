@@ -244,9 +244,16 @@ not carry a voucher number and do not match the PDFs one to one, so they cannot 
 Sample of 49 invoices from 2025: 47 close to the cent (all of the sales, 9 suppliers' layouts).
 
 **Still to do:**
-- **Scans and photos** (2 of the 49 in the sample; most of what AOMA/OSAM users receive as
-  photos). No text layer, so the parser returns nothing; needs an OCR or vision step, then the
-  same `lines_gap` check before anything is loaded.
+- **Scans and photos: the OCR path is written, not yet measured on this repo's own scans.**
+  `services/invoice_ocr.py` (Cloud Vision by REST, env `GOOGLE_VISION_API_KEY`, same approach as
+  AutoFiller) feeds the text to `parse_invoice_text`, the same parser as the text-layer path.
+  Checked only against cached OCR text from AutoFiller (5 invoices, not committed: public repo,
+  third-party data): 4 of 5 verified; the 5th is a B whose OCR prints "IVA Contenido" and its
+  amount far apart, so it stays unverified and goes to manual review. **Nothing read by OCR may
+  be loaded unless `is_verified(parsed)` is true.** Needs a key to try `Adobe Scan 12 feb 2025.pdf`
+  and `full4.pdf`. Not ported from AutoFiller: the Claude-vision fallback (it returns a fixed
+  header schema with no line items, so it would need a schema of its own here) and the ARCA QR
+  (AutoFiller measured that it does not read on phone/CamScanner scans).
 - **The loader itself** (script, dry-run first, idempotent by `external_source` + `external_id`,
   PDF attached to the voucher). Not written: it needs the target entity and fiscal identity for
   each CUIT, and a decision on how to load purchases from suppliers without CAE (informal).

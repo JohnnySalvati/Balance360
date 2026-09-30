@@ -50,6 +50,9 @@ class ParsedInvoice:
     # True when the PDF has no extractable text (scanned image) or no known
     # item layout matched; the UI should let the user load items manually.
     needs_manual_items: bool = False
+    # How the text was obtained: "text" (PDF text layer) or "ocr" (scan). An OCR read is
+    # never trusted on its own: see `is_verified`.
+    source: str = "text"
 
 
 def _parse_date(s: str) -> datetime.date | None:
@@ -143,6 +146,13 @@ def _extract_voucher_type(lines: list, text: str) -> str | None:
     m = re.search(r"\bCod\.\s*0*(\d{1,3})\s*$", text, re.MULTILINE)
     if not m:
         m = re.search(r"\bCod\.[^\n]*\n[^\n]*?\b0*(\d{1,3})\s*$", text, re.MULTILINE)
+    if m:
+        return _AFIP_VOUCHER_LETTER.get(int(m.group(1)))
+    # ARCA's own portal layout: a whole line "COD. 011" under the letter box. OCR reads the
+    # dot as a comma ("COD, 011") and the scan has no letter line the rules above can use.
+    # Last of all, and only when the code maps to a known voucher, so that other vendors'
+    # "COD." item labels can't produce a wrong letter.
+    m = re.search(r"^COD[.,:]?\s*0*(\d{1,3})\s*$", text, re.MULTILINE)
     if m:
         return _AFIP_VOUCHER_LETTER.get(int(m.group(1)))
     return None
@@ -732,6 +742,9 @@ def _totals_lines(
         net = base - contained
         if net <= 0:
             return []
+        if contained == 0:
+            # Exempt or zero-rated B: nothing to deduce a rate from, and none is needed.
+            return [ParsedInvoiceLine("Según comprobante", Decimal(1), net, Decimal(0))]
         # La alícuota es la que reproduce el IVA impreso: se prueba con las tres que existen
         # en vez de adivinarla, y si ninguna cierra no se devuelve nada.
         for rate in (Decimal("21"), Decimal("10.5"), Decimal("27")):
@@ -773,17 +786,47 @@ def lines_gap(parsed: "ParsedInvoice", *, use_totals: bool = False) -> Decimal |
     return (total - parsed.total).quantize(Decimal("0.01"))
 
 
-def parse_invoice_pdf(file_bytes: bytes) -> ParsedInvoice:
+_REQUIRED_HEADER = ("voucher_type", "pos", "number", "date", "supplier_cuit", "cae")
+
+
+def is_verified(parsed: "ParsedInvoice") -> bool:
+    """Header complete and what was read closes to the cent against the printed total.
+
+    It is the gate for loading anything unattended: a layout that misreads a column (or an
+    OCR that drops a digit) returns plausible data that nobody looks at until the monthly
+    tax filing. Either the lines or the totals-derived lines must close; if neither does,
+    the invoice goes to manual review instead of being loaded.
+    """
+    if any(getattr(parsed, name) is None for name in _REQUIRED_HEADER):
+        return False
+    for use_totals in (False, True):
+        gap = lines_gap(parsed, use_totals=use_totals)
+        if gap is not None and abs(gap) <= Decimal("0.01"):
+            return True
+    return False
+
+
+def pdf_text(file_bytes: bytes) -> str:
+    """Text layer of the PDF, or "" if it has none (scan) or can't be opened."""
     import io
 
     import pdfplumber
 
     try:
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-            text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+            return "\n".join(page.extract_text() or "" for page in pdf.pages)
     except Exception:
         # Corrupt or scanned PDF that pdfplumber can't read -> manual entry.
-        text = ""
+        return ""
+
+
+def parse_invoice_pdf(file_bytes: bytes) -> ParsedInvoice:
+    return parse_invoice_text(pdf_text(file_bytes))
+
+
+def parse_invoice_text(text: str) -> ParsedInvoice:
+    """Parse already-extracted text. Shared by the text-layer and the OCR paths, so a
+    scan is read by exactly the same layouts (and checked by the same `lines_gap`)."""
     lines = text.split("\n")
 
     voucher_type = _extract_voucher_type(lines, text)

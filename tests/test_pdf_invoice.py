@@ -339,3 +339,59 @@ def test_air_supplier_is_known_only_for_its_template_and_point_of_sale():
     # Misma plantilla con otro punto de venta: no se le asigna el CUIT de otro proveedor.
     assert _known_supplier(air, 48) is None
     assert _known_supplier("otra plantilla", 47) is None
+
+
+def test_totals_lines_for_exempt_b_has_rate_zero():
+    (line,) = _totals_lines("IVA Contenido: $ 0,00", "B", Decimal("1000.00"), Decimal(0))
+    assert (line.unit_price, line.iva_rate) == (Decimal("1000.00"), Decimal(0))
+
+
+# Shaped like Cloud Vision output for an ARCA portal "C" scan: the blocks come grouped, the
+# letter sits alone on a line above "COD, 011" (the OCR reads the dot as a comma).
+_OCR_C_SCAN = """ACME SERVICIOS SA
+Razón Social: ACME SERVICIOS SA
+CUIT: 30711111112
+ORIGINAL
+C
+COD, 011
+FACTURA
+Punto de Venta: 00003 Comp. Nro: 00001333
+Fecha de Emisión: 01/08/2026
+CUIT: 30711111112
+Producto / Servicio
+Servicio mensual
+Subtotal: $
+1500,00
+Importe Otros Tributos: $
+0,00
+Importe Total: $
+1500,00
+CAE N°: 86316448106335
+Fecha de Vto. de CAE: 11/08/2026
+"""
+
+
+def test_ocr_text_is_read_by_the_same_parser_and_verified():
+    from balance360.services.pdf_invoice import is_verified, parse_invoice_text
+
+    parsed = parse_invoice_text(_OCR_C_SCAN)
+    assert (parsed.voucher_type, parsed.pos, parsed.number) == ("C", 3, 1333)
+    assert parsed.cae == "86316448106335"
+    assert parsed.total == Decimal("1500.00")
+    assert is_verified(parsed)
+
+
+def test_is_verified_rejects_a_read_that_does_not_close():
+    from balance360.services.pdf_invoice import is_verified, parse_invoice_text
+
+    parsed = parse_invoice_text(_OCR_C_SCAN)
+    parsed.total = Decimal("1560.00")  # an OCR that misreads a digit of the total
+    assert not is_verified(parsed)
+
+
+def test_is_verified_rejects_an_incomplete_header():
+    from balance360.services.pdf_invoice import is_verified, parse_invoice_text
+
+    parsed = parse_invoice_text(_OCR_C_SCAN)
+    parsed.cae = None
+    assert not is_verified(parsed)
