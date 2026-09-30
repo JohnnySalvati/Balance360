@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # Vacío es válido: el aviso queda en el log.
     operator_email: str | None = None
 
+    # Dónde vive el archivo de un `Attachment`. La tabla guarda `stored_filename` (un UUID
+    # con extensión), y los bytes van a este directorio. Env `ATTACHMENTS_DIR`; en dev el
+    # default es `./attachments/` para no depender de una carpeta de sistema. En producción
+    # docker-compose lo apunta a un volumen persistente, distinto del volumen de la base.
+    attachments_dir: Path = Path("./attachments")
+
     @field_validator("smtp_password")
     @classmethod
     def strip_smtp_password(cls, value: str | None) -> str | None:
