@@ -229,3 +229,30 @@ not a side effect of the remito.
 - One helper that resolves entity → data URI, used by the remito and by `pdf.html`'s existing
   slot.
 - Decide separately whether the fiscal invoice starts carrying a logo at all.
+
+### Historical import of 2016–2026 invoices: what is left after the parser work
+**Added:** 2026-09-30 — decided with Johnny while preparing the load of past purchase and sales
+vouchers from Google Drive (`Compras/` and `Ventas/`, one folder per year and month).
+
+**Decided:** the **PDFs are the source of truth** for each voucher (POS, number, date, CUIT, CAE,
+amounts); the monthly Google Sheets only add classification (internal/external purchase, who it
+was for) and the informal sales ("Ventas Sin Fac", which have no voucher at all). The sheets do
+not carry a voucher number and do not match the PDFs one to one, so they cannot create vouchers.
+
+**Done (parser):** `parse_invoice_pdf` now also returns `total`, `tributes_total` and
+`totals_lines`, and `lines_gap()` compares what was read against the total printed in the PDF.
+Sample of 49 invoices from 2025: 47 close to the cent (all of the sales, 9 suppliers' layouts).
+
+**Still to do:**
+- **Scans and photos** (2 of the 49 in the sample; most of what AOMA/OSAM users receive as
+  photos). No text layer, so the parser returns nothing; needs an OCR or vision step, then the
+  same `lines_gap` check before anything is loaded.
+- **The loader itself** (script, dry-run first, idempotent by `external_source` + `external_id`,
+  PDF attached to the voucher). Not written: it needs the target entity and fiscal identity for
+  each CUIT, and a decision on how to load purchases from suppliers without CAE (informal).
+- **The other years.** Only 2025 was measured. Every new supplier layout will show up as a
+  `lines_gap` that is not zero or a missing header field; add its `Layout` and a test.
+- **The Sheets are not readable from here** (they are `.gsheet` shortcuts); they have to be
+  exported to `.xlsx` first, year by year.
+- `Compras  01.xlsx` and `Ventas 01.xlsx` sit in the repo root and this repository is public:
+  they hold real purchase and sales data and should be removed from history.
