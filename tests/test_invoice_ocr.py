@@ -32,15 +32,39 @@ def test_pdf_without_text_layer_is_rasterized_and_ocrd(with_key, monkeypatch):
     assert invoice_ocr.parse_invoice_file("scan.pdf", b"x").source == "ocr"
 
 
-def test_pdf_with_text_never_calls_the_ocr(with_key, monkeypatch):
+def test_pdf_whose_text_already_verifies_does_not_call_the_ocr(with_key, monkeypatch):
     def boom(image):
-        raise AssertionError("OCR must not run when the PDF has a text layer")
+        raise AssertionError("OCR must not run when the text layer already verifies")
 
     monkeypatch.setattr(invoice_ocr, "pdf_text", lambda content: _OCR_C_SCAN)
     monkeypatch.setattr(invoice_ocr, "ocr_text", boom)
     parsed = invoice_ocr.parse_invoice_file("digital.pdf", b"x")
     assert parsed.source == "text"
     assert parsed.number == 1333
+
+
+def test_pdf_whose_text_does_not_verify_falls_back_to_ocr(with_key, monkeypatch):
+    # Adobe Scan and similar tools embed an OCR text layer that pdfplumber pulls out with the
+    # words in a wrong order, so `is_verified` is False and the parser must try Cloud Vision.
+    monkeypatch.setattr(invoice_ocr, "pdf_text", lambda content: "unos\ngarabatos\nsueltos")
+    monkeypatch.setattr(invoice_ocr, "rasterize_first_page", lambda content: object())
+    monkeypatch.setattr(invoice_ocr, "ocr_text", lambda image: _OCR_C_SCAN)
+    parsed = invoice_ocr.parse_invoice_file("adobe-scan.pdf", b"x")
+    assert parsed.source == "ocr"
+    assert parsed.number == 1333
+
+
+def test_when_neither_text_nor_ocr_verify_the_more_complete_header_wins(with_key, monkeypatch):
+    # Text got a POS/number but no CUIT nor CAE; OCR got the whole header but the totals do
+    # not close (an OCR that read "1500" as "1560" would look like this). OCR wins because
+    # the loader can key on the whole header and the amounts still need manual review.
+    text_result = "Punto de Venta: 00003 Comp. Nro: 00001333"
+    ocr_result = _OCR_C_SCAN.replace("Importe Total: $\n1500,00", "Importe Total: $\n1560,00")
+    monkeypatch.setattr(invoice_ocr, "pdf_text", lambda content: text_result)
+    monkeypatch.setattr(invoice_ocr, "rasterize_first_page", lambda content: object())
+    monkeypatch.setattr(invoice_ocr, "ocr_text", lambda image: ocr_result)
+    parsed = invoice_ocr.parse_invoice_file("scan.pdf", b"x")
+    assert parsed.source == "ocr" and parsed.cae is not None
 
 
 def test_without_key_a_scan_is_left_for_manual_entry(without_key, monkeypatch):

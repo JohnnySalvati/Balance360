@@ -30,7 +30,12 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from balance360.services.pdf_invoice import ParsedInvoice, parse_invoice_text, pdf_text
+from balance360.services.pdf_invoice import (
+    ParsedInvoice,
+    is_verified,
+    parse_invoice_text,
+    pdf_text,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -132,29 +137,51 @@ def _open_image(content: bytes) -> Any:
 def parse_invoice_file(name: str, content: bytes) -> ParsedInvoice:
     """Parse a PDF (text layer or scan) or a photo. Never raises for unreadable input.
 
-    - PDF with text  -> the text-layer path, unchanged.
-    - PDF without it -> page 1 rasterized and OCR'd.
-    - Image          -> OCR'd.
-    OCR failures (no key, network, bad image) are logged and leave the invoice for manual
-    entry, because an import of thousands of files must not die on one bad scan.
+    - PDF whose text layer already verifies -> the text-layer path, no OCR spent.
+    - PDF whose text layer does not verify (empty, or scanner-OCR that pdfplumber
+      scrambles: Adobe Scan drops words in the wrong order and the parser can't put
+      them back) -> rasterize page 1 and OCR it. Keep OCR if it verifies; otherwise
+      keep whichever of the two got a more complete header, since a missing
+      supplier CUIT is what stops the loader.
+    - Image -> OCR directly.
+
+    OCR failures (no key, network, bad image) are logged and leave the invoice for
+    manual entry, because an import of thousands of files must not die on one bad
+    scan.
     """
     extension = os.path.splitext(name)[1].lower()
     is_pdf = extension == ".pdf"
+
+    from_text: ParsedInvoice | None = None
     if is_pdf:
         text = pdf_text(content)
         if text.strip():
-            return parse_invoice_text(text)
+            from_text = parse_invoice_text(text)
+            if is_verified(from_text):
+                return from_text
     elif extension not in IMAGE_EXTENSIONS:
         return parse_invoice_text("")
 
+    # Text was not enough (or the file is an image). Try OCR when it's available.
     if not ocr_available():
-        return parse_invoice_text("")
+        return from_text if from_text is not None else parse_invoice_text("")
     try:
         image = rasterize_first_page(content) if is_pdf else _open_image(content)
         text = ocr_text(image)
     except Exception as e:  # noqa: BLE001 - see docstring
         logger.warning("OCR failed for %s: %s", name, e)
-        return parse_invoice_text("")
-    parsed = parse_invoice_text(text)
-    parsed.source = "ocr"
-    return parsed
+        return from_text if from_text is not None else parse_invoice_text("")
+
+    from_ocr = parse_invoice_text(text)
+    from_ocr.source = "ocr"
+    if from_text is None or is_verified(from_ocr):
+        return from_ocr
+    return from_ocr if _header_fields(from_ocr) > _header_fields(from_text) else from_text
+
+
+def _header_fields(parsed: ParsedInvoice) -> int:
+    """How many of the required header fields the read got. Tie-breaker between two
+    unverified reads: OCR wins only when it recovered more of what the loader needs."""
+    from balance360.services.pdf_invoice import _REQUIRED_HEADER
+
+    return sum(1 for name in _REQUIRED_HEADER if getattr(parsed, name) is not None)
