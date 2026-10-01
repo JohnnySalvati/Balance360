@@ -24,6 +24,12 @@ services:
       # se montan desde el disco de la VM, solo lectura. Las rutas *_KEY_PATH /
       # *_CERT_PATH del .env deben apuntar a /app/certs/...
       - ./certs:/app/certs:ro
+      # Los adjuntos de los comprobantes viven afuera de la imagen (un rebuild
+      # borra todo lo del contenedor). Bind mount a una carpeta del host — no
+      # un named volume — para que Veritas la backupee como un directorio mas y
+      # que el contenido se vea desde la VM sin tener que entrar al contenedor.
+      # La ruta del contenedor es la de ATTACHMENTS_DIR en el .env.
+      - ./attachments:/app/attachments
     depends_on:
       db:
         condition: service_healthy

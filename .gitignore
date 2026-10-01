@@ -17,3 +17,4 @@ certs/
 
 *.dump
 ticket_arca.json
+attachments/
