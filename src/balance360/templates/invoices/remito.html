@@ -27,6 +27,13 @@
   * { box-sizing: border-box; }
   body { font-family: "DejaVu Sans", sans-serif; font-size: 9pt; color: #1e293b; margin: 0; }
 
+  /* Todo el texto va en #1e293b, el tono más oscuro de la paleta. Los grises
+     claros (slate 400/500/600) se leen bien en pantalla pero se desvanecen
+     impresos, sobre todo los 7.5pt de seriales, pie y campos de firma. La
+     jerarquía la dan ahora el tamaño, el peso y el versalita+tracking de los
+     títulos, no el color. El logo es la única excepción: conserva sus colores
+     porque es la marca, no texto a leer. */
+
   @media screen {
     body { background: #e5e5e5; padding: 1cm 0; }
     .sheet { width: 19cm; margin: 0 auto; background: #fff; padding: 1.2cm;
@@ -43,7 +50,7 @@
      título: el título visual es el logo. Se imprime igual aunque la entidad sea
      InSoft y el logo ya lo diga, porque acá es el dato del emisor — y la entidad
      que factura puede no ser la de la marca. */
-  .emisor-fields { font-size: 8pt; color: #475569; }
+  .emisor-fields { font-size: 8pt; color: #1e293b; }
   .emisor-fields div { margin: 1px 0; }
   .emisor-fields .name { font-size: 9.5pt; font-weight: bold; color: #1e293b; }
 
@@ -51,27 +58,27 @@
   .letter { display: inline-block; border: 1.5px solid #1e293b; border-radius: 3px;
             width: 1.1cm; height: 1.1cm; line-height: 1.05cm; text-align: center;
             font-size: 15pt; font-weight: bold; margin-left: 8px; vertical-align: middle; }
-  .no-fiscal { font-size: 7pt; color: #64748b; letter-spacing: .5px; margin-top: 2px; }
-  .ref { font-size: 8pt; color: #475569; margin-top: 8px; }
-  .ref .k { color: #94a3b8; }
+  .no-fiscal { font-size: 7pt; color: #1e293b; letter-spacing: .5px; margin-top: 2px; }
+  .ref { font-size: 8pt; color: #1e293b; margin-top: 8px; }
+  .ref .k { color: #1e293b; }
 
   /* ── Destinatario y lugar de entrega ── */
   .parties { display: table; width: 100%; table-layout: fixed; margin: 14px 0; }
   .parties > div { display: table-cell; width: 50%; vertical-align: top; padding-right: 14px; }
   .parties h3 { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 1px;
-                color: #94a3b8; margin: 0 0 3px; }
+                color: #1e293b; margin: 0 0 3px; }
   .parties .line { margin: 1px 0; }
   .blank { border-bottom: 1px dotted #cbd5e1; height: 13px; margin-top: 4px; }
 
   /* ── Ítems: cantidad y detalle, sin un solo importe ── */
   table.items { width: 100%; border-collapse: collapse; }
   table.items th { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .5px;
-                   color: #64748b; text-align: left; padding: 5px 6px;
+                   color: #1e293b; text-align: left; padding: 5px 6px;
                    border-bottom: 1.5px solid #cbd5e1; }
   table.items th.qty { text-align: right; width: 2.6cm; }
   table.items td { padding: 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
   table.items td.qty { text-align: right; white-space: nowrap; font-weight: bold; }
-  .serials { font-size: 7.5pt; color: #64748b; margin-top: 3px; }
+  .serials { font-size: 7.5pt; color: #1e293b; margin-top: 3px; }
   .serials .s { display: inline-block; border: 1px solid #e2e8f0; border-radius: 3px;
                 padding: 0 4px; margin: 1px 3px 1px 0; font-family: monospace; }
   .units { margin-top: 8px; text-align: right; font-size: 9pt; }
@@ -85,12 +92,12 @@
   .sign { margin-top: 34px; display: table; width: 100%; table-layout: fixed; }
   .sign > div { display: table-cell; width: 50%; padding-right: 18px; vertical-align: top; }
   .sign .rule { border-top: 1px solid #94a3b8; margin-top: 46px; padding-top: 3px;
-                font-size: 7.5pt; color: #64748b; }
-  .sign .fields { font-size: 7.5pt; color: #94a3b8; margin-top: 10px; }
+                font-size: 7.5pt; color: #1e293b; }
+  .sign .fields { font-size: 7.5pt; color: #1e293b; margin-top: 10px; }
   .sign .fields div { margin: 7px 0; border-bottom: 1px dotted #cbd5e1; padding-bottom: 2px; }
 
   .foot { margin-top: 24px; padding-top: 8px; border-top: 1px solid #e2e8f0;
-          font-size: 7.5pt; color: #94a3b8; }
+          font-size: 7.5pt; color: #1e293b; }
 </style>
 </head>
 <body>
