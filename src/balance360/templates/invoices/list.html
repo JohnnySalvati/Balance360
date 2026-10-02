@@ -4,7 +4,8 @@
 <div class="shrink-0 flex justify-between items-center mb-4">
     <h1 class="text-2xl font-bold">Comprobantes</h1>
     <a href="/invoices/new"
-       onclick="sessionStorage.setItem('invoicesReturn', location.href)"
+       onclick="sessionStorage.setItem('invoicesReturn', location.href);
+                event.preventDefault(); location.href = newInvoiceUrl()"
        class="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-800">
         + Nuevo
     </a>
@@ -71,7 +72,7 @@
         <tbody id="invoice-tbody" class="divide-y divide-gray-200">
             {% for inv in invoices %}
             <tr class="cursor-pointer {% if inv.tax_only %}bg-amber-100 hover:bg-amber-200{% else %}hover:bg-gray-200{% endif %}" onclick="sessionStorage.setItem('invoicesReturn', location.href); location.href='/invoices/{{ inv.id }}'">
-                <td class="px-4 py-3 text-gray-700">{{ inv.date }}</td>
+                <td class="px-4 py-3 text-gray-700">{{ inv.date | date }}</td>
                 <td class="px-4 py-3 text-gray-500">
                     {% if inv.formal %}
                         {{ inv.voucher_type.value }}
@@ -137,6 +138,24 @@
         const params = new URLSearchParams(location.search);
         params.set('invoice_type', type);
         return '/invoices/?' + params.toString();
+    }
+
+    // El comprobante nuevo nace con lo que se está mirando: la solapa y la entidad
+    // del filtro. Se vino a esta pantalla a ver las ventas de una entidad, y lo que
+    // se va a cargar es de eso — elegirlos de nuevo es repetir lo ya dicho.
+    //
+    // Se leen de la URL con el mismo criterio que invoiceTypeUrl, y lo renderizado
+    // queda de respaldo para el primer load, donde los filtros todavía no están en la
+    // query porque los puso el server.
+    function newInvoiceUrl() {
+        const current = new URLSearchParams(location.search);
+        const params = new URLSearchParams();
+        const type = current.get('invoice_type') || '{{ current_type or "" }}';
+        const entity = current.get('entity_id') || '{{ selected_entity_id or "" }}';
+        if (type) params.set('invoice_type', type);
+        if (entity) params.set('entity_id', entity);
+        const query = params.toString();
+        return '/invoices/new' + (query ? '?' + query : '');
     }
 </script>
 {% endblock %}

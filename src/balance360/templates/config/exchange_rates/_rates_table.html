@@ -16,7 +16,7 @@
         <tbody class="divide-y divide-gray-200">
             {% for r in group.rates %}
             <tr class="hover:bg-gray-200">
-                <td class="px-4 py-2">{{ r.date }}</td>
+                <td class="px-4 py-2">{{ r.date | date }}</td>
                 <td class="px-4 py-2 text-right font-mono">{{ r.rate | amount }}</td>
                 <td class="px-4 py-2 text-right">
                     <button

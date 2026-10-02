@@ -172,9 +172,25 @@ def fiscal_identities(request: Request, db: Session = Depends(get_db), entity_id
 
 
 @router.get("/new")
-def new_invoice_form(request: Request, db: Session = Depends(get_db)):
+def new_invoice_form(
+    request: Request,
+    db: Session = Depends(get_db),
+    invoice_type: str = Query(default=""),
+    entity_id: str = Query(default=""),
+):
+    """El alta, opcionalmente con el tipo y la entidad que traia la lista.
 
+    Los dos llegan como texto y se validan contra lo que existe, no se confian: son
+    parametros de una URL que cualquiera puede escribir a mano. Una entidad que no
+    corresponda cae en la primera, que es lo que se mostraba antes de esto.
+
+    Las identidades fiscales son las de la entidad elegida: el select las carga por
+    htmx cuando la entidad cambia, pero en el primer render todavia no cambio nada.
+    """
     entities = entity_crud.get_all(db)
+    selected_entity = next((e for e in entities if str(e.id) == entity_id), None)
+    if selected_entity is None and entities:
+        selected_entity = entities[0]
 
     return templates.TemplateResponse(
         request=request,
@@ -182,8 +198,10 @@ def new_invoice_form(request: Request, db: Session = Depends(get_db)):
         context={
             "invoice_type": InvoiceType,
             "entities": entities,
-            "fiscal_identities": entities[0].fiscal_identities if entities else [],
+            "fiscal_identities": selected_entity.fiscal_identities if selected_entity else [],
             "selected_fiscal_identity_id": None,
+            "selected_invoice_type": invoice_type,
+            "selected_entity_id": str(selected_entity.id) if selected_entity else "",
             "contacts": contact_crud.get_all(db),
             "categories": category_crud.get_all(db),
             "voucher_type": VoucherType,

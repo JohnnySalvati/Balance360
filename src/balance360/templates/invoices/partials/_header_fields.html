@@ -57,6 +57,14 @@
 {% set nc_header = inv.is_nc if inv else False %}
 {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
 
+{# Tipo y entidad: en la edicion los manda el comprobante; en el alta pueden venir
+   preseleccionados desde la lista ("+ Nuevo" arrastra la solapa y el filtro de
+   entidad). Vacios, ninguna opcion sale marcada y el navegador elige la primera,
+   que es lo que pasaba antes. Se comparan como texto porque uno llega de la query
+   string y el otro es un UUID. #}
+{% set current_type = inv.invoice_type.value if inv else selected_invoice_type | default("", true) %}
+{% set current_entity = inv.entity_id | string if inv else selected_entity_id | default("", true) %}
+
 {# ── Las partes (primero: de ellas depende la letra) ───────────────────────────────────────────────────────────── #}
 <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2">
     <div class="flex flex-col gap-0.5 col-span-1 md:col-span-1 xl:col-span-1">
@@ -66,7 +74,7 @@
                 class="border border-gray-300 rounded px-2 py-1 text-sm">
             {% for t in invoice_type %}
             <option value="{{ t.value }}"
-                    {{ "selected" if inv and t == inv.invoice_type else "" }}>
+                    {{ "selected" if t.value == current_type else "" }}>
                 {{ "Compra" if t.value == "purchase" else "Venta" }}
             </option>
             {% endfor %}
@@ -82,7 +90,7 @@
                 class="border border-gray-300 rounded px-2 py-1 text-sm">
             {% for e in entities %}
             <option value="{{ e.id }}"
-                    {{ "selected" if inv and e.id == inv.entity_id else "" }}>{{ e.name }}</option>
+                    {{ "selected" if e.id | string == current_entity else "" }}>{{ e.name }}</option>
             {% endfor %}
         </select>
     </div>

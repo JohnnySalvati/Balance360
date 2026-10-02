@@ -55,6 +55,15 @@ def test_encuentra_por_nombre_de_fantasia(client, db):
     assert str(otro.id) not in html
 
 
+@pytest.mark.parametrize("escrito", ["asociacion", "Asociación", "ASOCIACION", "minería"])
+def test_las_tildes_no_cambian_lo_que_encuentra(client, db, escrito):
+    """Los nombres reales estan escritos con tilde y nadie la escribe al buscar. Se
+    normalizan las DOS puntas: buscar "Asociación" tal cual tiene que seguir andando."""
+    aoma = factories.make_contact(db, name="Asociación Obrera Minería Argentina")
+
+    assert str(aoma.id) in _options(client, search=escrito)
+
+
 def test_no_ofrece_proveedores_en_una_venta(client, db):
     """El tipo viaja en el pedido (hx-include del #invoice-type) y lo filtra la ruta: el
     select que se devuelve ya no pasa por filterContacts."""

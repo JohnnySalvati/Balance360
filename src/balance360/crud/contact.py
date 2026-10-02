@@ -1,20 +1,39 @@
+import unicodedata
 import uuid
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from balance360.models.contact import Contact
 from balance360.schemas.contact import ContactCreate, ContactUpdate
 from balance360.services.text import digits_only
 
+# Las tildes quedan fuera de la comparación: "asociacion" tiene que encontrar
+# "Asociación", que es como está escrito el nombre real. Se hace con el translate() de
+# Postgres y no con la extensión `unaccent` para no depender de un CREATE EXTENSION —lo
+# corre el superusuario, y el de producción no es el de la aplicación— y que dev y
+# producción busquen igual sin un paso de instalación que recordar.
+_ACCENTED = "áàäâãéèëêíìïîóòöôõúùüûñçÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ"
+_PLAIN = "".join(unicodedata.normalize("NFD", letter)[0] for letter in _ACCENTED)
+
+
+def _without_accents(text: str) -> str:
+    """La misma transformación que `_PLAIN`, del lado de Python.
+
+    Las dos puntas tienen que normalizarse igual: si solo se normalizara la columna,
+    buscar "Asociación" tal cual está escrito dejaría de encontrarla.
+    """
+    return "".join(unicodedata.normalize("NFD", letter)[0] for letter in text)
+
 
 def get_all(db: Session, search: str | None = None) -> list[Contact]:
     stmt = select(Contact)
     if search:
+        pattern = f"%{_without_accents(search)}%"
         stmt = stmt.where(
             or_(
-                Contact.name.ilike(f"%{search}%"),
-                Contact.trade_name.ilike(f"%{search}%"),
+                func.translate(Contact.name, _ACCENTED, _PLAIN).ilike(pattern),
+                func.translate(Contact.trade_name, _ACCENTED, _PLAIN).ilike(pattern),
             )
         )
 

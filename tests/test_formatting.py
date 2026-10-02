@@ -1,8 +1,9 @@
+import datetime
 from decimal import Decimal
 
 import pytest
 
-from balance360.web.templating import format_amount, templates
+from balance360.web.templating import format_amount, format_date, templates
 
 
 @pytest.mark.parametrize(
@@ -21,3 +22,21 @@ def test_format_amount_argentine(value, expected):
 
 def test_currency_filter_prefixes_symbol():
     assert templates.env.filters["currency"](Decimal("0.125")) == "$ 0,13"
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (datetime.date(2026, 4, 7), "07/04/2026"),
+        (datetime.date(2026, 12, 31), "31/12/2026"),
+        # Una fecha opcional (vto. de pago, fulfilled_at) no tiene que romper la fila.
+        (None, ""),
+    ],
+)
+def test_format_date_argentine(value, expected):
+    """Impresa sola, una `date` sale en ISO y en una lista eso se lee al reves."""
+    assert format_date(value) == expected
+
+
+def test_date_filter_is_registered():
+    assert templates.env.filters["date"](datetime.date(2026, 4, 7)) == "07/04/2026"

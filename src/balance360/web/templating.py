@@ -21,7 +21,20 @@ def format_amount(value):
 
 templates.env.filters["amount"] = format_amount
 templates.env.filters["currency"] = lambda v: f"$ {format_amount(v)}"
+
+
+def format_date(value):
+    """Fecha en dd/mm/aaaa, que es como se lee y se escribe acá.
+
+    Una `date` se imprime sola en ISO (2026-04-07) y eso en estas pantallas se lee al
+    revés. El filtro existe para que el formato sea una decisión en un solo lugar y no
+    dependa de que cada template se acuerde del strftime.
+    """
+    return value.strftime("%d/%m/%Y") if value else ""
+
+
 templates.env.filters["cuit"] = format_cuit
+templates.env.filters["date"] = format_date
 
 templates.env.globals["current_year"] = lambda: date.today().year
 templates.env.globals["current_month"] = lambda: date.today().month
