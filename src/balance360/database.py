@@ -8,7 +8,11 @@ from sqlalchemy.orm import sessionmaker
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env")
+    # `extra="ignore"`: una variable del `.env` que la app no mira todavía (o que es de
+    # otro servicio del compose, como POSTGRES_PASSWORD) no debe hacer caer el arranque.
+    # Pydantic por default rechaza extras y basta con que falte un campo acá para que la
+    # app no levante por un .env que es correcto.
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     database_url: str
     database_test_url: str | None = None
     homo_private_key_path: Path | None = None
@@ -43,6 +47,12 @@ class Settings(BaseSettings):
     # default es `./attachments/` para no depender de una carpeta de sistema. En producción
     # docker-compose lo apunta a un volumen persistente, distinto del volumen de la base.
     attachments_dir: Path = Path("./attachments")
+
+    # Clave de Google Cloud Vision para leer PDFs sin capa de texto (escaneos) y fotos.
+    # Opcional: sin ella `services/invoice_ocr.py` deja esos archivos para carga manual
+    # y la app sigue andando. Se lee también por `os.environ` en el módulo del OCR, pero
+    # el campo tiene que estar declarado acá para que un .env que la lleve no rompa.
+    google_vision_api_key: str | None = None
 
     @field_validator("smtp_password")
     @classmethod
