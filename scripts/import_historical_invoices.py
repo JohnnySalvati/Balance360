@@ -105,15 +105,23 @@ class ImportResult:
     total: int = 0
     imported: int = 0
     skipped_existing: int = 0
+    # Comprobantes que ya estaban en la base por otra fuente (carga manual, FactuMov):
+    # mismos (emisor, letra, PV, número). No se crea una fila nueva; sólo se adjunta el
+    # PDF si la fila existente venía sin uno.
+    skipped_duplicate_formal: int = 0
+    attached_to_existing: int = 0
     skipped_unverified: int = 0
     skipped_other: int = 0
 
     def log_summary(self) -> None:
         logger.info(
-            "recorridos=%d importados=%d ya-estaban=%d sin-verificar=%d otros=%d",
+            "recorridos=%d importados=%d ya-estaban=%d ya-cargados-a-mano=%d "
+            "(adjunto-agregado=%d) sin-verificar=%d otros=%d",
             self.total,
             self.imported,
             self.skipped_existing,
+            self.skipped_duplicate_formal,
+            self.attached_to_existing,
             self.skipped_unverified,
             self.skipped_other,
         )
@@ -137,6 +145,39 @@ def resolve_entity(db: Session, name: str = ENTITY_NAME) -> Entity:
 
 def resolve_fiscal_identities(db: Session) -> dict[str, FiscalIdentity]:
     return {fi.tax_id: fi for fi in db.execute(select(FiscalIdentity)).scalars()}
+
+
+def find_existing_formal_invoice(
+    db: Session,
+    *,
+    invoice_type: InvoiceType,
+    fiscal_identity_id: uuid.UUID | None,
+    contact_id: uuid.UUID,
+    voucher_type: VoucherType,
+    pos: int,
+    number: int,
+) -> Invoice | None:
+    """Un comprobante formal se identifica por **el CUIT que lo emite** más (letra, PV, número).
+
+    Para ventas el emisor es la identidad fiscal (puede haber dos CUITs de InSoft que
+    compartan un PV, aunque hoy no); para compras el emisor es el proveedor (dos proveedores
+    pueden tener legítimamente el mismo PV + número cada uno en su propia serie, por eso
+    `contact_id` discrimina).
+
+    Devuelve la fila si ya existe —cargada a mano desde la UI, por FactuMov, o por una
+    corrida previa de este script— y None si no está.
+    """
+    stmt = select(Invoice).where(
+        Invoice.invoice_type == invoice_type,
+        Invoice.voucher_type == voucher_type,
+        Invoice.pos == pos,
+        Invoice.number == number,
+    )
+    if invoice_type is InvoiceType.sale:
+        stmt = stmt.where(Invoice.fiscal_identity_id == fiscal_identity_id)
+    else:
+        stmt = stmt.where(Invoice.contact_id == contact_id)
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def resolve_contact(
@@ -201,10 +242,8 @@ def aliquot_from_rate(rate: Decimal) -> IvaAliquot:
 def voucher_type_enum(letter: str) -> VoucherType:
     # `parsed.voucher_type` es "A"/"B"/"C" (o NC…), y VoucherType(letter) espera ese
     # string exacto — es su `_value_`. Un valor inesperado revienta acá, que es donde
-    # debe: es una condición de is_verified que ya se validó. `# type: ignore` porque
-    # mypy ve `VoucherType(letter, arca_code)` (el `__new__` con dos argumentos) y no
-    # el `_missing_` que devuelve el miembro por `_value_`.
-    return VoucherType(letter)  # type: ignore[call-arg]
+    # debe: es una condición de is_verified que ya se validó.
+    return VoucherType(letter)
 
 
 def _skip(reason: str, path: Path) -> None:
@@ -300,6 +339,48 @@ def import_one(
         is_supplier=kind is InvoiceType.purchase,
     )
 
+    voucher = voucher_type_enum(parsed.voucher_type)
+    existing = find_existing_formal_invoice(
+        db,
+        invoice_type=kind,
+        fiscal_identity_id=fiscal_identity_id,
+        contact_id=contact.id,
+        voucher_type=voucher,
+        pos=parsed.pos,
+        number=parsed.number,
+    )
+    if existing is not None:
+        # El comprobante ya está en la base (cargado a mano desde la UI, por FactuMov, o
+        # por una corrida previa con otro `external_id`). No lo tocamos — nada de las
+        # líneas, ni las fechas, ni el estado —; sólo le agregamos el PDF **si no tiene
+        # ninguno adjunto**, porque re-adjuntar manualmente lo que el script ya tiene en
+        # la mano es trabajo inútil para el operador.
+        result.skipped_duplicate_formal += 1
+        if existing.attachments:
+            logger.info(
+                "SALTAR %s — ya existe (invoice %s), con adjunto propio",
+                pdf_path.name,
+                existing.id,
+            )
+            return
+        if dry_run:
+            logger.info(
+                "SALTAR (dry-run) %s — ya existe (invoice %s), SE LE ADJUNTARÍA el PDF",
+                pdf_path.name,
+                existing.id,
+            )
+            result.attached_to_existing += 1
+            return
+        attachment_service.save(db, existing, pdf_path.name, content, "application/pdf")
+        db.flush()
+        result.attached_to_existing += 1
+        logger.info(
+            "SALTAR %s — ya existe (invoice %s), PDF adjuntado",
+            pdf_path.name,
+            existing.id,
+        )
+        return
+
     invoice_data = InvoiceCreate(
         invoice_type=kind,
         entity_id=entity.id,
@@ -308,7 +389,7 @@ def import_one(
         date=parsed.date,
         formal=True,
         tax_only=False,
-        voucher_type=voucher_type_enum(parsed.voucher_type),
+        voucher_type=voucher,
         pos=parsed.pos,
         number=parsed.number,
         # El histórico ya ocurrió: el comprobante está autorizado (tiene CAE), confirmado

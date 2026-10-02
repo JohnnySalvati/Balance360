@@ -273,6 +273,204 @@ def test_dry_run_lists_but_writes_nothing(db, salvati, base_dir, monkeypatch):
 # ----------- helpers puros -----------
 
 
+def test_already_loaded_by_hand_is_not_duplicated_and_gets_the_pdf_attached(
+    db, salvati, base_dir, monkeypatch
+):
+    """Johnny carga a mano (desde la UI) una venta A-2-129 de Salvati, sin PDF. Después
+    corre el import. El script tiene que detectar que ya existe, no duplicar, y adjuntarle
+    el PDF que trae — así los cargados manualmente no quedan sin su comprobante."""
+    from balance360.enums import VoucherType
+    from balance360.models.invoice import Invoice
+
+    insoft = make_entity(db, name="InSoft")
+    from tests.factories import make_contact
+
+    cliente = make_contact(db, name="Cliente", tax_id="30111111113")
+    already = Invoice(
+        invoice_type=InvoiceType.sale,
+        entity_id=insoft.id,
+        fiscal_identity_id=salvati.id,
+        contact_id=cliente.id,
+        date=datetime.date(2025, 3, 15),
+        formal=True,
+        tax_only=False,
+        voucher_type=VoucherType.A,
+        pos=2,
+        number=129,
+        confirmed=True,
+        authorized=True,
+        paid=False,
+        cae="86316182057886",
+    )
+    db.add(already)
+    db.commit()
+
+    pdf = make_pdf(base_dir, "20182810674_001_00002_00000129.pdf", b"%PDF-fake")
+    _patch_parse(monkeypatch, {pdf.name: make_parsed()})
+
+    result = _run(db, base_dir, InvoiceType.sale, monkeypatch)
+
+    assert (result.imported, result.skipped_duplicate_formal, result.attached_to_existing) == (
+        0,
+        1,
+        1,
+    )
+    all_invoices = db.execute(select(Invoice)).scalars().all()
+    assert len(all_invoices) == 1  # la misma fila, no se duplicó
+    assert len(all_invoices[0].attachments) == 1
+    assert all_invoices[0].attachments[0].filename == pdf.name
+
+
+def test_already_loaded_by_hand_with_attachment_is_left_untouched(
+    db, salvati, base_dir, monkeypatch
+):
+    from balance360.enums import VoucherType
+    from balance360.models.attachment import Attachment
+    from balance360.models.invoice import Invoice
+
+    insoft = make_entity(db, name="InSoft")
+    from tests.factories import make_contact
+
+    cliente = make_contact(db, name="Cliente", tax_id="30111111113")
+    already = Invoice(
+        invoice_type=InvoiceType.sale,
+        entity_id=insoft.id,
+        fiscal_identity_id=salvati.id,
+        contact_id=cliente.id,
+        date=datetime.date(2025, 3, 15),
+        formal=True,
+        tax_only=False,
+        voucher_type=VoucherType.A,
+        pos=2,
+        number=129,
+        confirmed=True,
+        authorized=True,
+        paid=False,
+        cae="86316182057886",
+    )
+    db.add(already)
+    db.flush()
+    db.add(
+        Attachment(
+            invoice_id=already.id,
+            filename="original.pdf",
+            stored_filename="aaaa.pdf",
+            mime_type="application/pdf",
+            file_size=10,
+        )
+    )
+    db.commit()
+
+    pdf = make_pdf(base_dir, "20182810674_001_00002_00000129.pdf")
+    _patch_parse(monkeypatch, {pdf.name: make_parsed()})
+
+    result = _run(db, base_dir, InvoiceType.sale, monkeypatch)
+
+    assert result.skipped_duplicate_formal == 1 and result.attached_to_existing == 0
+    stored = db.execute(select(Invoice)).scalar_one()
+    assert len(stored.attachments) == 1 and stored.attachments[0].filename == "original.pdf"
+
+
+def test_two_fiscal_identities_do_not_collide_on_same_pos_and_number(
+    db, salvati, viola, base_dir, monkeypatch
+):
+    """Si Salvati emite A-2-129 y después Viola emite A-2-129 (hoy no pasa, pero el modelo
+    lo permite), son dos comprobantes distintos y el script tiene que importarlos a los dos.
+    El emisor es lo que los distingue; `(voucher_type, pos, number)` sin emisor haría
+    tragar una por la otra."""
+    from balance360.models.invoice import Invoice
+
+    insoft = make_entity(db, name="InSoft")
+    salvati_pdf = make_pdf(base_dir, "20182810674_001_00002_00000129.pdf")
+    viola_pdf = make_pdf(base_dir, "27177624441_001_00002_00000129.pdf")
+    _patch_parse(
+        monkeypatch,
+        {
+            salvati_pdf.name: make_parsed(supplier_cuit="20182810674", supplier_name="Salvati"),
+            viola_pdf.name: make_parsed(supplier_cuit="27177624441", supplier_name="Viola"),
+        },
+    )
+
+    _run(db, base_dir, InvoiceType.sale, monkeypatch)
+
+    invoices = db.execute(select(Invoice).order_by(Invoice.fiscal_identity_id)).scalars().all()
+    assert len(invoices) == 2
+    assert {i.fiscal_identity_id for i in invoices} == {salvati.id, viola.id}
+    assert insoft  # keep the fixture usage visible
+
+
+def test_two_different_suppliers_do_not_collide_on_same_pos_and_number(db, base_dir, monkeypatch):
+    """Dos proveedores distintos pueden tener legítimamente el mismo PV + número cada uno
+    en su propia serie. El contact_id es lo que los distingue; sin ese discriminador el
+    script tragaría la segunda compra creyendo que es un duplicado de la primera."""
+    from balance360.models.invoice import Invoice
+
+    make_entity(db, name="InSoft")
+    pdf_a = make_pdf(base_dir, "30500010912_001_00001_00000100.pdf")
+    pdf_b = make_pdf(base_dir, "30711111112_001_00001_00000100.pdf")
+    _patch_parse(
+        monkeypatch,
+        {
+            pdf_a.name: make_parsed(supplier_cuit="30500010912", supplier_name="Prov A"),
+            pdf_b.name: make_parsed(supplier_cuit="30711111112", supplier_name="Prov B"),
+        },
+    )
+
+    _run(db, base_dir, InvoiceType.purchase, monkeypatch)
+
+    invoices = db.execute(select(Invoice)).scalars().all()
+    assert len(invoices) == 2
+    assert {i.contact.tax_id for i in invoices} == {"30500010912", "30711111112"}
+
+
+def test_dry_run_marks_duplicate_without_touching_the_database(db, salvati, base_dir, monkeypatch):
+    from balance360.enums import VoucherType
+    from balance360.models.invoice import Invoice
+
+    insoft = make_entity(db, name="InSoft")
+    from tests.factories import make_contact
+
+    cliente = make_contact(db, name="Cliente", tax_id="30111111113")
+    already = Invoice(
+        invoice_type=InvoiceType.sale,
+        entity_id=insoft.id,
+        fiscal_identity_id=salvati.id,
+        contact_id=cliente.id,
+        date=datetime.date(2025, 3, 15),
+        formal=True,
+        tax_only=False,
+        voucher_type=VoucherType.A,
+        pos=2,
+        number=129,
+        confirmed=True,
+        authorized=True,
+        paid=False,
+        cae="86316182057886",
+    )
+    db.add(already)
+    db.commit()
+
+    pdf = make_pdf(base_dir, "20182810674_001_00002_00000129.pdf")
+    _patch_parse(monkeypatch, {pdf.name: make_parsed()})
+
+    def fake_session():
+        class _Ctx:
+            def __enter__(self_inner):
+                return db
+
+            def __exit__(self_inner, *args):
+                return False
+
+        return _Ctx()
+
+    monkeypatch.setattr(loader, "SessionLocal", fake_session)
+    result = loader.run(base_dir, InvoiceType.sale, commit=False)
+
+    assert (result.skipped_duplicate_formal, result.attached_to_existing) == (1, 1)
+    stored = db.execute(select(Invoice)).scalar_one()
+    assert stored.attachments == []  # dry-run no persiste nada
+
+
 def test_external_id_is_stable_by_relative_path(tmp_path):
     a = tmp_path / "sub" / "one.pdf"
     a.parent.mkdir()
