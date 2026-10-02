@@ -5,8 +5,12 @@
 
    Layout: DOS grillas, una por grupo semántico, separadas por un filete.
 
-     1. El documento — qué es, cuándo, qué período cubre.
-     2. Las partes  — entre quiénes y cómo se clasifica.
+     1. Las partes  — tipo, entidad, identidad fiscal, contacto y categoría.
+     2. El documento — cuándo, qué letra/número, qué concepto y período cubre.
+
+   Las partes van PRIMERO a propósito: la letra admitida sale de la condición IVA de
+   la identidad fiscal y del contacto (applyVoucherFilter), así que hay que elegirlos
+   antes de llegar a ella. El orden de la pantalla es también el orden del Tab.
 
    Cada grilla suma exactamente 12 columnas en xl (6 en md), así el corte de
    filas cae solo y el agrupamiento no se descoloca cuando falta un campo. Son
@@ -50,7 +54,7 @@
 {% set nc_header = inv.is_nc if inv else False %}
 {% set concepto_labels = {"products": "Productos", "services": "Servicios", "both": "Productos y Servicios"} %}
 
-{# ── El documento ─────────────────────────────────────────────────────────── #}
+{# ── Las partes (primero: de ellas depende la letra) ───────────────────────────────────────────────────────────── #}
 <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2">
     <div class="flex flex-col gap-0.5 col-span-1 md:col-span-1 xl:col-span-1">
         <label class="text-xs text-gray-500">Tipo</label>
@@ -66,6 +70,92 @@
         </select>
     </div>
 
+    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
+        <label class="text-xs text-gray-500">Entidad</label>
+        <select name="entity_id" id="entity-select" required
+                hx-get="/invoices/fiscal-identities"
+                hx-target="#fiscal-identity-select"
+                hx-swap="innerHTML"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+            {% for e in entities %}
+            <option value="{{ e.id }}"
+                    {{ "selected" if inv and e.id == inv.entity_id else "" }}>{{ e.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {# Solo en comprobantes formales: un informal no es un documento fiscal y no
+       tiene emisor/receptor. La etiqueta la reescribe toggleFiscalIdentity. #}
+    <div id="fiscal-identity-field" class="formal-only flex flex-col gap-0.5 col-span-2 md:col-span-4 xl:col-span-3">
+        <label class="text-xs text-gray-500" id="fiscal-identity-label">Identidad fiscal (emisor)</label>
+        <select name="fiscal_identity_id" id="fiscal-identity-select"
+                onchange="applyVoucherFilter()"
+                class="border border-gray-300 rounded px-2 py-1 text-sm">
+            {% include "invoices/_fiscal_identity_options.html" %}
+        </select>
+    </div>
+
+    {# El "+ Nuevo" abre el mismo modal que Configuracion → Contactos (con el boton
+       de padron incluido) y postea a /invoices/contacts, que devuelve el contacto
+       por HX-Trigger para que invoice_form.js lo agregue al select y lo elija. El
+       modal NO puede colgar de aca: esto vive adentro del <form> del comprobante y
+       un <form> anidado lo descarta el parser. Va a #modal, que ponen detail.html y
+       new_form.html fuera del formulario. #}
+    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-4">
+        <div class="flex items-center justify-between gap-2">
+            <label class="text-xs text-gray-500">Contacto</label>
+            <button type="button"
+                    hx-get="/invoices/contact-form"
+                    hx-include="#invoice-type"
+                    hx-target="#modal"
+                    hx-swap="outerHTML"
+                    class="text-xs text-blue-600 hover:underline">+ Nuevo</button>
+        </div>
+        {# El buscador y el select comparten fila para no agrandar la celda. El input no
+           tiene `name`: no se envía, solo filtra las opciones (invoice_form.js). El
+           select sigue siendo la fuente de verdad, así que ningún id ni el POST cambian. #}
+        <div class="flex gap-1.5">
+            <input type="search" id="contact-search" placeholder="Buscar…" autocomplete="off"
+                   oninput="onContactSearch(this.value)"
+                   class="w-24 shrink-0 border border-gray-300 rounded px-2 py-1 text-sm">
+            <select name="contact_id" id="contact-select" required
+                    onchange="applyVoucherFilter()"
+                    class="min-w-0 flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
+                {# En el alta arranca sin elegir, para que el `required` obligue a decidir. #}
+                {% if not inv %}
+                <option value="" data-type="both">— Seleccionar contacto —</option>
+                {% endif %}
+                {% for c in contacts %}
+                {# data-search: lo que matchea el buscador. El nombre de fantasía va en el
+                   texto de la opción también, para distinguir "AOMA Bs. As." de su razón social. #}
+                <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}"
+                        data-condicion="{{ c.condicion_iva.name }}"
+                        data-search="{{ c.name }} {{ c.trade_name or '' }}"
+                        {{ "selected" if inv and c.id == inv.contact_id else "" }}>{{ c.name }}{% if c.trade_name %} · {{ c.trade_name }}{% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-2">
+        <label class="text-xs text-gray-500">Categoría</label>
+        <select name="category_id" id="category-select" class="border border-gray-300 rounded px-2 py-1 text-sm">
+            <option value="">— Sin categoría —</option>
+            {% for cat in categories %}
+            {# nbsp y no espacios: el HTML colapsa los espacios normales y se
+               perdería la jerarquía de subcategorías. Va con |safe porque si no
+               Jinja escapa el & y en la lista se leería "&nbsp;Alquileres". #}
+            <option value="{{ cat.id }}"
+                    {{ "selected" if inv and cat.id == inv.category_id else "" }}>
+                {{ ("&nbsp;&nbsp;" * cat.depth) | safe }}{{ cat.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{# ── El documento: después, con la letra ──────────────────────────────────── #}
+<div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2 border-t border-gray-200 pt-3">
     <div class="flex flex-col gap-0.5 col-span-1 md:col-span-2 xl:col-span-2">
         <label class="text-xs text-gray-500">Fecha</label>
         <input type="date" name="date" id="date-input" required
@@ -133,7 +223,7 @@
 
     {# Las tres fechas ocupan UNA celda: dependen del concepto, que está al lado,
        y aparecen o desaparecen como bloque. Antes eran una fila entera. #}
-    <div id="service-dates" class="formal-only col-span-2 md:col-span-4 xl:col-span-4 grid grid-cols-3 gap-2"
+    <div id="service-dates" class="formal-only col-span-2 md:col-span-4 xl:col-span-6 grid grid-cols-3 gap-2"
          style="{{ '' if inv and inv.concepto.value != 'products' else 'display:none' }}">
         <div class="flex flex-col gap-0.5">
             <label class="text-xs text-gray-500">Servicio desde</label>
@@ -154,85 +244,10 @@
                    class="border border-gray-300 rounded px-2 py-1 text-sm">
         </div>
     </div>
-</div>
-
-{# ── Las partes ───────────────────────────────────────────────────────────── #}
-<div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2 border-t border-gray-200 pt-3">
-    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
-        <label class="text-xs text-gray-500">Entidad</label>
-        <select name="entity_id" id="entity-select" required
-                hx-get="/invoices/fiscal-identities"
-                hx-target="#fiscal-identity-select"
-                hx-swap="innerHTML"
-                class="border border-gray-300 rounded px-2 py-1 text-sm">
-            {% for e in entities %}
-            <option value="{{ e.id }}"
-                    {{ "selected" if inv and e.id == inv.entity_id else "" }}>{{ e.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-
-    {# Solo en comprobantes formales: un informal no es un documento fiscal y no
-       tiene emisor/receptor. La etiqueta la reescribe toggleFiscalIdentity. #}
-    <div id="fiscal-identity-field" class="formal-only flex flex-col gap-0.5 col-span-2 md:col-span-4 xl:col-span-3">
-        <label class="text-xs text-gray-500" id="fiscal-identity-label">Identidad fiscal (emisor)</label>
-        <select name="fiscal_identity_id" id="fiscal-identity-select"
-                onchange="applyVoucherFilter()"
-                class="border border-gray-300 rounded px-2 py-1 text-sm">
-            {% include "invoices/_fiscal_identity_options.html" %}
-        </select>
-    </div>
-
-    {# El "+ Nuevo" abre el mismo modal que Configuracion → Contactos (con el boton
-       de padron incluido) y postea a /invoices/contacts, que devuelve el contacto
-       por HX-Trigger para que invoice_form.js lo agregue al select y lo elija. El
-       modal NO puede colgar de aca: esto vive adentro del <form> del comprobante y
-       un <form> anidado lo descarta el parser. Va a #modal, que ponen detail.html y
-       new_form.html fuera del formulario. #}
-    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-3">
-        <div class="flex items-center justify-between gap-2">
-            <label class="text-xs text-gray-500">Contacto</label>
-            <button type="button"
-                    hx-get="/invoices/contact-form"
-                    hx-include="#invoice-type"
-                    hx-target="#modal"
-                    hx-swap="outerHTML"
-                    class="text-xs text-blue-600 hover:underline">+ Nuevo</button>
-        </div>
-        <select name="contact_id" id="contact-select" required
-                onchange="applyVoucherFilter()"
-                class="border border-gray-300 rounded px-2 py-1 text-sm">
-            {# En el alta arranca sin elegir, para que el `required` obligue a decidir. #}
-            {% if not inv %}
-            <option value="" data-type="both">— Seleccionar contacto —</option>
-            {% endif %}
-            {% for c in contacts %}
-            <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}"
-                    data-condicion="{{ c.condicion_iva.name }}"
-                    {{ "selected" if inv and c.id == inv.contact_id else "" }}>{{ c.name }}</option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-2">
-        <label class="text-xs text-gray-500">Categoría</label>
-        <select name="category_id" id="category-select" class="border border-gray-300 rounded px-2 py-1 text-sm">
-            <option value="">— Sin categoría —</option>
-            {% for cat in categories %}
-            {# nbsp y no espacios: el HTML colapsa los espacios normales y se
-               perdería la jerarquía de subcategorías. Va con |safe porque si no
-               Jinja escapa el & y en la lista se leería "&nbsp;Alquileres". #}
-            <option value="{{ cat.id }}"
-                    {{ "selected" if inv and cat.id == inv.category_id else "" }}>
-                {{ ("&nbsp;&nbsp;" * cat.depth) | safe }}{{ cat.name }}
-            </option>
-            {% endfor %}
-        </select>
-    </div>
 
     {# Sin etiqueta propia: el texto del checkbox ya rotula. Alineado abajo para
        que quede a la altura de los controles de al lado. #}
-    <div id="tax-only-field" class="col-span-2 md:col-span-6 xl:col-span-2 flex items-end pb-1">
+    <div id="tax-only-field" class="col-span-2 md:col-span-2 xl:col-span-2 flex items-end pb-1">
         <label class="flex items-center gap-2 cursor-pointer whitespace-nowrap">
             <input type="checkbox" name="tax_only" id="tax-only-check" value="true"
                    onchange="toggleTaxOnly(this.checked)"

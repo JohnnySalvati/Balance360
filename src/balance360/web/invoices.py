@@ -277,6 +277,7 @@ def create_contact_from_invoice(
             "contactCreated": {
                 "id": str(contact.id),
                 "name": contact.name,
+                "trade_name": contact.trade_name,
                 "contact_type": contact.contact_type.value,
                 "condicion_iva": contact.condicion_iva.name,
             }

@@ -8,7 +8,7 @@
    explícito: se guarda con "Guardar cambios" y se descarta con "Cancelar".
    Ver invoice_header_form en web/invoices.py.
 
-   Espeja celda por celda a partials/_header_fields.html —mismas dos grillas,
+   Espeja celda por celda a partials/_header_fields.html —mismas dos grillas (partes y documento),
    mismos breakpoints (2 / md:6 / xl:12), mismos col-span, mismas medidas de caja
    (px-2 py-1 + borde transparente)— así el swap no mueve nada: el dato se queda
    donde estaba y el control aparece encima. Si allá se agrega, reordena o se
@@ -36,7 +36,7 @@
 <div id="invoice-header" class="bg-white rounded shadow p-4">
     <div class="flex flex-col gap-3 text-sm">
 
-        {# ── El documento ─────────────────────────────────────────────────── #}
+        {# ── Las partes: primero, porque la letra depende de ellas ────────── #}
         <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2">
             <div class="flex flex-col gap-0.5 col-span-1 md:col-span-1 xl:col-span-1">
                 <p class="text-xs text-gray-500">Tipo</p>
@@ -44,7 +44,52 @@
                     {{ "Compra" if invoice.invoice_type.value == "purchase" else "Venta" }}
                 </p>
             </div>
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
+                <p class="text-xs text-gray-500">Entidad</p>
+                <p {{ edit("entity-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
+                    {{ invoice.entity.name }}
+                </p>
+            </div>
 
+            {% if invoice.formal %}
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-4 xl:col-span-3">
+                <p class="text-xs text-gray-500">
+                    Identidad fiscal ({{ "emisor" if invoice.invoice_type.value == "sale" else "receptor" }})
+                </p>
+                {% if invoice.fiscal_identity %}
+                <p {{ edit("fiscal-identity-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
+                    {{ invoice.fiscal_identity.name }}
+                    <span class="text-gray-500 font-normal">· {{ invoice.fiscal_identity.tax_id | cuit }}</span>
+                </p>
+                {% else %}
+                {# Sin ella no se puede confirmar: se muestra el hueco en vez de ocultarlo. #}
+                <p {{ edit("fiscal-identity-select") }} class="{{ cell }} text-amber-700 font-medium">— Sin asignar</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-4">
+                <p class="text-xs text-gray-500">Contacto</p>
+                {# El CUIT va inline y no en su propia celda: el formulario acá solo
+                   tiene el select, y una celda extra correría todo lo de al lado. #}
+                <p {{ edit("contact-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
+                    {{ invoice.contact.name }}
+                    {% if invoice.contact.tax_id %}
+                    <span class="text-gray-500 font-normal">· {{ invoice.contact.tax_id | cuit }}</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-2">
+                <p class="text-xs text-gray-500">Categoría</p>
+                <p {{ edit("category-select") }} class="{{ cell }} font-medium truncate {{ 'text-gray-800' if invoice.category else 'text-gray-500' }}">
+                    {{ invoice.category.name if invoice.category else "— Sin categoría —" }}
+                </p>
+            </div>
+        </div>
+
+        {# ── El documento: después, con la letra ──────────────────────────── #}
+        <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2 border-t border-gray-200 pt-3">
             <div class="flex flex-col gap-0.5 col-span-1 md:col-span-2 xl:col-span-2">
                 <p class="text-xs text-gray-500">Fecha</p>
                 <p {{ edit("date-input") }} class="{{ cell }} text-gray-800 font-medium">
@@ -93,7 +138,7 @@
             {# Mismo criterio que toggleConcepto: las tres fechas solo aplican cuando
                hay servicios. Se muestran aunque estén vacías. #}
             {% if invoice.concepto.value != "products" %}
-            <div class="col-span-2 md:col-span-4 xl:col-span-4 grid grid-cols-3 gap-2">
+            <div class="col-span-2 md:col-span-4 xl:col-span-6 grid grid-cols-3 gap-2">
                 <div class="flex flex-col gap-0.5">
                     <p class="text-xs text-gray-500">Servicio desde</p>
                     <p {{ edit("from-date-input") }} class="{{ cell }} text-gray-800 font-medium">
@@ -115,55 +160,9 @@
             </div>
             {% endif %}
             {% endif %}
-        </div>
-
-        {# ── Las partes ───────────────────────────────────────────────────── #}
-        <div class="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-12 gap-x-3 gap-y-2 border-t border-gray-200 pt-3">
-            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-2 xl:col-span-2">
-                <p class="text-xs text-gray-500">Entidad</p>
-                <p {{ edit("entity-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
-                    {{ invoice.entity.name }}
-                </p>
-            </div>
-
-            {% if invoice.formal %}
-            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-4 xl:col-span-3">
-                <p class="text-xs text-gray-500">
-                    Identidad fiscal ({{ "emisor" if invoice.invoice_type.value == "sale" else "receptor" }})
-                </p>
-                {% if invoice.fiscal_identity %}
-                <p {{ edit("fiscal-identity-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
-                    {{ invoice.fiscal_identity.name }}
-                    <span class="text-gray-500 font-normal">· {{ invoice.fiscal_identity.tax_id | cuit }}</span>
-                </p>
-                {% else %}
-                {# Sin ella no se puede confirmar: se muestra el hueco en vez de ocultarlo. #}
-                <p {{ edit("fiscal-identity-select") }} class="{{ cell }} text-amber-700 font-medium">— Sin asignar</p>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-3">
-                <p class="text-xs text-gray-500">Contacto</p>
-                {# El CUIT va inline y no en su propia celda: el formulario acá solo
-                   tiene el select, y una celda extra correría todo lo de al lado. #}
-                <p {{ edit("contact-select") }} class="{{ cell }} text-gray-800 font-medium truncate">
-                    {{ invoice.contact.name }}
-                    {% if invoice.contact.tax_id %}
-                    <span class="text-gray-500 font-normal">· {{ invoice.contact.tax_id | cuit }}</span>
-                    {% endif %}
-                </p>
-            </div>
-
-            <div class="flex flex-col gap-0.5 col-span-2 md:col-span-3 xl:col-span-2">
-                <p class="text-xs text-gray-500">Categoría</p>
-                <p {{ edit("category-select") }} class="{{ cell }} font-medium truncate {{ 'text-gray-800' if invoice.category else 'text-gray-500' }}">
-                    {{ invoice.category.name if invoice.category else "— Sin categoría —" }}
-                </p>
-            </div>
 
             {% if invoice.invoice_type.value == "purchase" %}
-            <div class="col-span-2 md:col-span-6 xl:col-span-2 flex items-end pb-1 text-gray-800">
+            <div class="col-span-2 md:col-span-2 xl:col-span-2 flex items-end pb-1 text-gray-800">
                 <label {{ edit("tax-only-check") }}
                        class="flex items-center gap-2 whitespace-nowrap rounded {{ 'cursor-pointer hover:text-gray-600' if editable else '' }}">
                     <input type="checkbox" disabled class="pointer-events-none"

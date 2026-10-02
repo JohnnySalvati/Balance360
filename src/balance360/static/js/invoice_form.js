@@ -14,7 +14,7 @@
 // Contrato con el template que lo incluye:
 //   - Debe definir una función global `toggleFormal(checked)` (difiere entre alta
 //     y edición: el alta además ajusta los `required` de tipo/pto. de venta/número).
-//   - Debe definir una función global `filterContacts(invoiceType)` (difiere igual:
+//   - Debe definir una función global `filterContacts()` (difiere igual:
 //     el alta cae en el placeholder cuando lo elegido deja de corresponder al tipo,
 //     la edición solo oculta). La llama el listener de `contactCreated`.
 //   - Debe existir en el DOM: #invoice-type, #voucher-type-select, #contact-select,
@@ -144,6 +144,44 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
     if (e.target.id === 'fiscal-identity-select') applyVoucherFilter();
 });
 
+// Buscador de contactos. Filtra las opciones del #contact-select por nombre y por
+// nombre de fantasía (data-search). `hidden` lo decide acá UNA sola función con los dos
+// criterios —tipo de comprobante y texto buscado—: si cada uno lo escribiera por su
+// cuenta, el último en correr pisaría al otro y reaparecerían proveedores en una venta.
+// La opción sin valor (el placeholder del alta) nunca se oculta.
+// Devuelve la primera opción visible, que es lo que filterContacts de cada página usa.
+function normalizeText(text) {
+    return (text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function refreshContactOptions() {
+    const select = document.getElementById('contact-select');
+    const search = document.getElementById('contact-search');
+    const query = normalizeText(search ? search.value.trim() : '');
+    const invoiceType = document.getElementById('invoice-type').value;
+    const allowed = invoiceType === 'purchase' ? ['supplier', 'both'] : ['customer', 'both'];
+    let firstVisible = null;
+    select.querySelectorAll('option').forEach(opt => {
+        const typeOk = !opt.dataset.type || allowed.includes(opt.dataset.type);
+        const textOk = !opt.value || normalizeText(opt.dataset.search).includes(query);
+        opt.hidden = !(typeOk && textOk);
+        if (!opt.hidden && !firstVisible) firstVisible = opt;
+    });
+    return firstVisible;
+}
+
+// Al escribir: si queda un solo contacto posible se elige solo (y se dispara `change`
+// para que se recalcule la letra); con varios, el select queda como estaba.
+function onContactSearch() {
+    refreshContactOptions();
+    const select = document.getElementById('contact-select');
+    const matches = Array.from(select.options).filter(opt => opt.value && !opt.hidden);
+    if (matches.length === 1 && select.value !== matches[0].value) {
+        select.value = matches[0].value;
+        select.dispatchEvent(new Event('change'));
+    }
+}
+
 // Alta de contacto desde el propio comprobante: POST /invoices/contacts cierra el
 // modal y manda los datos por HX-Trigger.
 //
@@ -158,11 +196,16 @@ document.body.addEventListener('htmx:afterSwap', function(e) {
 document.body.addEventListener('contactCreated', function (e) {
     const select = document.getElementById('contact-select');
     if (!select) return;
-    const opt = new Option(e.detail.name, e.detail.id);
+    const label = e.detail.trade_name ? `${e.detail.name} · ${e.detail.trade_name}` : e.detail.name;
+    const opt = new Option(label, e.detail.id);
+    opt.dataset.search = `${e.detail.name} ${e.detail.trade_name || ''}`;
     opt.dataset.type = e.detail.contact_type;
     opt.dataset.condicion = e.detail.condicion_iva;
     select.add(opt);
     select.value = e.detail.id;
+    // Un buscador con texto lo dejaría fuera de la lista justo después de crearlo.
+    const search = document.getElementById('contact-search');
+    if (search) search.value = '';
     filterContacts(document.getElementById('invoice-type').value);
     applyVoucherFilter();
 });

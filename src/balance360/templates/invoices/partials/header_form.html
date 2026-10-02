@@ -64,13 +64,8 @@ function toggleFormal(checked) {
     if (checked) toggleConcepto(document.getElementById('concepto-select').value);
 }
 
-function filterContacts(invoiceType) {
-    const select = document.getElementById('contact-select');
-    const allowed = invoiceType === 'purchase' ? ['supplier', 'both'] : ['customer', 'both'];
-    select.querySelectorAll('option').forEach(opt => {
-        const type = opt.dataset.type;
-        opt.hidden = type && !allowed.includes(type);
-    });
+function filterContacts() {
+    refreshContactOptions();
 }
 
 // "Solo impositivo" solo aplica a compras: en ventas se oculta y destilda.

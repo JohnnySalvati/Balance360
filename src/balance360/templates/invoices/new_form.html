@@ -121,15 +121,9 @@ function toggleFormal(checked) {
 // de crear el "+ Nuevo" (el listener contactCreated vuelve a llamar acá). La primera
 // opción visible es el placeholder, así que al cambiar de compra a venta se sigue
 // cayendo en "— Seleccionar contacto —" como hasta ahora.
-function filterContacts(invoiceType) {
+function filterContacts() {
     const select = document.getElementById('contact-select');
-    const allowed = invoiceType === 'purchase' ? ['supplier', 'both'] : ['customer', 'both'];
-    let firstVisible = null;
-    select.querySelectorAll('option').forEach(opt => {
-        const visible = allowed.includes(opt.dataset.type);
-        opt.hidden = !visible;
-        if (visible && !firstVisible) firstVisible = opt;
-    });
+    const firstVisible = refreshContactOptions();
     const current = select.options[select.selectedIndex];
     if ((!current || current.hidden) && firstVisible) select.value = firstVisible.value;
 }
