@@ -395,3 +395,103 @@ def test_is_verified_rejects_an_incomplete_header():
     parsed = parse_invoice_text(_OCR_C_SCAN)
     parsed.cae = None
     assert not is_verified(parsed)
+
+
+# PV=5 propio emitido por Balance360: factura B, sin IVA desglosado, items como
+# `desc qty $ unit $ subtotal` bajo "PRODUCTO / SERVICIO | CANTIDAD | PRECIO UNIT. | SUBTOTAL".
+BALANCE360_PV5_TEXT = """ORIGINAL
+B
+InSoft FACTURA
+Punto de Venta: 00005 Comp. Nro: 00000007
+Razón Social: Jose Miguel Salvati COD. 06
+Fecha de Emisión: 01/09/2026
+Condición frente al IVA: IVA Responsable Inscripto CUIT: 20-18281067-4
+Período Facturado Desde: 01/09/2026 Hasta: 30/09/2026 Vto. para el pago: 01/09/2026
+PRODUCTO / SERVICIO CANTIDAD PRECIO UNIT. SUBTOTAL
+Nube de AWS (1 × $288.802,8) 1 $ 288.802,80 $ 288.802,80
+Abono de SignReady (1 × $96.267,6) 1 $ 96.267,60 $ 96.267,60
+Subtotal: $ 385.070,40
+Importe Total: $ 385.070,40
+CAE N°: 86350853322721
+Fecha de Vto. de CAE: 11/09/2026
+"""
+
+
+def test_balance360_pv5_layout_reads_items_and_closes():
+    from balance360.services.pdf_invoice import (
+        is_verified,
+        lines_gap,
+        parse_invoice_text,
+    )
+
+    parsed = parse_invoice_text(BALANCE360_PV5_TEXT)
+    assert (parsed.voucher_type, parsed.pos, parsed.number) == ("B", 5, 7)
+    assert parsed.supplier_cuit == "20-18281067-4"
+    assert parsed.total == Decimal("385070.40")
+    assert len(parsed.lines) == 2
+    # Es B: unit_price trae el IVA adentro, lines_gap no lo suma de nuevo.
+    assert lines_gap(parsed) == Decimal("0.00")
+    assert is_verified(parsed)
+
+
+# Movistar: la factura imprime `IVA 27,00% 27,00 14.586,48 54.024,00` (etiqueta IVA +
+# tasa duplicada + importe real del IVA + base). El patrón genérico captura la tasa
+# duplicada como importe y la factura no cierra. `_IVA_MOVISTAR` lee el tercer número.
+MOVISTAR_FRAGMENT = """Telefónica Móviles Argentina S.A.
+Factura 2470-01580265
+A
+Fecha de emisión: 25/04/2026
+C.U.I.T: 30-67881435-7
+Percep.IIBB CF RG 155/2010 54.024,00 1,00 540,24
+IVA 27,00% 27,00 14.586,48 54.024,00
+Percepción I.V.A. 54.024,00 3,00 1.620,72
+Total Cargos del Período $70.771,44
+CAE: 86173016205511
+Fecha de Vto: 05/05/2026
+"""
+
+
+def test_movistar_iva_is_read_from_the_third_number_not_the_duplicated_rate():
+    from balance360.services.pdf_invoice import (
+        is_verified,
+        lines_gap,
+        parse_invoice_text,
+    )
+
+    parsed = parse_invoice_text(MOVISTAR_FRAGMENT)
+    assert parsed.total == Decimal("70771.44")
+    # Tributos: Percep.IIBB (540,24) + Percepción I.V.A. (1.620,72) = 2.160,96.
+    assert parsed.tributes_total == Decimal("2160.96")
+    # Si `_IVA_MOVISTAR` leyera mal, la línea de totales no cerraría a cero.
+    assert lines_gap(parsed, use_totals=True) == Decimal("0.00")
+    assert is_verified(parsed)
+
+
+# Venex NC: "NOTA DE CRÉDITO" en el header + "A Nro: A-00001-00008229" → letra NCA.
+NC_VENEX_TEXT = """Original
+De: VENEX S.A. NOTA DE CRÉDITO
+C.U.I.T.: 30-71547320-4 A Nro: A-00001-00008229
+Fecha: 30/07/2026
+Cant.Descripción Imp. int. Unitario Neto Subtotal
+IVA
+1 SODIMM DDR3 4GB 1600MHZ HIKSEMI HIKER (Gtia Oficial 12 meses) (10,5%) $ 21.537,56 $ 21.537,56
+Subtotal: $ 21.537,56
+Iva Insc. 10,5%: $ 2.261,44
+TOTAL IVA INCLUIDO: $ 23.799,00
+CAE: 86316075772270
+"""
+
+
+def test_nota_de_credito_header_prefixes_the_voucher_letter_with_nc():
+    from balance360.services.pdf_invoice import (
+        is_verified,
+        lines_gap,
+        parse_invoice_text,
+    )
+
+    parsed = parse_invoice_text(NC_VENEX_TEXT)
+    assert parsed.voucher_type == "NCA"
+    assert (parsed.pos, parsed.number) == (1, 8229)
+    assert parsed.total == Decimal("23799.00")
+    assert lines_gap(parsed) == Decimal("0.00")
+    assert is_verified(parsed)

@@ -105,7 +105,25 @@ def _normalize_cuit(s: str) -> str:
 # --------------------------------------------------------------------------
 # Header field extraction (unchanged logic, kept as-is)
 # --------------------------------------------------------------------------
+_NC_HEADER = re.compile(r"NOTA\s+DE\s+CR[EÉ]DITO", re.I)
+
+
 def _extract_voucher_type(lines: list, text: str) -> str | None:
+    """La letra del comprobante, con el prefijo `NC` si es una Nota de Crédito.
+
+    `_extract_voucher_letter` saca la letra "A"/"B"/"C" como siempre (los patrones son los
+    mismos para una factura y para una NC, porque todos los PDFs la imprimen cerca). La
+    diferencia entre factura y nota de crédito la decide `NOTA DE CRÉDITO` en el header.
+    """
+    letter = _extract_voucher_letter(lines, text)
+    if letter is None:
+        return None
+    if _NC_HEADER.search(text[:600]):
+        return "NC" + letter
+    return letter
+
+
+def _extract_voucher_letter(lines: list, text: str) -> str | None:
     for line in lines[:5]:
         if re.match(r"^[A-C]$", line.strip()):
             return line.strip()
@@ -522,6 +540,19 @@ LAYOUTS: list[Layout] = [
         signature=re.compile(r"^\s*CONCEPTO\s+(?:Cantidad\s+)?Importe\s*$", re.I),
         row=re.compile(rf"^(?P<desc>.+?)\s+\$\s*(?P<price>-?{N})\s*$"),
     ),
+    # 11. Balance360 propio (PV=5, facturas B emitidas por esta misma app). La tabla es
+    #     `PRODUCTO / SERVICIO | CANTIDAD | PRECIO UNIT. | SUBTOTAL`, sin columna de IVA
+    #     (es B: el IVA viene adentro del precio). La descripción suele llevar paréntesis
+    #     con la expresión de la cantidad y el precio ("(1 × $288.802,8)") — la regex
+    #     captura la última secuencia `$ unit $ subtotal` del renglón para no confundirse
+    #     con esos paréntesis.
+    Layout(
+        name="balance360_pv5",
+        signature=re.compile(
+            r"PRODUCTO\s*/\s*SERVICIO\s+CANTIDAD\s+PRECIO\s+UNIT\.?\s+SUBTOTAL", re.I
+        ),
+        row=re.compile(rf"^(?P<desc>.+?)\s+(?P<qty>\d+)\s+\$\s*(?P<price>{N})\s+\$\s*{N}\s*$"),
+    ),
 ]
 
 
@@ -611,6 +642,9 @@ _TOTAL_PATTERNS = [
     # operación. Total: 203,883.77". Al final, después de los demás, porque "Total:" suelto
     # aparece en otros formatos con otro significado.
     re.compile(rf"\bTotal:\s*\$?\s*({N})\s*$", re.I | re.M),
+    # Venex NC: "TOTAL IVA INCLUIDO: $ 23.799,00". Separado del genérico "TOTAL $" porque
+    # entre "TOTAL" y "$" lleva texto ("IVA INCLUIDO:") y el patrón genérico pide `\s*\$`.
+    re.compile(rf"TOTAL\s+IVA\s+INCLUIDO:?\s*\$?\s*({N})", re.I),
 ]
 
 
@@ -686,6 +720,16 @@ _IVA_AMOUNT = re.compile(
 )
 _IVA_CONTENIDO = re.compile(rf"IVA\s+Contenido:?\s*\$?\s*({N})", re.I)
 
+# Movistar imprime "IVA 27,00% 27,00 14.586,48 54.024,00": etiqueta IVA con la tasa pegada,
+# después la tasa DUPLICADA en su columna, después el importe real del IVA, y al final la
+# base imponible. El `_IVA_AMOUNT` genérico, con lazy, captura el primer número que ve ("27,00"
+# duplicado) como importe y da un IVA ridículo que no cierra. Este patrón salta esa tasa
+# duplicada y se queda con el tercer número. Es específico de Movistar.
+_IVA_MOVISTAR = re.compile(
+    rf"IVA\s+(?P<rate>27|21|10[.,]5)[\d.,]*%\s+\d+[.,]\d+\s+(?P<amount>{N})\b",
+    re.I,
+)
+
 
 def _lines_with_printed_net(text: str, net_base: Decimal) -> list[ParsedInvoiceLine]:
     """Sin ningún importe de IVA rotulado (Neptun: solo una fila de números bajo el encabezado),
@@ -722,7 +766,15 @@ def _totals_lines(
     # El PDF del portal y varios ERP imprimen el comprobante dos veces (original y duplicado)
     # en la misma hoja: sin quitar los repetidos el IVA se cuenta doble y el total no cierra.
     found: list[tuple[Decimal, Decimal]] = []
-    for rate_text, amount_text in _IVA_AMOUNT.findall(text):
+    # Si el patrón de Movistar matchea, es el bueno — y además el genérico captura mal el
+    # mismo renglón (ver `_IVA_MOVISTAR`). Prevalece y el genérico no se corre.
+    mov_matches = list(_IVA_MOVISTAR.finditer(text))
+    iterable = (
+        ((m.group("rate"), m.group("amount")) for m in mov_matches)
+        if mov_matches
+        else _IVA_AMOUNT.findall(text)
+    )
+    for rate_text, amount_text in iterable:
         rate = _to_decimal(rate_text.replace(",", "."))
         amount = _to_decimal(amount_text)
         if rate is not None and amount is not None and amount > 0:
