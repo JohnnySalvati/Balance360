@@ -263,3 +263,18 @@ Sample of 49 invoices from 2025: 47 close to the cent (all of the sales, 9 suppl
   exported to `.xlsx` first, year by year.
 - `Compras  01.xlsx` and `Ventas 01.xlsx` sit in the repo root and this repository is public:
   they hold real purchase and sales data and should be removed from history.
+
+### Price suggestions: one query per product on every items-table render
+**Noted:** 2026-10-02 — `_items_table_context` (`web/invoices.py`) builds the price
+suggestions with one `get_by_last_product_purchase` per product in the catalog. That loop
+used to run only when the "+ Agregar ítem" button fetched the form; now the blank line is
+part of the table, so it runs on **every** render of it — adding a line, deleting one,
+editing a field, saving the header, opening the detail.
+
+**Why it was accepted:** the suggestion is what makes the blank line useful (it fills the
+price and the aliquot from the last purchase plus the product's margin), and the catalog is
+small today. It is a loop over products, not over lines, so it grows with the catalog.
+
+**Solution scope:** one query that returns the last purchase per product (window function
+over `invoice_lines` partitioned by `product_id`, or a lateral join), replacing the loop.
+Same shape of result, so nothing outside the helper changes.

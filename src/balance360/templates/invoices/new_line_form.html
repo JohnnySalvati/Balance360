@@ -1,3 +1,10 @@
+{# Fila de alta de un ítem. La incluye partials/items_table.html al final del
+   tbody, así que está siempre presente mientras el comprobante no esté confirmado.
+
+   Emite <td> pelados: el <tr> lo pone la tabla. Los controles cuelgan del <form
+   id="new-line-form"> de detail.html con el atributo `form=`, porque un <form>
+   dentro de un <table> lo descarta el parser. Por eso también lo que se escriba acá
+   no sale al confirmar el comprobante: es otro formulario. #}
 <td class="px-4 py-3 align-top bg-blue-100/60">
     <select name="product_id" form="new-line-form"
             onchange="toggleNewLineDescription(this.value); suggestNewLinePrice(this)"
@@ -67,11 +74,9 @@
     <span id="new-line-subtotal" class="text-gray-700">—</span>
 </td>
 <td class="px-4 py-3 text-right align-top bg-blue-100/60 whitespace-nowrap">
+    {# Sin ✕: la fila es parte de la tabla, no un formulario que se abre y se cierra.
+       Lo que quede escrito y no se agregue no existe para el comprobante — se
+       descarta solo, porque pertenece a otro <form> que nunca se envía. #}
     <button type="submit" form="new-line-form"
             class="text-green-600 hover:text-green-800 text-xs">Agregar</button>
-    <button type="button"
-            hx-get="/invoices/{{ invoice.id }}/lines/close-form"
-            hx-target="#line-form-row"
-            hx-swap="innerHTML"
-            class="ml-2 text-gray-400 hover:text-gray-600 text-xs">✕</button>
 </td>

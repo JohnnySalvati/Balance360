@@ -253,7 +253,7 @@
 {# Reglas fiscales del encabezado editable (partials/header_form.html): letra
    admitida, rol de la identidad, toggles de concepto y "solo impositivo".
    Se carga acá una sola vez; el partial que entra por swap solo re-inicializa. #}
-<script src="/static/js/invoice_form.js"></script>
+<script src="{{ static_url('js/invoice_form.js') }}"></script>
 
 <script>
     // Confirmar congela el comprobante. Si el encabezado está en edición, lo que

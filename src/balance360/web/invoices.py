@@ -235,6 +235,62 @@ def new_contact_form(request: Request, invoice_type: str = Query(default="")):
     )
 
 
+@router.get("/contact-options", response_class=HTMLResponse)
+def contact_options(
+    request: Request,
+    search: str = Query(default=""),
+    invoice_type: str = Query(default=""),
+    contact_id: str = Query(default=""),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Las opciones del select de contacto, filtradas por lo que se escribio.
+
+    Declarada ANTES que /{invoice_id} por lo mismo que /close-modal: si no,
+    "contact-options" entraria por el parametro de ruta (ver test_route_order).
+
+    Busca con `contact_crud.get_all`, el mismo ilike sobre nombre Y nombre de
+    fantasia de Configuracion → Contactos: una sola definicion de que es buscar un
+    contacto, en vez de un criterio distinto por pantalla.
+
+    Con texto escrito deja elegido el PRIMER resultado. Un select cerrado muestra
+    solo la opcion elegida, asi que filtrar opciones que no estan a la vista se ve
+    exactamente igual que no hacer nada; moviendo la seleccion el efecto se ve sin
+    abrir la lista. No cuesta nada: el encabezado no se guarda hasta que se envia.
+
+    El contacto ya elegido vuelve en la lista aunque no coincida con la busqueda —
+    si no, un tipeo equivocado lo borraria del comprobante.
+    """
+    if invoice_type == "purchase":
+        allowed = (ContactType.supplier, ContactType.both)
+    elif invoice_type == "sale":
+        allowed = (ContactType.customer, ContactType.both)
+    else:
+        # Sin tipo no se filtra: elegir uno por nuestra cuenta esconderia la mitad de
+        # la libreta sin que se note.
+        allowed = tuple(ContactType)
+
+    contacts = [c for c in contact_crud.get_all(db, search) if c.contact_type in allowed]
+    current = contact_crud.get_by_id(db, UUID(contact_id)) if contact_id else None
+
+    if search.strip() and contacts:
+        selected_id = contacts[0].id
+    else:
+        selected_id = current.id if current else None
+
+    if current and all(c.id != current.id for c in contacts):
+        contacts.append(current)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="invoices/_contact_options.html",
+        context={
+            "contacts": contacts,
+            "selected_contact_id": selected_id,
+            "show_placeholder": selected_id is None,
+        },
+    )
+
+
 @router.post("/contacts", response_class=HTMLResponse)
 def create_contact_from_invoice(
     db: Session = Depends(get_db),
@@ -286,6 +342,39 @@ def create_contact_from_invoice(
     return response
 
 
+def _items_table_context(db: Session, invoice: Invoice) -> dict:
+    """Contexto de partials/items_table.html, y de todo lo que la incluya.
+
+    La tabla ya trae la fila en blanco del alta (new_line_form.html) en vez de
+    pedirla con un boton, asi que necesita el catalogo y las sugerencias de precio
+    en CADA render. Antes se armaban en una sola ruta; copiarlos en las siete que
+    devuelven la tabla era garantizar que alguna quedara sin ellos y la fila saliera
+    sin productos.
+
+    Las sugerencias son una consulta por producto (el ultimo precio de compra de esa
+    entidad). Con un catalogo grande esto se va a notar — esta anotado en PENDING.md.
+    """
+    products = product_crud.get_all(db)
+    suggestions = {}
+
+    for product in products:
+        invoice_line = invoice_line_crud.get_by_last_product_purchase(
+            db, product.id, invoice.entity_id
+        )
+        if invoice_line:
+            suggestions[invoice_line.product_id] = {
+                "price": invoice_line.unit_price * (1 + product.margin / 100),
+                "iva": invoice_line.iva_aliquot.name,
+            }
+
+    return {
+        "invoice": invoice,
+        "iva_aliquots": IvaAliquot,
+        "products": products,
+        "suggestions": suggestions,
+    }
+
+
 @router.get("/{invoice_id}")
 def invoice_detail(
     request: Request, invoice: Invoice = Depends(get_invoice_or_404), db: Session = Depends(get_db)
@@ -294,9 +383,8 @@ def invoice_detail(
         request=request,
         name="invoices/detail.html",
         context={
-            "invoice": invoice,
+            **_items_table_context(db, invoice),
             "accounts": account_crud.get_all(db),
-            "iva_aliquots": IvaAliquot,
             "tribute_types": TributeType,
         },
     )
@@ -427,39 +515,7 @@ def update_invoice(
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/header_saved.html",
-        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
-    )
-
-
-@router.get("/{invoice_id}/lines/new-form", response_class=HTMLResponse)
-def new_line_form(
-    request: Request,
-    invoice: Invoice = Depends(get_invoice_or_404),
-    db: Session = Depends(get_db),
-):
-
-    suggestions = {}
-    products = product_crud.get_all(db)
-
-    for product in products:
-        invoice_line = invoice_line_crud.get_by_last_product_purchase(
-            db, product.id, invoice.entity_id
-        )
-        if invoice_line:
-            suggestions[invoice_line.product_id] = {
-                "price": invoice_line.unit_price * (1 + product.margin / 100),
-                "iva": invoice_line.iva_aliquot.name,
-            }
-
-    return templates.TemplateResponse(
-        request=request,
-        name="invoices/new_line_form.html",
-        context={
-            "invoice": invoice,
-            "products": products,
-            "iva_aliquots": IvaAliquot,
-            "suggestions": suggestions,
-        },
+        context=_items_table_context(db, invoice),
     )
 
 
@@ -478,7 +534,7 @@ def delete_invoice_line(
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/items_table.html",
-        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
+        context=_items_table_context(db, invoice),
     )
 
 
@@ -567,7 +623,7 @@ def create_invoice_line(
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/items_table.html",
-        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
+        context=_items_table_context(db, invoice),
     )
 
 
@@ -578,11 +634,6 @@ def authorize_invoice(
 ):
     invoice_service.authorize_invoice(db, invoice)
     return Response(status_code=200, headers={"HX-Redirect": f"/invoices/{invoice.id}"})
-
-
-@router.get("/{invoice_id}/lines/close-form", response_class=HTMLResponse)
-def close_line_form(invoice_id: UUID):
-    return HTMLResponse("")
 
 
 @router.get("/{invoice_id}/tributes/new-form", response_class=HTMLResponse)
@@ -625,7 +676,7 @@ def create_invoice_tribute(
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/items_table.html",
-        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
+        context=_items_table_context(db, invoice),
     )
 
 
@@ -643,7 +694,7 @@ def delete_invoice_tribute(
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/items_table.html",
-        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
+        context=_items_table_context(db, invoice),
     )
 
 
@@ -840,7 +891,7 @@ def create_serial(
         return templates.TemplateResponse(
             request=request,
             name="invoices/partials/items_table.html",
-            context={"invoice": invoice_line.invoice, "iva_aliquots": IvaAliquot},
+            context=_items_table_context(db, invoice_line.invoice),
         )
     else:
         return templates.TemplateResponse(
@@ -867,7 +918,7 @@ def delete_serial(
         response = templates.TemplateResponse(
             request=request,
             name="invoices/partials/items_table.html",
-            context={"invoice": invoice_line.invoice, "iva_aliquots": IvaAliquot},
+            context=_items_table_context(db, invoice_line.invoice),
         )
     else:
         response = templates.TemplateResponse(
@@ -979,7 +1030,7 @@ def update_lines(
     return templates.TemplateResponse(
         request=request,
         name="invoices/partials/items_table.html",
-        context={"invoice": invoice, "iva_aliquots": IvaAliquot},
+        context=_items_table_context(db, invoice),
     )
 
 

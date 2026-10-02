@@ -89,7 +89,7 @@
 {# Reglas fiscales compartidas con la edición del encabezado: letra admitida, rol
    de la identidad, toggles de concepto y "solo impositivo".
    Ver static/js/invoice_form.js. #}
-<script src="/static/js/invoice_form.js"></script>
+<script src="{{ static_url('js/invoice_form.js') }}"></script>
 <script>
 // Hook que llama el select de tipo en _header_fields.html. Cada página encadena
 // lo suyo: acá el campo Número (solo compras), en la edición la visibilidad de
@@ -121,9 +121,20 @@ function toggleFormal(checked) {
 // de crear el "+ Nuevo" (el listener contactCreated vuelve a llamar acá). La primera
 // opción visible es el placeholder, así que al cambiar de compra a venta se sigue
 // cayendo en "— Seleccionar contacto —" como hasta ahora.
-function filterContacts() {
+// Solo se resetea la selección si el contacto elegido dejó de corresponder al tipo
+// de comprobante; antes se reseteaba siempre, y eso deshacía el contacto que acabara
+// de crear el "+ Nuevo" (el listener contactCreated vuelve a llamar acá). La primera
+// opción visible es el placeholder, así que al cambiar de compra a venta se sigue
+// cayendo en "— Seleccionar contacto —" como hasta ahora.
+function filterContacts(invoiceType) {
     const select = document.getElementById('contact-select');
-    const firstVisible = refreshContactOptions();
+    const allowed = invoiceType === 'purchase' ? ['supplier', 'both'] : ['customer', 'both'];
+    let firstVisible = null;
+    select.querySelectorAll('option').forEach(opt => {
+        const visible = allowed.includes(opt.dataset.type);
+        opt.hidden = !visible;
+        if (visible && !firstVisible) firstVisible = opt;
+    });
     const current = select.options[select.selectedIndex];
     if ((!current || current.hidden) && firstVisible) select.value = firstVisible.value;
 }

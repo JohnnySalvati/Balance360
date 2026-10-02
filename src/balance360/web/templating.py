@@ -7,7 +7,10 @@ from fastapi.templating import Jinja2Templates
 from balance360.models.money import money
 from balance360.services.text import format_cuit
 
-templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates")
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+STATIC_DIR = Path(__file__).parent.parent / "static"
+
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 def format_amount(value):
@@ -23,3 +26,25 @@ templates.env.filters["cuit"] = format_cuit
 templates.env.globals["current_year"] = lambda: date.today().year
 templates.env.globals["current_month"] = lambda: date.today().month
 templates.env.globals["today"] = lambda: date.today().isoformat()
+
+
+def static_url(path: str) -> str:
+    """La URL de un archivo de /static con la fecha del archivo pegada detrás.
+
+    El HTML se pide en cada navegación, pero un .js ya cacheado no: el navegador lo
+    sirve de su copia y un cambio de código no llega nunca —se ve el markup nuevo
+    corriendo el script viejo, que es un síntoma imposible de diagnosticar desde
+    adentro—. El sufijo cambia solo cuando cambia el archivo, así que la cache sigue
+    valiendo mientras el contenido sea el mismo.
+
+    Si el archivo no está (un nombre mal escrito), devuelve la URL pelada: que falte
+    el cache-busting es un problema menor al lado de romper el render de la página.
+    """
+    url = f"/static/{path}"
+    try:
+        return f"{url}?v={int((STATIC_DIR / path).stat().st_mtime)}"
+    except OSError:
+        return url
+
+
+templates.env.globals["static_url"] = static_url

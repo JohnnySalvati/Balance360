@@ -81,6 +81,7 @@ def _next_tax_id() -> str:
 def make_contact(
     db: Session,
     name="Test",
+    trade_name=None,
     tax_id=_AUTO,
     contact_type=ContactType.both,
     email="test@testing.com.ar",
@@ -90,6 +91,7 @@ def make_contact(
     contact = Contact(
         id=uuid.uuid4(),
         name=name,
+        trade_name=trade_name,
         tax_id=_next_tax_id() if tax_id is _AUTO else tax_id,
         contact_type=contact_type,
         email=email,

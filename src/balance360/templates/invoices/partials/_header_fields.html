@@ -45,7 +45,10 @@
    syncFormalFields la usa para ocultar Y deshabilitar de una sola pasada.
 
    La pagina que incluye este partial tiene que tener un <div id="modal"> FUERA del
-   <form>: es el destino del "+ Nuevo" contacto. #}
+   <form>: es el destino del "+ Nuevo" contacto.
+
+   Las opciones del select de contacto salen de invoices/_contact_options.html, el
+   mismo partial que devuelve el buscador. #}
 {% set inv = invoice if invoice is defined and invoice else none %}
 {# Una NC nace de create_credit_note y arrastra su comprobante original; un
    comprobante comun nunca se convierte en una. Ofrecer la otra mitad de las
@@ -114,25 +117,36 @@
         {# El buscador y el select comparten fila para no agrandar la celda. El input no
            tiene `name`: no se envía, solo filtra las opciones (invoice_form.js). El
            select sigue siendo la fuente de verdad, así que ningún id ni el POST cambian. #}
-        <div class="relative flex gap-1.5">
-            <input type="search" id="contact-search" placeholder="Buscar…" autocomplete="off"
-                   oninput="onContactSearch(this.value)"
+        {# El buscador no filtra en el navegador: le pide al servidor las opciones ya
+           filtradas (GET /invoices/contact-options) y le reemplaza el contenido al
+           select. Es la misma búsqueda de Configuración → Contactos —un ilike sobre
+           nombre Y nombre de fantasía—, así que "buscar un contacto" significa lo
+           mismo en los dos lugares y no hay un segundo criterio que mantener.
+
+           Manda el tipo de comprobante y el contacto elegido (hx-include): con el
+           primero la ruta filtra cliente/proveedor, con el segundo no se pierde lo ya
+           elegido. Al volver dispara `change` en el select, cuyo onchange recalcula
+           las letras admitidas — la condición IVA del contacto las decide.
+
+           Enter acá significa "buscar", no "enviar el comprobante". #}
+        <div class="flex gap-1.5">
+            <input type="search" id="contact-search" name="search" placeholder="Buscar…"
+                   autocomplete="off"
+                   onkeydown="if (event.key === 'Enter') event.preventDefault()"
+                   hx-get="/invoices/contact-options"
+                   hx-trigger="input changed delay:300ms, search"
+                   hx-target="#contact-select"
+                   hx-swap="innerHTML"
+                   hx-include="#invoice-type, #contact-select"
+                   hx-on::after-request="document.getElementById('contact-select').dispatchEvent(new Event('change'))"
                    class="w-24 shrink-0 border border-gray-300 rounded px-2 py-1 text-sm">
             <select name="contact_id" id="contact-select" required
                     onchange="applyVoucherFilter()"
                     class="min-w-0 flex-1 border border-gray-300 rounded px-2 py-1 text-sm">
-                {# En el alta arranca sin elegir, para que el `required` obligue a decidir. #}
-                {% if not inv %}
-                <option value="" data-type="both">— Seleccionar contacto —</option>
-                {% endif %}
-                {% for c in contacts %}
-                {# data-search: lo que matchea el buscador. El nombre de fantasía va en el
-                   texto de la opción también, para distinguir "AOMA Bs. As." de su razón social. #}
-                <option value="{{ c.id }}" data-type="{{ c.contact_type.value }}"
-                        data-condicion="{{ c.condicion_iva.name }}"
-                        data-search="{{ c.name }} {{ c.trade_name or '' }}"
-                        {{ "selected" if inv and c.id == inv.contact_id else "" }}>{{ c.name }}{% if c.trade_name %} · {{ c.trade_name }}{% endif %}</option>
-                {% endfor %}
+                {% with selected_contact_id = (inv.contact_id if inv else none),
+                        show_placeholder = (not inv) %}
+                {% include "invoices/_contact_options.html" %}
+                {% endwith %}
             </select>
         </div>
     </div>

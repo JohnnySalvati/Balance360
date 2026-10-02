@@ -1,0 +1,19 @@
+{# Opciones del #contact-select. Las emite el mismo partial en los dos caminos: el
+   render inicial del encabezado (_header_fields.html, con la lista completa) y el
+   buscador, que las pide por HTMX a /invoices/contact-options ya filtradas.
+
+   Quién filtra por tipo de comprobante cambia según el camino: en el inicial lo hace
+   filterContacts en el navegador sobre estas opciones; en el del buscador lo hace la
+   ruta, que recibe el tipo. Acá no hay filtro: el partial dibuja lo que le dan.
+
+   Contexto: contacts, selected_contact_id (uuid o none), show_placeholder (bool). #}
+{% if show_placeholder %}
+<option value="" data-type="both">— Seleccionar contacto —</option>
+{% endif %}
+{% for c in contacts %}
+{# El nombre de fantasía va en el texto de la opción: es lo que distingue
+   "AOMA Bs. As." de la razón social con la que está cargado el mismo sujeto. #}
+<option value="{{ c.id }}" data-type="{{ c.contact_type.value }}"
+        data-condicion="{{ c.condicion_iva.name }}"
+        {{ "selected" if selected_contact_id and c.id == selected_contact_id else "" }}>{{ c.name }}{% if c.trade_name %} · {{ c.trade_name }}{% endif %}</option>
+{% endfor %}
