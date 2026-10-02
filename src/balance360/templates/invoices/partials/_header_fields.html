@@ -114,7 +114,7 @@
         {# El buscador y el select comparten fila para no agrandar la celda. El input no
            tiene `name`: no se envía, solo filtra las opciones (invoice_form.js). El
            select sigue siendo la fuente de verdad, así que ningún id ni el POST cambian. #}
-        <div class="flex gap-1.5">
+        <div class="relative flex gap-1.5">
             <input type="search" id="contact-search" placeholder="Buscar…" autocomplete="off"
                    oninput="onContactSearch(this.value)"
                    class="w-24 shrink-0 border border-gray-300 rounded px-2 py-1 text-sm">

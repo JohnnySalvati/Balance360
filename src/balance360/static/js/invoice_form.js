@@ -163,24 +163,80 @@ function refreshContactOptions() {
     let firstVisible = null;
     select.querySelectorAll('option').forEach(opt => {
         const typeOk = !opt.dataset.type || allowed.includes(opt.dataset.type);
-        const textOk = !opt.value || normalizeText(opt.dataset.search).includes(query);
+        // El placeholder no es un resultado: con texto buscado se oculta.
+        const textOk = opt.value
+            ? normalizeText(opt.dataset.search).includes(query)
+            : query === '';
         opt.hidden = !(typeOk && textOk);
         if (!opt.hidden && !firstVisible) firstVisible = opt;
     });
     return firstVisible;
 }
 
-// Al escribir: si queda un solo contacto posible se elige solo (y se dispara `change`
-// para que se recalcule la letra); con varios, el select queda como estaba.
+// Un <select> cerrado solo muestra la opción elegida: filtrar sus opciones no se ve
+// hasta abrirlo, y a quien escribe le parece que "no pasa nada". Por eso, mientras hay
+// texto, el select se despliega como lista (size > 1) superpuesta sobre lo de abajo, con
+// solo los contactos que coinciden. Al elegir uno, o al vaciar el buscador, vuelve a ser
+// un select común. Las clases son las de Tailwind; sin build step se agregan por JS.
+const CONTACT_LIST_CLASSES = ['absolute', 'z-20', 'left-[6.5rem]', 'right-0', 'top-0',
+    'bg-white', 'shadow-lg'];
+
+function collapseContactList() {
+    const select = document.getElementById('contact-select');
+    select.size = 1;
+    select.classList.remove(...CONTACT_LIST_CLASSES);
+}
+
 function onContactSearch() {
     refreshContactOptions();
     const select = document.getElementById('contact-select');
+    const search = document.getElementById('contact-search');
     const matches = Array.from(select.options).filter(opt => opt.value && !opt.hidden);
+    if (!search.value.trim()) {
+        collapseContactList();
+        return;
+    }
+    // Un solo resultado: se elige solo (y `change` recalcula la letra).
     if (matches.length === 1 && select.value !== matches[0].value) {
         select.value = matches[0].value;
         select.dispatchEvent(new Event('change'));
     }
+    select.size = Math.max(2, Math.min(matches.length, 6));
+    select.classList.add(...CONTACT_LIST_CLASSES);
 }
+
+// Enter elige el primer resultado, flecha abajo pasa a la lista, Escape limpia.
+document.addEventListener('keydown', function (e) {
+    if (e.target.id !== 'contact-search') return;
+    const select = document.getElementById('contact-select');
+    const first = Array.from(select.options).find(opt => opt.value && !opt.hidden);
+    if (e.key === 'Enter') {
+        e.preventDefault();  // un Enter en el buscador no debe enviar el comprobante
+        if (first) {
+            select.value = first.value;
+            select.dispatchEvent(new Event('change'));
+        }
+        e.target.value = '';
+        refreshContactOptions();
+        collapseContactList();
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        select.focus();
+    } else if (e.key === 'Escape') {
+        e.target.value = '';
+        refreshContactOptions();
+        collapseContactList();
+    }
+});
+
+// Elegir con el mouse en la lista desplegada la cierra y limpia el buscador.
+document.addEventListener('change', function (e) {
+    if (e.target.id !== 'contact-select' || e.target.size === 1) return;
+    const search = document.getElementById('contact-search');
+    search.value = '';
+    refreshContactOptions();
+    collapseContactList();
+});
 
 // Alta de contacto desde el propio comprobante: POST /invoices/contacts cierra el
 // modal y manda los datos por HX-Trigger.
@@ -206,6 +262,7 @@ document.body.addEventListener('contactCreated', function (e) {
     // Un buscador con texto lo dejaría fuera de la lista justo después de crearlo.
     const search = document.getElementById('contact-search');
     if (search) search.value = '';
+    collapseContactList();
     filterContacts(document.getElementById('invoice-type').value);
     applyVoucherFilter();
 });
