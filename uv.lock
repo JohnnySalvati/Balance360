@@ -79,6 +79,7 @@ dependencies = [
     { name = "pillow" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "pypdfium2" },
     { name = "python-jose", extra = ["cryptography"] },
     { name = "python-multipart" },
@@ -89,7 +90,7 @@ dependencies = [
     { name = "zeep" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "httpx" },
     { name = "mypy" },
@@ -105,28 +106,32 @@ requires-dist = [
     { name = "cryptography", specifier = ">=48.0.0" },
     { name = "fastapi", extras = ["standard"] },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "httpx", marker = "extra == 'dev'" },
     { name = "jinja2" },
-    { name = "mypy", marker = "extra == 'dev'" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
     { name = "pdfplumber", specifier = ">=0.11.9" },
     { name = "pillow", specifier = ">=10" },
     { name = "psycopg", extras = ["binary"] },
     { name = "pydantic", specifier = ">=2.0" },
+    { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "pypdfium2", specifier = ">=4.30" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "python-multipart" },
     { name = "rapidfuzz", specifier = ">=3.14.5" },
-    { name = "ruff", marker = "extra == 'dev'" },
     { name = "segno", specifier = ">=1.6.6" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
     { name = "weasyprint", specifier = ">=69.0" },
     { name = "zeep", specifier = ">=4.3.2" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "httpx" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
 
 [[package]]
 name = "bcrypt"
