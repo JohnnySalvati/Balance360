@@ -9,6 +9,11 @@ Lo que NO cambio es de que formulario cuelga. Los controles de la fila llevan
 `form="new-line-form"` —el <form> vive fuera de la tabla, porque un <form> dentro de un
 <table> lo descarta el parser— que es un formulario distinto del que confirma el
 comprobante. Por eso lo que quede escrito y no se agregue se descarta solo.
+
+Para saber si la fila esta se busca su `id="line-form-row"`, no el texto
+`form="new-line-form"`: ese texto tambien aparece en el JS de la pagina (el selector
+`[form="new-line-form"]` de recalcNewLineSubtotal), que se emite este o no la fila, y
+contra el la ausencia nunca se cumple y la presencia se cumple siempre.
 """
 
 import pytest
@@ -37,7 +42,7 @@ def test_el_detalle_ya_trae_la_fila_en_blanco(client, db):
 
     html = client.get(f"/invoices/{invoice.id}").text
 
-    assert 'form="new-line-form"' in html
+    assert 'id="line-form-row"' in html
     assert "Agregar item" not in html and "Agregar ítem" not in html
 
 
@@ -58,7 +63,7 @@ def test_agregar_un_item_devuelve_otra_fila_en_blanco(client, db):
 
     assert response.status_code == 200
     assert "Flete" in response.text
-    assert 'form="new-line-form"' in response.text
+    assert 'id="line-form-row"' in response.text
 
 
 def test_la_fila_ofrece_el_catalogo_en_cada_render(client, db):
@@ -91,7 +96,7 @@ def test_un_comprobante_confirmado_no_tiene_fila_de_alta(client, db):
 
     html = client.get(f"/invoices/{invoice.id}").text
 
-    assert 'form="new-line-form"' not in html
+    assert 'id="line-form-row"' not in html
 
 
 def test_los_controles_de_la_fila_no_son_del_formulario_que_confirma(client, db):
