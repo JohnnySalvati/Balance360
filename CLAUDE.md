@@ -502,3 +502,13 @@ Los commits los hacés vos directamente (decisión de Johnny, 2026-08-26): `git 
 `git commit`, sin pedir confirmación previa del mensaje. Seguí la convención del repo —
 Conventional Commits en español, con scope, y el cuerpo explicando el porqué, no el qué.
 Los trailers `Co-Authored-By` y `Claude-Session` van siempre.
+
+**Una sola rama: `fastapi`** (decisión de Johnny, 2026-10-03). Se trabaja, se commitea y
+se pushea siempre a `fastapi`, la rama por defecto del repo. No se abren ramas por sesión
+ni por tema, aunque el entorno sugiera una (las sesiones en la nube arrancan en una
+`claude/...`: se pasa a `fastapi` antes de tocar nada).
+
+**Se commitea al cerrar cada tema, sin que haga falta pedirlo.** Cerrado quiere decir que
+el cambio está terminado y verificado: tests en verde y ruff limpio en lo tocado. Un commit
+por tema, con su push, y recién después se pasa al siguiente. Lo que quede a medias no
+se commitea: se avisa qué falta.
