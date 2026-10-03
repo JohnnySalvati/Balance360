@@ -458,8 +458,11 @@ def import_one(
 
 
 def iter_pdfs(base_dir: Path) -> Iterable[Path]:
-    yield from sorted(p for p in base_dir.rglob("*.pdf") if p.is_file())
-    yield from sorted(p for p in base_dir.rglob("*.PDF") if p.is_file())
+    # Un solo recorrido, comparando la extensión en minúsculas. Antes eran dos `rglob`, uno
+    # por "*.pdf" y otro por "*.PDF": en Linux son patrones distintos, pero en Windows el
+    # sistema de archivos no distingue mayúsculas y los dos devolvían el mismo archivo, así
+    # que cada PDF se procesaba dos veces. Y un ".Pdf" no lo encontraba ninguno de los dos.
+    yield from sorted(p for p in base_dir.rglob("*") if p.is_file() and p.suffix.lower() == ".pdf")
 
 
 def run(base_dir: Path, kind: InvoiceType, commit: bool) -> ImportResult:

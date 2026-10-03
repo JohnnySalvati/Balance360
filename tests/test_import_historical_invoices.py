@@ -33,6 +33,21 @@ def make_pdf(base_dir: Path, name: str, content: bytes = b"%PDF-1.4 fake") -> Pa
     return p
 
 
+def test_iter_pdfs_devuelve_cada_pdf_una_vez_sin_importar_mayusculas(base_dir):
+    """Falla con la versión de dos `rglob` en los dos sistemas: en Windows, que no distingue
+    mayúsculas, "*.pdf" y "*.PDF" devuelven el mismo archivo y cada PDF salía dos veces; en
+    Linux el ".Pdf" no lo encontraba ninguno de los dos patrones."""
+    sub = base_dir / "2025"
+    sub.mkdir()
+    for name in ("a.pdf", "b.PDF", "c.Pdf"):
+        make_pdf(sub, name)
+    (sub / "notas.txt").write_text("no es un pdf")
+
+    names = [p.name for p in loader.iter_pdfs(base_dir)]
+
+    assert sorted(names) == ["a.pdf", "b.PDF", "c.Pdf"]
+
+
 def make_parsed(
     *,
     voucher_type: str = "A",
