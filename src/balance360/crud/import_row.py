@@ -33,6 +33,10 @@ def get_by_batch(
     if status:
         stmt = stmt.filter(ImportRow.status == status)
 
+    # Orden de la planilla. Sin `ORDER BY` Postgres devuelve las filas en el orden que le
+    # quede cómodo, y la grilla de revisión se reacomodaba sola en cada re-render.
+    stmt = stmt.order_by(ImportRow.source_row, ImportRow.id)
+
     import_rows = db.execute(stmt).scalars().all()
     return list(import_rows)
 

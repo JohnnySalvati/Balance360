@@ -79,6 +79,16 @@ class ImportServiceError(Balance360Error):
     pass
 
 
+class ImportRowValidationError(Balance360Error):
+    """Alguna de las filas que se mandaron a importar no se puede convertir en transacción.
+
+    La importación es todo o nada: si una sola fila falla no se crea ninguna, y el mensaje
+    nombra cada fila que hay que corregir. Sube al handler global como cualquier error de
+    dominio, que con `HX-Reswap: none` deja la grilla como estaba — con lo que el operador
+    ya había tipeado — para que corrija y vuelva a intentar.
+    """
+
+
 class ArcaError(Balance360Error):
     pass
 

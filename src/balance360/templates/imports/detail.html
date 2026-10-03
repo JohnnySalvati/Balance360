@@ -26,17 +26,24 @@
     {# Acción masiva — aparece sola cuando hay alguna fila tildada (CSS :has) #}
     <div class="bulk-bar shrink-0 mb-4 bg-blue-100 border border-blue-300 rounded p-3 items-center gap-3 flex-wrap">
         <span class="text-sm text-gray-600">Aplicar a las seleccionadas:</span>
-        <select id="bulk-type" name="type" class="border rounded px-2 py-1 text-xs">
+        {# Sin `name` a propósito: estos selects no viajan en el POST. Al cambiarlos copian el
+           valor a las filas tildadas, y desde ahí cada fila es independiente — lo que se
+           importa es lo que se ve en la grilla. #}
+        <select id="bulk-type" onchange="aplicarATildadas('type', this.value); this.value = ''"
+                class="border rounded px-2 py-1 text-xs">
+            <option value="" selected disabled>Tipo…</option>
             <option value="expense">Egreso</option>
             <option value="income">Ingreso</option>
         </select>
-        <select id="bulk-account" name="account_id" class="border rounded px-2 py-1 text-xs">
+        <select id="bulk-account" onchange="aplicarATildadas('account_id', this.value); this.value = ''"
+                class="border rounded px-2 py-1 text-xs">
+            <option value="" selected disabled>Cuenta…</option>
             {% for acc in accounts %}
             <option value="{{ acc.id }}">{{ acc.name }}</option>
             {% endfor %}
         </select>
         <button hx-post="/imports/rows/bulk-import"
-                hx-include="[name='row_ids']:checked, #bulk-type, #bulk-account"
+                hx-include="#rows-body tr:has(.row-check:checked) input, #rows-body tr:has(.row-check:checked) select"
                 hx-target="#rows-body"
                 hx-swap="innerHTML"
                 class="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-800">
@@ -72,6 +79,19 @@
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
+    }
+
+    // Copia el valor del selector masivo al select `name` de cada fila tildada. Se aplica
+    // en el momento: una fila que se tilda después conserva lo suyo. El selector vuelve
+    // enseguida a "Tipo…"/"Cuenta…" porque es una acción y no un estado: así se puede
+    // volver a aplicar el mismo valor a filas tildadas después, que con el valor puesto
+    // no dispararía `change`.
+    function aplicarATildadas(name, value) {
+        document.querySelectorAll('#rows-body tr').forEach(tr => {
+            const check = tr.querySelector('.row-check');
+            const select = tr.querySelector(`select[name="${name}"]`);
+            if (check && check.checked && select) select.value = value;
+        });
     }
 
     function filtrarPorDescripcion(query) {
